@@ -36,10 +36,42 @@
     ],
     "Notification": [
       {
+        "matcher": "elicitation_dialog",
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-notification.js",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-notification.js questioning",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-notification.js idle",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-prompt-submit.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-stop.js",
             "timeout": 5
           }
         ]
@@ -51,7 +83,7 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-session-end.js",
-            "timeout": 5
+            "timeout": 15
           }
         ]
       }

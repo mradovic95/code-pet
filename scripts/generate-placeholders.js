@@ -70,6 +70,14 @@ const STATES = {
     mouth: 'frown',
     extras: [],
   },
+  questioning: {
+    frames: 4,
+    color: '#F5A623',
+    label: '?',
+    eyes: 'wide',
+    mouth: 'flat',
+    extras: [],
+  },
 };
 
 function generateEyes(type, cx, cy, frame) {
@@ -175,6 +183,14 @@ function generateFrame(state, frameIndex) {
     <!-- Extras -->
     ${extrasEl}
     ${typingCursor}
+    ${state === 'questioning' ? (() => {
+      const angles = [-15, 0, 15, 0];
+      const angle = angles[frameIndex % angles.length];
+      const qx = cx;
+      const qy = cy - 24 + bounceY;
+      return `<!-- Question mark -->
+    <text x="${qx}" y="${qy}" font-family="sans-serif" font-size="18" font-weight="bold" fill="#FFD700" stroke="#333" stroke-width="0.8" text-anchor="middle" transform="rotate(${angle}, ${qx}, ${qy})">?</text>`;
+    })() : ''}
     <!-- Label -->
     <text x="${cx}" y="${58}" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">${s.label} ${frameIndex + 1}</text>
   `;

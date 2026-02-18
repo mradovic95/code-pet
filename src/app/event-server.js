@@ -5,7 +5,7 @@ const { app } = require('electron');
 const logger = require('./logger');
 const { getWindow } = require('./window-manager');
 
-const VALID_EVENTS = ['idle', 'wake', 'sleep', 'thinking', 'typing', 'success', 'error'];
+const VALID_EVENTS = ['idle', 'wake', 'sleep', 'thinking', 'typing', 'success', 'error', 'questioning'];
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 
 let server = null;

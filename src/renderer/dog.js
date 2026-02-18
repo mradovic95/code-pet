@@ -7,7 +7,8 @@ const SPRITES = {
   thinking: { frames: 4, duration: 1200, loop: true },
   typing:   { frames: 6, duration: 600,  loop: true },
   success:  { frames: 4, duration: 1000, loop: false },
-  error:    { frames: 4, duration: 800,  loop: false },
+  error:       { frames: 4, duration: 800,  loop: false },
+  questioning: { frames: 4, duration: 1200, loop: true },
 };
 
 // Auto-transition targets for non-looping or transient states
@@ -18,7 +19,7 @@ const AUTO_TRANSITIONS = {
 };
 
 // Persistent states auto-return to idle after inactivity
-const PERSISTENT_STATES = new Set(['thinking', 'typing']);
+const PERSISTENT_STATES = new Set(['thinking', 'typing', 'questioning']);
 const INACTIVITY_TIMEOUT = 10000; // 10 seconds
 
 const DEBOUNCE_MS = 300;
@@ -45,6 +46,16 @@ const dogStateMachine = (() => {
 
   function applyState(state) {
     if (!SPRITES[state]) return;
+
+    // For persistent states, reset inactivity timer even if state unchanged
+    if (state === currentState && PERSISTENT_STATES.has(state)) {
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
+      inactivityTimer = setTimeout(() => applyState('idle'), INACTIVITY_TIMEOUT);
+      return;
+    }
+
     if (state === currentState) return;
 
     clearTimers();

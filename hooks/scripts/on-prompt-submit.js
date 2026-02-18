@@ -6,8 +6,7 @@ async function main() {
   // Drain stdin (hook may pipe data)
   for await (const _chunk of process.stdin) { /* discard */ }
 
-  const event = process.argv[2] === 'questioning' ? 'questioning' : 'idle';
-  await sendEvent(event);
+  await sendEvent('thinking');
 
   process.stdout.write('{}');
 }

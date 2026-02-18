@@ -107,3 +107,7 @@ code-pet/
 - Node.js >= 18
 - macOS, Linux, or Windows
 - Claude Code with plugin support
+
+
+
+pkill -9 -f code-pet; rm -f ~/.code-pet/app.pid 

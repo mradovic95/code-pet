@@ -102,3 +102,14 @@ html, body {
   from { background-position-x: 0; }
   to { background-position-x: -256px; }
 }
+
+/* --- Questioning: 4 frames, 1200ms, loops --- */
+#dog.questioning {
+  background-image: url('../../assets/sprites/questioning.svg');
+  background-size: calc(64px * 4) 64px;
+  animation: questioning-anim 1200ms steps(4) infinite;
+}
+@keyframes questioning-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}

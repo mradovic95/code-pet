@@ -22,6 +22,7 @@
     <!-- Extras -->
     
     
+    
     <!-- Label -->
     <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">err 1</text>
   
@@ -43,6 +44,7 @@
     <!-- Mouth -->
     <path d="M91,40 Q96,34 101,40" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
+    
     
     
     <!-- Label -->
@@ -68,6 +70,7 @@
     <!-- Extras -->
     
     
+    
     <!-- Label -->
     <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">err 3</text>
   
@@ -89,6 +92,7 @@
     <!-- Mouth -->
     <path d="M219,36 Q224,30 229,36" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
+    
     
     
     <!-- Label -->
