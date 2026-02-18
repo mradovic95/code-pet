@@ -1,5 +1,12 @@
 {
   "name": "code-pet",
   "description": "Animated desktop pet companion that reacts to Claude Code activity",
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "author": {
+    "name": "mradovic95"
+  },
+  "homepage": "https://github.com/mradovic95/code-pet",
+  "repository": "https://github.com/mradovic95/code-pet",
+  "license": "MIT",
+  "keywords": ["animation", "desktop", "companion", "overlay"]
 }

@@ -107,4 +107,4 @@ npx electron src/app/main.js
 
 ## Sprite Format
 
-Each sprite is a horizontal PNG strip of 64×64px frames with transparent background. Frame counts must match the `SPRITES` config in `src/renderer/dog.js`. CSS in `styles.css` uses `background-position` with `steps(N)` to animate.
+Each sprite is a horizontal SVG strip of 64×64px frames with transparent background. Frame counts must match the `SPRITES` config in `src/renderer/dog.js`. CSS in `styles.css` uses `background-position` with `steps(N)` to animate.

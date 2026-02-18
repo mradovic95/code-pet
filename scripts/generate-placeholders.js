@@ -205,7 +205,7 @@ if (!fs.existsSync(SPRITES_DIR)) {
 // Generate all sprite sheets as SVG (will be referenced directly)
 for (const state of Object.keys(STATES)) {
   const svg = generateSpriteSheet(state);
-  const outputPath = path.join(SPRITES_DIR, `${state}.png`);
+  const outputPath = path.join(SPRITES_DIR, `${state}.svg`);
 
   // Write as SVG with .png extension — Electron/Chromium can render SVG in <img> and CSS backgrounds
   // For true PNG output, use a canvas library. SVG works perfectly as a placeholder.

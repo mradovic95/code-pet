@@ -28,7 +28,7 @@ html, body {
 
 /* --- Idle: 4 frames, 1600ms, loops --- */
 #dog.idle {
-  background-image: url('../../assets/sprites/idle.png');
+  background-image: url('../../assets/sprites/idle.svg');
   background-size: calc(64px * 4) 64px;
   animation: idle-anim 1600ms steps(4) infinite;
 }
@@ -39,7 +39,7 @@ html, body {
 
 /* --- Wake: 4 frames, 800ms, once --- */
 #dog.wake {
-  background-image: url('../../assets/sprites/wake.png');
+  background-image: url('../../assets/sprites/wake.svg');
   background-size: calc(64px * 4) 64px;
   animation: wake-anim 800ms steps(4) forwards;
 }
@@ -50,7 +50,7 @@ html, body {
 
 /* --- Sleep: 4 frames, 2400ms, loops --- */
 #dog.sleep {
-  background-image: url('../../assets/sprites/sleep.png');
+  background-image: url('../../assets/sprites/sleep.svg');
   background-size: calc(64px * 4) 64px;
   animation: sleep-anim 2400ms steps(4) infinite;
 }
@@ -61,7 +61,7 @@ html, body {
 
 /* --- Thinking: 4 frames, 1200ms, loops --- */
 #dog.thinking {
-  background-image: url('../../assets/sprites/thinking.png');
+  background-image: url('../../assets/sprites/thinking.svg');
   background-size: calc(64px * 4) 64px;
   animation: thinking-anim 1200ms steps(4) infinite;
 }
@@ -72,7 +72,7 @@ html, body {
 
 /* --- Typing: 6 frames, 600ms, loops --- */
 #dog.typing {
-  background-image: url('../../assets/sprites/typing.png');
+  background-image: url('../../assets/sprites/typing.svg');
   background-size: calc(64px * 6) 64px;
   animation: typing-anim 600ms steps(6) infinite;
 }
@@ -83,7 +83,7 @@ html, body {
 
 /* --- Success: 4 frames, 1000ms, once --- */
 #dog.success {
-  background-image: url('../../assets/sprites/success.png');
+  background-image: url('../../assets/sprites/success.svg');
   background-size: calc(64px * 4) 64px;
   animation: success-anim 1000ms steps(4) forwards;
 }
@@ -94,7 +94,7 @@ html, body {
 
 /* --- Error: 4 frames, 800ms, once --- */
 #dog.error {
-  background-image: url('../../assets/sprites/error.png');
+  background-image: url('../../assets/sprites/error.svg');
   background-size: calc(64px * 4) 64px;
   animation: error-anim 800ms steps(4) forwards;
 }

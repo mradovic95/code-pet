@@ -1,0 +1,14 @@
+{
+  "name": "code-pet-marketplace",
+  "owner": {
+    "name": "mradovic95"
+  },
+  "plugins": [
+    {
+      "name": "code-pet",
+      "source": "./",
+      "description": "Animated desktop pet companion that reacts to Claude Code activity",
+      "version": "0.1.0"
+    }
+  ]
+}
