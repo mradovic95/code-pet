@@ -5,17 +5,31 @@ bottom-right corner of your screen and responds to session events — thinking, 
 
 ## Installation
 
-Add the plugin to Claude Code:
+**Step 1** — Add the marketplace (one-time setup):
 
-```bash
-claude --plugin-dir /path/to/code-pet
 ```
+/plugin marketplace add mradovic95/code-pet
+```
+
+**Step 2** — Install the plugin:
+
+```
+/plugin install code-pet
+```
+
+**Step 3** — Run `/reset` or start a new session so Claude picks up the new hooks.
 
 That's it. Everything else is automatic:
 
 1. Claude Code discovers hooks from `hooks/hooks.json`
 2. On first session start, Electron is installed automatically in the background (~85MB)
 3. On second session onward, the pet launches instantly
+
+To uninstall:
+
+```bash
+claude plugin remove code-pet
+```
 
 ## How It Works
 

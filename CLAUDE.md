@@ -18,6 +18,7 @@ hooks/
     bootstrap.js             # Lazy Electron installer (background npm install)
     send-event.js            # HTTP POST client to event server
     on-session-start.js      # SessionStart: bootstrap → launch app → send wake
+    on-session-end.js        # SessionEnd: send sleep → shut down Electron
     on-pre-tool-use.js       # PreToolUse: send thinking or typing
     on-post-tool-use.js      # PostToolUse: send success or error
     on-notification.js       # Notification: send idle
