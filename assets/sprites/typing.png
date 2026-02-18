@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="64" viewBox="0 0 384 64">
+  <rect width="384" height="64" fill="none"/>
+  
+    <!-- Frame 0: typing -->
+    <!-- Left ear -->
+    <polygon points="13,18 18,6 23,18" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="41,18 46,6 51,18" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="32" cy="28" r="18" fill="#9013FE" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="24" cy="24" r="3" fill="#333"/>
+        <circle cx="40" cy="24" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="32" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M27,34 Q32,39 37,34" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <rect x="47" y="40" width="2" height="8" fill="#333"/>
+    <!-- Label -->
+    <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">type 1</text>
+  
+    <!-- Frame 1: typing -->
+    <!-- Left ear -->
+    <polygon points="77,19.73205080756888 82,7.732050807568877 87,19.73205080756888" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="105,19.73205080756888 110,7.732050807568877 115,19.73205080756888" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="96" cy="29.73205080756888" r="18" fill="#9013FE" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="88" cy="25.73205080756888" r="3" fill="#333"/>
+        <circle cx="104" cy="25.73205080756888" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="96" cy="31.73205080756888" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M91,35.73205080756888 Q96,40.73205080756888 101,35.73205080756888" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    
+    <!-- Label -->
+    <text x="96" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">type 2</text>
+  
+    <!-- Frame 2: typing -->
+    <!-- Left ear -->
+    <polygon points="141,19.73205080756888 146,7.732050807568878 151,19.73205080756888" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="169,19.73205080756888 174,7.732050807568878 179,19.73205080756888" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="160" cy="29.73205080756888" r="18" fill="#9013FE" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="152" cy="25.73205080756888" r="3" fill="#333"/>
+        <circle cx="168" cy="25.73205080756888" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="160" cy="31.73205080756888" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M155,35.73205080756888 Q160,40.73205080756888 165,35.73205080756888" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <rect x="175" y="41.732050807568875" width="2" height="8" fill="#333"/>
+    <!-- Label -->
+    <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">type 3</text>
+  
+    <!-- Frame 3: typing -->
+    <!-- Left ear -->
+    <polygon points="205,18 210,6 215,18" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="233,18 238,6 243,18" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="224" cy="28" r="18" fill="#9013FE" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="216" cy="24" r="3" fill="#333"/>
+        <circle cx="232" cy="24" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="224" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M219,34 Q224,39 229,34" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    
+    <!-- Label -->
+    <text x="224" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">type 4</text>
+  
+    <!-- Frame 4: typing -->
+    <!-- Left ear -->
+    <polygon points="269,16.26794919243112 274,4.267949192431123 279,16.26794919243112" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="297,16.26794919243112 302,4.267949192431123 307,16.26794919243112" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="288" cy="26.26794919243112" r="18" fill="#9013FE" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="280" cy="22.26794919243112" r="3" fill="#333"/>
+        <circle cx="296" cy="22.26794919243112" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="288" cy="28.26794919243112" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M283,32.26794919243112 Q288,37.26794919243112 293,32.26794919243112" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <rect x="303" y="38.267949192431125" width="2" height="8" fill="#333"/>
+    <!-- Label -->
+    <text x="288" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">type 5</text>
+  
+    <!-- Frame 5: typing -->
+    <!-- Left ear -->
+    <polygon points="333,16.26794919243112 338,4.267949192431123 343,16.26794919243112" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="361,16.26794919243112 366,4.267949192431123 371,16.26794919243112" fill="#9013FE" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="352" cy="26.26794919243112" r="18" fill="#9013FE" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="344" cy="22.26794919243112" r="3" fill="#333"/>
+        <circle cx="360" cy="22.26794919243112" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="352" cy="28.26794919243112" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M347,32.26794919243112 Q352,37.26794919243112 357,32.26794919243112" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    
+    <!-- Label -->
+    <text x="352" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">type 6</text>
+  
+</svg>

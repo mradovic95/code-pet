@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
+  <rect width="256" height="64" fill="none"/>
+  
+    <!-- Frame 0: thinking -->
+    <!-- Left ear -->
+    <polygon points="13,18 18,6 23,18" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="41,18 46,6 51,18" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="32" cy="28" r="18" fill="#4A90D9" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="24" cy="24" r="3" fill="#333"/>
+        <circle cx="40" cy="24" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="32" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <line x1="27" y1="34" x2="37" y2="34" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    <text x="50" y="10" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">.</text>
+    
+    <!-- Label -->
+    <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">think 1</text>
+  
+    <!-- Frame 1: thinking -->
+    <!-- Left ear -->
+    <polygon points="77,20 82,8 87,20" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="105,20 110,8 115,20" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="96" cy="30" r="18" fill="#4A90D9" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="88" cy="26" r="3" fill="#333"/>
+        <circle cx="104" cy="26" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="96" cy="32" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <line x1="91" y1="36" x2="101" y2="36" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    <text x="114" y="12" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">..</text>
+    
+    <!-- Label -->
+    <text x="96" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">think 2</text>
+  
+    <!-- Frame 2: thinking -->
+    <!-- Left ear -->
+    <polygon points="141,18 146,6 151,18" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="169,18 174,6 179,18" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="160" cy="28" r="18" fill="#4A90D9" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="152" cy="24" r="3" fill="#333"/>
+        <circle cx="168" cy="24" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="160" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <line x1="155" y1="34" x2="165" y2="34" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    <text x="178" y="10" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">...</text>
+    
+    <!-- Label -->
+    <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">think 3</text>
+  
+    <!-- Frame 3: thinking -->
+    <!-- Left ear -->
+    <polygon points="205,16 210,4 215,16" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Right ear -->
+    <polygon points="233,16 238,4 243,16" fill="#4A90D9" stroke="#333" stroke-width="1"/>
+    <!-- Head -->
+    <circle cx="224" cy="26" r="18" fill="#4A90D9" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="216" cy="22" r="3" fill="#333"/>
+        <circle cx="232" cy="22" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="224" cy="28" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <line x1="219" y1="32" x2="229" y2="32" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    <text x="242" y="8" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">..</text>
+    
+    <!-- Label -->
+    <text x="224" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">think 4</text>
+  
+</svg>

@@ -1,0 +1,11 @@
+node_modules/
+.code-pet/
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

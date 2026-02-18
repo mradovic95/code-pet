@@ -1,0 +1,104 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  background: transparent;
+  -webkit-app-region: no-drag;
+}
+
+#dog {
+  width: 64px;
+  height: 64px;
+  margin: 16px;
+  background-repeat: no-repeat;
+  background-size: cover;
+  image-rendering: pixelated;
+  transition: opacity 0.1s ease;
+}
+
+#dog.transitioning {
+  opacity: 0.6;
+}
+
+/* --- Idle: 4 frames, 1600ms, loops --- */
+#dog.idle {
+  background-image: url('../../assets/sprites/idle.png');
+  background-size: calc(64px * 4) 64px;
+  animation: idle-anim 1600ms steps(4) infinite;
+}
+@keyframes idle-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}
+
+/* --- Wake: 4 frames, 800ms, once --- */
+#dog.wake {
+  background-image: url('../../assets/sprites/wake.png');
+  background-size: calc(64px * 4) 64px;
+  animation: wake-anim 800ms steps(4) forwards;
+}
+@keyframes wake-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}
+
+/* --- Sleep: 4 frames, 2400ms, loops --- */
+#dog.sleep {
+  background-image: url('../../assets/sprites/sleep.png');
+  background-size: calc(64px * 4) 64px;
+  animation: sleep-anim 2400ms steps(4) infinite;
+}
+@keyframes sleep-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}
+
+/* --- Thinking: 4 frames, 1200ms, loops --- */
+#dog.thinking {
+  background-image: url('../../assets/sprites/thinking.png');
+  background-size: calc(64px * 4) 64px;
+  animation: thinking-anim 1200ms steps(4) infinite;
+}
+@keyframes thinking-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}
+
+/* --- Typing: 6 frames, 600ms, loops --- */
+#dog.typing {
+  background-image: url('../../assets/sprites/typing.png');
+  background-size: calc(64px * 6) 64px;
+  animation: typing-anim 600ms steps(6) infinite;
+}
+@keyframes typing-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -384px; }
+}
+
+/* --- Success: 4 frames, 1000ms, once --- */
+#dog.success {
+  background-image: url('../../assets/sprites/success.png');
+  background-size: calc(64px * 4) 64px;
+  animation: success-anim 1000ms steps(4) forwards;
+}
+@keyframes success-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}
+
+/* --- Error: 4 frames, 800ms, once --- */
+#dog.error {
+  background-image: url('../../assets/sprites/error.png');
+  background-size: calc(64px * 4) 64px;
+  animation: error-anim 800ms steps(4) forwards;
+}
+@keyframes error-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}

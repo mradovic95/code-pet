@@ -1,0 +1,12 @@
+{
+  "name": "code-pet",
+  "version": "0.1.0",
+  "description": "Animated desktop pet companion that reacts to Claude Code activity",
+  "main": "src/app/main.js",
+  "dependencies": {
+    "electron": "^33.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
