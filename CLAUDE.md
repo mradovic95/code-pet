@@ -19,9 +19,7 @@ hooks/
     send-event.js            # HTTP POST client to event server
     on-session-start.js      # SessionStart: bootstrap → launch app → send wake
     on-session-end.js        # SessionEnd: send sleep → shut down Electron
-    on-pre-tool-use.js       # PreToolUse: send thinking or typing
-    on-post-tool-use.js      # PostToolUse: send success or error
-    on-notification.js       # Notification: send idle
+    on-notification.js       # Notification: send questioning or idle
 src/
   app/                       # Electron main process
     main.js                  # Entry point: PID → server → overlay window
@@ -34,7 +32,7 @@ src/
     index.html               # Shell: <div id="dog">, loads dog.js + ipc.js
     dog.js                   # Sprite state machine (core animation logic)
     ipc.js                   # Wires IPC events to state machine
-    styles.css               # CSS sprite strip animations for all 7 states
+    styles.css               # CSS sprite strip animations for all 5 states
 assets/sprites/              # Horizontal sprite strips (64×64px per frame)
 scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
@@ -57,7 +55,7 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 ## State Machine (dog.js)
 
-Seven states: `idle`, `wake`, `sleep`, `thinking`, `typing`, `success`, `error`
+Five states: `idle`, `wake`, `sleep`, `thinking`, `questioning`
 
 | State | Frames | Duration | Loops | Auto-transition |
 |-------|--------|----------|-------|-----------------|
@@ -65,13 +63,11 @@ Seven states: `idle`, `wake`, `sleep`, `thinking`, `typing`, `success`, `error`
 | wake | 4 | 800ms | no | → idle (800ms) |
 | sleep | 4 | 2400ms | yes | — |
 | thinking | 4 | 1200ms | yes | → idle (10s inactivity) |
-| typing | 6 | 600ms | yes | → idle (10s inactivity) |
-| success | 4 | 1000ms | no | → idle (2500ms) |
-| error | 4 | 800ms | no | → idle (2000ms) |
+| questioning | 4 | 1200ms | yes | → idle (10s inactivity) |
 
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
-- **Persistent states** (thinking, typing): reset their 10s inactivity timer on each new event
-- **One-shot states** (wake, success, error): play once then auto-return to idle
+- **Persistent states** (thinking, questioning): reset their 10s inactivity timer on each new event
+- **One-shot states** (wake): plays once then auto-returns to idle
 
 ## Key Conventions
 

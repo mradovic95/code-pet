@@ -21,7 +21,6 @@
     <line x1="27" y1="34" x2="37" y2="34" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
     
-    
     <!-- Question mark -->
     <text x="32" y="4" font-family="sans-serif" font-size="18" font-weight="bold" fill="#FFD700" stroke="#333" stroke-width="0.8" text-anchor="middle" transform="rotate(-15, 32, 4)">?</text>
     <!-- Label -->
@@ -45,7 +44,6 @@
     <!-- Mouth -->
     <line x1="91" y1="36" x2="101" y2="36" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
-    
     
     <!-- Question mark -->
     <text x="96" y="6" font-family="sans-serif" font-size="18" font-weight="bold" fill="#FFD700" stroke="#333" stroke-width="0.8" text-anchor="middle" transform="rotate(0, 96, 6)">?</text>
@@ -71,7 +69,6 @@
     <line x1="155" y1="34" x2="165" y2="34" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
     
-    
     <!-- Question mark -->
     <text x="160" y="4" font-family="sans-serif" font-size="18" font-weight="bold" fill="#FFD700" stroke="#333" stroke-width="0.8" text-anchor="middle" transform="rotate(15, 160, 4)">?</text>
     <!-- Label -->
@@ -95,7 +92,6 @@
     <!-- Mouth -->
     <line x1="219" y1="32" x2="229" y2="32" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
-    
     
     <!-- Question mark -->
     <text x="224" y="2" font-family="sans-serif" font-size="18" font-weight="bold" fill="#FFD700" stroke="#333" stroke-width="0.8" text-anchor="middle" transform="rotate(0, 224, 2)">?</text>

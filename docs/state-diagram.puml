@@ -1,0 +1,77 @@
+@startuml code-pet-states
+skinparam state {
+  BackgroundColor<<looping>> #D4E6F1
+  BackgroundColor<<oneshot>> #FADBD8
+}
+
+title Code Pet — State Machine
+
+[*] --> idle
+
+state "idle" as idle <<looping>> : Looping (4 frames, 1600ms)
+state "wake" as wake <<oneshot>> : One-shot (4 frames, 800ms)
+state "sleep" as sleep <<looping>> : Looping (4 frames, 2400ms)
+state "thinking" as thinking <<looping>> : Looping (4 frames, 1200ms)
+state "questioning" as questioning <<looping>> : Looping (4 frames, 1200ms)
+
+' ── Hook-driven transitions (any state → target) ──
+idle --> wake : SessionStart\n//"wake" event//
+idle --> sleep : SessionEnd\n//"sleep" event//
+idle --> thinking : PromptSubmit\n//"thinking" event//
+idle --> questioning : Notification ("questioning")\n//"questioning" event//
+
+' ── Auto-transitions (timeouts) ──
+wake -[#green,dashed]-> idle : auto\n800ms
+thinking -[#orange,dashed]-> idle : inactivity\n10s timeout
+questioning -[#orange,dashed]-> idle : inactivity\n10s timeout
+
+' ── Persistent state self-loops (timer reset) ──
+thinking --> thinking : same event\n//resets 10s timer//
+questioning --> questioning : same event\n//resets 10s timer//
+
+note right of idle
+  Any event can arrive in **any** state.
+  Transitions shown from idle for clarity,
+  but the pet accepts all events regardless
+  of current state (no guards).
+  Debounce: 300ms collapses rapid events.
+end note
+
+@enduml
+
+
+@startuml code-pet-events
+title Code Pet — Hook Events to States
+
+skinparam componentStyle rectangle
+
+package "Claude Code Hooks" {
+  [SessionStart] as SS
+  [SessionEnd] as SE
+  [PromptSubmit] as PS
+  [Notification] as NOTIF
+  [Stop] as STOP
+}
+
+package "Pet States" {
+  [wake] #FADBD8
+  [sleep] #D4E6F1
+  [thinking] #D4E6F1
+  [questioning] #D4E6F1
+  [idle] #D4E6F1
+}
+
+SS --> [wake] : always
+SE --> [sleep] : always
+PS --> [thinking] : always
+NOTIF --> [questioning] : arg = "questioning"
+NOTIF --> [idle] : default
+STOP --> [idle] : always
+
+legend right
+  | Color | Meaning |
+  | <#D4E6F1> | Looping state |
+  | <#FADBD8> | One-shot state |
+end legend
+
+@enduml

@@ -46,30 +46,6 @@ const STATES = {
     mouth: 'flat',
     extras: ['.', '..', '...', '..'],
   },
-  typing: {
-    frames: 6,
-    color: '#9013FE',
-    label: 'type',
-    eyes: 'open',
-    mouth: 'smile',
-    extras: [],
-  },
-  success: {
-    frames: 4,
-    color: '#7ED321',
-    label: 'ok!',
-    eyes: 'happy',
-    mouth: 'big-smile',
-    extras: [],
-  },
-  error: {
-    frames: 4,
-    color: '#D0021B',
-    label: 'err',
-    eyes: 'cross',
-    mouth: 'frown',
-    extras: [],
-  },
   questioning: {
     frames: 4,
     color: '#F5A623',
@@ -157,15 +133,6 @@ function generateFrame(state, frameIndex) {
     extrasEl = `<text x="${cx + 18}" y="${cy - 18 + bounceY}" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">${extraText}</text>`;
   }
 
-  // For typing state, add a small bouncing cursor
-  let typingCursor = '';
-  if (state === 'typing') {
-    const cursorVisible = frameIndex % 2 === 0;
-    if (cursorVisible) {
-      typingCursor = `<rect x="${cx + 15}" y="${cy + 12 + bounceY}" width="2" height="8" fill="#333"/>`;
-    }
-  }
-
   return `
     <!-- Frame ${frameIndex}: ${state} -->
     <!-- Left ear -->
@@ -182,7 +149,6 @@ function generateFrame(state, frameIndex) {
     ${generateMouth(s.mouth, cx, cy + bounceY)}
     <!-- Extras -->
     ${extrasEl}
-    ${typingCursor}
     ${state === 'questioning' ? (() => {
       const angles = [-15, 0, 15, 0];
       const angle = angles[frameIndex % angles.length];

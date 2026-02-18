@@ -70,39 +70,6 @@ html, body {
   to { background-position-x: -256px; }
 }
 
-/* --- Typing: 6 frames, 600ms, loops --- */
-#dog.typing {
-  background-image: url('../../assets/sprites/typing.svg');
-  background-size: calc(64px * 6) 64px;
-  animation: typing-anim 600ms steps(6) infinite;
-}
-@keyframes typing-anim {
-  from { background-position-x: 0; }
-  to { background-position-x: -384px; }
-}
-
-/* --- Success: 4 frames, 1000ms, once --- */
-#dog.success {
-  background-image: url('../../assets/sprites/success.svg');
-  background-size: calc(64px * 4) 64px;
-  animation: success-anim 1000ms steps(4) forwards;
-}
-@keyframes success-anim {
-  from { background-position-x: 0; }
-  to { background-position-x: -256px; }
-}
-
-/* --- Error: 4 frames, 800ms, once --- */
-#dog.error {
-  background-image: url('../../assets/sprites/error.svg');
-  background-size: calc(64px * 4) 64px;
-  animation: error-anim 800ms steps(4) forwards;
-}
-@keyframes error-anim {
-  from { background-position-x: 0; }
-  to { background-position-x: -256px; }
-}
-
 /* --- Questioning: 4 frames, 1200ms, loops --- */
 #dog.questioning {
   background-image: url('../../assets/sprites/questioning.svg');

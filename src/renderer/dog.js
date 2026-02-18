@@ -5,21 +5,16 @@ const SPRITES = {
   wake:     { frames: 4, duration: 800,  loop: false },
   sleep:    { frames: 4, duration: 2400, loop: true },
   thinking: { frames: 4, duration: 1200, loop: true },
-  typing:   { frames: 6, duration: 600,  loop: true },
-  success:  { frames: 4, duration: 1000, loop: false },
-  error:       { frames: 4, duration: 800,  loop: false },
   questioning: { frames: 4, duration: 1200, loop: true },
 };
 
 // Auto-transition targets for non-looping or transient states
 const AUTO_TRANSITIONS = {
   wake:    { next: 'idle', delay: 800 },
-  success: { next: 'idle', delay: 2500 },
-  error:   { next: 'idle', delay: 2000 },
 };
 
 // Persistent states auto-return to idle after inactivity
-const PERSISTENT_STATES = new Set(['thinking', 'typing', 'questioning']);
+const PERSISTENT_STATES = new Set(['thinking', 'questioning']);
 const INACTIVITY_TIMEOUT = 10000; // 10 seconds
 
 const DEBOUNCE_MS = 300;

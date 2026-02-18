@@ -20,7 +20,6 @@
     <!-- Extras -->
     
     
-    
     <!-- Label -->
     <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 1</text>
   
@@ -40,7 +39,6 @@
     <!-- Mouth -->
     <path d="M91,36 Q96,41 101,36" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
-    
     
     
     <!-- Label -->
@@ -64,7 +62,6 @@
     <!-- Extras -->
     
     
-    
     <!-- Label -->
     <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 3</text>
   
@@ -84,7 +81,6 @@
     <!-- Mouth -->
     <path d="M219,32 Q224,37 229,32" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
-    
     
     
     <!-- Label -->
