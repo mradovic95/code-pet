@@ -49,17 +49,6 @@ html, body {
   to { background-position-x: -1280px; }
 }
 
-/* --- Going to Sleep: 4 frames, 2400ms, loops --- */
-#dog.going_to_sleep {
-  background-image: url('../../assets/sprites/going_to_sleep.svg');
-  background-size: calc(64px * 4) 64px;
-  animation: going_to_sleep-anim 2400ms steps(4) infinite;
-}
-@keyframes going_to_sleep-anim {
-  from { background-position-x: 0; }
-  to { background-position-x: -256px; }
-}
-
 /* --- Working: 4 frames, 1200ms, loops --- */
 #dog.working {
   background-image: url('../../assets/sprites/working.svg');

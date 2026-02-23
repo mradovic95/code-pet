@@ -2,12 +2,13 @@
 
 All unique stdin JSON combinations from `~/.code-pet/hooks-debug.log` and the pet event each triggers.
 
-| hook_event_name  | permission_mode | tool_name | notification_type | message                                      | triggers_event   | state              | auto_transition          |
-|------------------|-----------------|-----------|-------------------|----------------------------------------------|------------------|--------------------|--------------------------|
-| SessionStart     | —               | —         | —                 | —                                            | awaken           | waking_up          | → idle (800ms)           |
-| SessionEnd       | —               | —         | —                 | —                                            | falling_asleep   | going_to_sleep     | —                        |
-| UserPromptSubmit | plan            | —         | —                 | —                                            | planning_started | planning           | —                        |
-| UserPromptSubmit | !plan           | —         | —                 | —                                            | working_started  | working            | —                        |
-| Notification     | —               | —         | permission_prompt | Claude Code needs your attention             | action_requested | waiting_for_action | —                        |
-| Notification     | —               | —         | permission_prompt | Claude Code needs your approval for the plan | action_requested | waiting_for_action | —                        |
-| Stop             | any             | —         | —                 | —                                            | work_finished    | idle               | —                        |
+| hook_event_name  | permission_mode | tool_name | notification_type | message                                      | triggers_event   | state              | auto_transition          | notes                                   |
+|------------------|-----------------|-----------|-------------------|----------------------------------------------|------------------|--------------------|--------------------------|------------------------------------------|
+| SessionStart     | —               | —         | —                 | —                                            | awaken           | waking_up          | → idle (4000ms)           | suppressed if any active state (lastActiveEvent set or action_requested) |
+| SessionEnd       | —               | —         | —                 | —                                            | falling_asleep   | (special handling) | —                        | restores from waiting_for_action; suppressed during active work; tracked for shutdown |
+| UserPromptSubmit | plan            | —         | —                 | —                                            | planning_started | planning           | —                        |                                          |
+| UserPromptSubmit | !plan           | —         | —                 | —                                            | working_started  | working            | —                        |                                          |
+| Notification     | —               | —         | permission_prompt | Claude Code needs your attention             | action_requested | waiting_for_action | —                        |                                          |
+| Notification     | —               | —         | permission_prompt | Claude Code needs your approval for the plan | action_requested | waiting_for_action | —                        |                                          |
+| PostToolUse      | —               | AskUserQuestion | —           | —                                            | question_answered | (restores previous) | —                       | server restores working/planning via lastActiveEvent |
+| Stop             | any             | —         | —                 | —                                            | work_finished    | idle               | —                        |                                          |

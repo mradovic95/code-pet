@@ -38,7 +38,7 @@ Session starts → hook launches Electron overlay → pet wakes up
 Prompt submitted → pet starts working (or planning in plan mode)
 Notification → pet waits for action
 Stop → pet returns to idle
-Session ends → pet goes to sleep
+Session ends → pet shuts down (if no active work)
 ```
 
 The overlay is transparent, frameless, always-on-top, click-through, and never steals focus.
@@ -60,7 +60,7 @@ curl -X POST http://localhost:31425/event \
 curl -X POST http://localhost:31425/shutdown
 ```
 
-Valid events: `awaken`, `falling_asleep`, `working_started`, `planning_started`, `action_requested`, `work_finished`
+Valid events: `awaken`, `falling_asleep`, `working_started`, `planning_started`, `action_requested`, `work_finished`, `question_answered`
 
 ## Custom Sprites
 
@@ -74,8 +74,7 @@ Replace the placeholder sprite sheets in `assets/sprites/` with your own artwork
 | File                     | Frames | Description                         |
 |--------------------------|--------|-------------------------------------|
 | `idle.svg`               | 4      | Default resting animation (loops)   |
-| `waking_up.svg`          | 4      | Session start greeting (plays once) |
-| `going_to_sleep.svg`     | 4      | Sleeping/inactive (loops)           |
+| `waking_up.svg`          | 20     | Session start greeting (plays once) |
 | `working.svg`            | 4      | Processing/working (loops)          |
 | `planning.svg`           | 4      | Planning mode (loops)               |
 | `waiting_for_action.svg` | 4      | Waiting for user action (loops)     |

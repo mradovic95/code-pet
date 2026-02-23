@@ -6,10 +6,10 @@ const { sendEvent, debugLog, fetchLastEvent } = require('./send-event');
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 
 async function main() {
-  // Send falling_asleep event so the dog plays the going_to_sleep animation
+  // Send falling_asleep event (server tracks it for shutdown or suppresses if pet is active)
   await sendEvent('falling_asleep');
 
-  // Wait for the going_to_sleep animation to be visible before shutting down
+  // Brief delay to allow any in-flight events to settle before checking last-event
   await new Promise((r) => setTimeout(r, 1500));
 
   // Check if another session already started (awaken received after our falling_asleep)

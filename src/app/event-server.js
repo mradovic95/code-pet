@@ -7,18 +7,14 @@ const { getWindow, sendToRenderer, isRendererReady } = require('./window-manager
 
 const EVENT_TO_STATE = {
   awaken:           'waking_up',
-  falling_asleep:   'going_to_sleep',
   working_started:  'working',
   planning_started: 'planning',
   action_requested: 'waiting_for_action',
   work_finished:    'idle',
 };
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
-const SLEEP_GRACE_MS = 2000;
 
 let server = null;
-let sleepGraceTimer = null;
-let sleepGracePending = false;
 let lastEventName = null;
 let lastEventTime = 0;
 let lastActiveEvent = null;
@@ -44,14 +40,6 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-function cancelSleepGrace() {
-  if (sleepGraceTimer) {
-    clearTimeout(sleepGraceTimer);
-    sleepGraceTimer = null;
-  }
-  sleepGracePending = false;
-}
-
 function startServer() {
   return new Promise((resolve, reject) => {
     server = http.createServer(async (req, res) => {
@@ -74,13 +62,62 @@ function startServer() {
           const body = await readBody(req);
           const eventName = body.event;
 
+          // Handle question_answered: restore to previous active state
+          if (eventName === 'question_answered') {
+            if (lastActiveEvent === 'working_started' || lastActiveEvent === 'planning_started') {
+              const restoredState = EVENT_TO_STATE[lastActiveEvent];
+              logger.info(`question_answered → restoring to ${restoredState} (from ${lastActiveEvent})`);
+              lastEventName = lastActiveEvent;
+              lastEventTime = Date.now();
+              sendToRenderer('dog-event', restoredState);
+              sendJson(res, 200, { received: eventName, state: restoredState, restored: true });
+            } else {
+              logger.info(`question_answered → no active state to restore, ignoring`);
+              sendJson(res, 200, { received: eventName, ignored: true });
+            }
+            return;
+          }
+
+          // Handle falling_asleep: restore from waiting_for_action, suppress during active work, or track for shutdown
+          if (eventName === 'falling_asleep') {
+            if (lastEventName === 'action_requested' && lastActiveEvent) {
+              // Case 1: Pet is waiting for action with prior work state — restore to working/planning
+              const restoredState = EVENT_TO_STATE[lastActiveEvent];
+              logger.info(`falling_asleep during waiting_for_action → restoring to ${restoredState} (from ${lastActiveEvent})`);
+              lastEventName = lastActiveEvent;
+              lastEventTime = Date.now();
+              sendToRenderer('dog-event', restoredState);
+              sendJson(res, 200, { received: eventName, state: restoredState, restored: true });
+            } else if (lastActiveEvent) {
+              // Case 2: Pet is actively working/planning — suppress (spurious SessionEnd after AskQuestion/permission answer)
+              logger.info(`Suppressing falling_asleep — active state (lastActive=${lastActiveEvent}, lastEvent=${lastEventName})`);
+              sendJson(res, 200, { received: eventName, suppressed: true });
+            } else {
+              // Case 3: No active state — track for shutdown (on-session-end.js will check /last-event)
+              logger.info(`falling_asleep → tracked for shutdown (no active state)`);
+              lastEventName = 'falling_asleep';
+              lastEventTime = Date.now();
+              sendJson(res, 200, { received: eventName, tracked: true });
+            }
+            return;
+          }
+
           const state = EVENT_TO_STATE[eventName];
           if (!state) {
             sendJson(res, 400, {
               error: 'Invalid event',
-              valid: Object.keys(EVENT_TO_STATE),
+              valid: [...Object.keys(EVENT_TO_STATE), 'question_answered', 'falling_asleep'],
             });
             return;
+          }
+
+          // Handle awaken: suppress if any active state or waiting_for_action
+          if (eventName === 'awaken') {
+            if (lastActiveEvent !== null || lastEventName === 'action_requested') {
+              logger.info(`Suppressing awaken — non-zero state (lastActive=${lastActiveEvent}, lastEvent=${lastEventName})`);
+              sendJson(res, 200, { received: eventName, state, suppressed: true });
+              return;
+            }
           }
 
           lastEventName = eventName;
@@ -90,40 +127,12 @@ function startServer() {
           if (eventName === 'working_started' || eventName === 'planning_started') {
             lastActiveEvent = eventName;
           }
-          // Reset on lifecycle/terminal events
-          if (eventName === 'work_finished' || eventName === 'falling_asleep' || eventName === 'awaken') {
+          // Reset on terminal event
+          if (eventName === 'work_finished') {
             lastActiveEvent = null;
           }
 
           logger.info(`Received event: ${eventName} → state: ${state}`);
-
-          if (eventName === 'falling_asleep') {
-            // Start grace period — don't forward yet
-            cancelSleepGrace();
-            sleepGracePending = true;
-            sleepGraceTimer = setTimeout(() => {
-              sleepGracePending = false;
-              sleepGraceTimer = null;
-              logger.info('Sleep grace expired → forwarding going_to_sleep');
-              sendToRenderer('dog-event', 'going_to_sleep');
-            }, SLEEP_GRACE_MS);
-            sendJson(res, 200, { received: eventName, state, grace: true });
-            return;
-          }
-
-          if (eventName === 'awaken' && sleepGracePending) {
-            // Awaken during grace — cancel sleep, don't forward either event
-            cancelSleepGrace();
-            logger.info('Awaken during sleep grace — cancelled sleep, skipping waking_up');
-            sendJson(res, 200, { received: eventName, state, graceCancelled: true });
-            return;
-          }
-
-          // Any other event cancels a pending sleep grace
-          if (sleepGracePending) {
-            cancelSleepGrace();
-            logger.info(`Event ${eventName} cancelled pending sleep grace`);
-          }
 
           sendToRenderer('dog-event', state);
 

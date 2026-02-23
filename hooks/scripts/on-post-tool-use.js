@@ -1,6 +1,6 @@
 'use strict';
 
-const { sendEvent, debugLog, fetchLastEvent } = require('./send-event');
+const { sendEvent, debugLog } = require('./send-event');
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -28,14 +28,8 @@ async function main() {
   debugLog(`PostToolUse: tool=${toolName} input=${toolInput} output=${toolOutput}`);
 
   if (toolName === 'AskUserQuestion') {
-    const last = await fetchLastEvent();
-    const activeEvent = last && last.activeEvent;
-    if (activeEvent === 'working_started' || activeEvent === 'planning_started') {
-      debugLog(`PostToolUse: AskUserQuestion answered → resuming ${activeEvent}`);
-      await sendEvent(activeEvent);
-    } else {
-      debugLog(`PostToolUse: AskUserQuestion answered → no active event to resume`);
-    }
+    debugLog(`PostToolUse: AskUserQuestion answered → sending question_answered`);
+    await sendEvent('question_answered');
   }
 
   process.stdout.write('{}');

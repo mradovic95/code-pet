@@ -22,7 +22,7 @@ hooks/
     on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron
     on-notification.js       # Notification: send action_requested (+notification payload)
     on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started (+prompt_length)
-    on-post-tool-use.js      # PostToolUse: logs tool usage to debug log (no state change)
+    on-post-tool-use.js      # PostToolUse: sends question_answered for AskUserQuestion, logs all tools
     on-stop.js               # Stop: send work_finished (+stop_reason)
 src/
   app/                       # Electron main process
@@ -37,13 +37,17 @@ src/
     index.html               # Shell: <div id="dog">, loads dog.js + ipc.js
     dog.js                   # Sprite state machine (core animation logic)
     ipc.js                   # Wires IPC events to state machine
-    styles.css               # CSS sprite strip animations for all 6 states
+    styles.css               # CSS sprite strip animations for all 5 states
     settings.html            # Settings window UI (opened on double-click)
     settings.js              # Settings window logic
     settings.css             # Settings window styling
 assets/sprites/              # Horizontal sprite strips (64×64px per frame)
+docs/
+  hook-table.md              # Complete hook event → pet event → state matrix
+  state-diagram.puml         # PlantUML state machine and event flow diagrams
 scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
+test.sh                      # Dev utility: send events to the pet (curl wrapper)
 ```
 
 ## Architecture
@@ -52,7 +56,7 @@ scripts/
 Claude Code hooks (stdin JSON)
   → hooks/scripts/*.js (plain Node.js)
     → HTTP POST to 127.0.0.1:31425/event { event: "<semantic_event>" }
-      → event-server.js: EVENT_TO_STATE mapping → resolves state name
+      → event-server.js: EVENT_TO_STATE mapping + special handlers → resolves state name
         → IPC: win.webContents.send('dog-event', state)
           → preload.js context bridge
             → dog.js state machine
@@ -63,28 +67,30 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 ## Events and States
 
-Six semantic events map to six visual states:
+Five semantic events map to five visual states. Two additional events (`falling_asleep`, `question_answered`) are handled specially by the server without a dedicated visual state.
 
 | Event (hook sends) | State (dog.js) | Triggered by |
 |---------------------|----------------|--------------|
 | `awaken` | `waking_up` | SessionStart |
-| `falling_asleep` | `going_to_sleep` | SessionEnd |
 | `working_started` | `working` | UserPromptSubmit (normal mode) |
 | `planning_started` | `planning` | UserPromptSubmit (plan mode) |
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
 | `work_finished` | `idle` | Stop |
+| `question_answered` | *(restores previous)* | PostToolUse (AskUserQuestion) |
+| `falling_asleep` | *(restores or tracks)* | SessionEnd |
 
-> `on-post-tool-use.js` handles `PostToolUse` but only logs to `hooks-debug.log` — it does not send a semantic event or trigger any state change.
+> `on-post-tool-use.js` sends `question_answered` when `AskUserQuestion` completes. The server restores the pet to its previous active state (`working` or `planning`) via `lastActiveEvent`. For all other tools, the hook only logs to `hooks-debug.log`.
+
+> `falling_asleep` is handled specially by the server: restores from `waiting_for_action` to the previous active state, is suppressed during active work (spurious SessionEnd), or is tracked for shutdown when no active state exists.
 
 ## State Machine (dog.js)
 
-Six states: `idle`, `waking_up`, `going_to_sleep`, `working`, `planning`, `waiting_for_action`
+Five states: `idle`, `waking_up`, `working`, `planning`, `waiting_for_action`
 
 | State | Frames | Duration | Loops | Auto-transition |
 |-------|--------|----------|-------|-----------------|
 | idle | 4 | 1600ms | yes | — |
 | waking_up | 20 | 4000ms | no | → idle (4000ms) |
-| going_to_sleep | 4 | 2400ms | yes | — |
 | working | 4 | 1200ms | yes | — |
 | planning | 4 | 1200ms | yes | — |
 | waiting_for_action | 4 | 1600ms | yes | — |
@@ -93,7 +99,8 @@ Six states: `idle`, `waking_up`, `going_to_sleep`, `working`, `planning`, `waiti
 - **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
 - **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
 - **One-shot states** (waking_up): plays once then auto-returns to idle
-- **Sleep grace**: when `falling_asleep` arrives, event-server.js waits 2 seconds before forwarding to the renderer. If `awaken` arrives during grace, sleep is cancelled silently. Prevents jarring flicker during rapid session stop/start.
+- **`falling_asleep` handling**: event-server.js handles `falling_asleep` in three cases: (1) if pet is in `waiting_for_action` with a prior active state, restores to working/planning; (2) if pet is actively working/planning, suppresses the event (spurious SessionEnd); (3) if no active state, tracks the event for `on-session-end.js` shutdown check.
+- **Awaken suppression**: when `awaken` arrives while `lastActiveEvent` is set or `lastEventName` is `action_requested`, event-server.js suppresses it silently — no state mutation, no forwarding to the renderer. Prevents spurious `SessionStart` (fired after permission prompts / AskQuestion answers) from interrupting work animations. Only fires `waking_up` when the pet has zero state (idle/fresh).
 
 ## Key Conventions
 
@@ -127,6 +134,10 @@ claude --plugin-dir /path/to/code-pet
 
 # Run Electron manually (after npm install)
 npx electron src/app/main.js
+
+# Send an event to the running pet (defaults to awaken)
+./test.sh                    # sends awaken
+./test.sh working_started    # sends working_started
 ```
 
 ## Sprite Format

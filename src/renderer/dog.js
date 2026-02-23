@@ -3,7 +3,6 @@
 const SPRITES = {
   idle:               { frames: 4, duration: 1600, loop: true },
   waking_up:          { frames: 20, duration: 4000, loop: false },
-  going_to_sleep:     { frames: 4, duration: 2400, loop: true },
   working:            { frames: 4, duration: 1200, loop: true },
   planning:           { frames: 4, duration: 1200, loop: true },
   waiting_for_action: { frames: 4, duration: 1600, loop: true },

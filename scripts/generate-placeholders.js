@@ -30,14 +30,6 @@ const STATES = {
     mouth: 'open',
     extras: ['!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!'],
   },
-  going_to_sleep: {
-    frames: 4,
-    color: '#9B9B9B',
-    label: 'sleep',
-    eyes: 'closed',
-    mouth: 'flat',
-    extras: ['Z', 'z', 'Z', 'z'],
-  },
   working: {
     frames: 4,
     color: '#4A90D9',
