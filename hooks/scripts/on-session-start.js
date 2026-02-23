@@ -34,8 +34,8 @@ async function main() {
     }
   }
 
-  // Step 3: Send wake event
-  await sendEvent('wake');
+  // Step 3: Send awaken event
+  await sendEvent('awaken');
 
   process.stdout.write('{}');
 }

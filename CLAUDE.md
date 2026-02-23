@@ -17,9 +17,11 @@ hooks/
   scripts/                   # Hook handlers (plain Node.js, no Electron)
     bootstrap.js             # Lazy Electron installer (background npm install)
     send-event.js            # HTTP POST client to event server
-    on-session-start.js      # SessionStart: bootstrap → launch app → send wake
-    on-session-end.js        # SessionEnd: send sleep → shut down Electron
-    on-notification.js       # Notification: send questioning or idle
+    on-session-start.js      # SessionStart: bootstrap → launch app → send awaken
+    on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron
+    on-notification.js       # Notification: send action_requested
+    on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started
+    on-stop.js               # Stop: send work_finished
 src/
   app/                       # Electron main process
     main.js                  # Entry point: PID → server → overlay window
@@ -32,7 +34,7 @@ src/
     index.html               # Shell: <div id="dog">, loads dog.js + ipc.js
     dog.js                   # Sprite state machine (core animation logic)
     ipc.js                   # Wires IPC events to state machine
-    styles.css               # CSS sprite strip animations for all 5 states
+    styles.css               # CSS sprite strip animations for all 6 states
 assets/sprites/              # Horizontal sprite strips (64×64px per frame)
 scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
@@ -43,9 +45,9 @@ scripts/
 ```
 Claude Code hooks (stdin JSON)
   → hooks/scripts/*.js (plain Node.js)
-    → HTTP POST to 127.0.0.1:31425/event
-      → event-server.js (Electron main process)
-        → IPC: win.webContents.send('dog-event', name)
+    → HTTP POST to 127.0.0.1:31425/event { event: "<semantic_event>" }
+      → event-server.js: EVENT_TO_STATE mapping → resolves state name
+        → IPC: win.webContents.send('dog-event', state)
           → preload.js context bridge
             → dog.js state machine
               → CSS class swap on #dog → sprite animation plays
@@ -53,21 +55,36 @@ Claude Code hooks (stdin JSON)
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
 
+## Events and States
+
+Six semantic events map to six visual states:
+
+| Event (hook sends) | State (dog.js) | Triggered by |
+|---------------------|----------------|--------------|
+| `awaken` | `waking_up` | SessionStart |
+| `falling_asleep` | `going_to_sleep` | SessionEnd |
+| `working_started` | `working` | UserPromptSubmit (normal mode) |
+| `planning_started` | `planning` | UserPromptSubmit (plan mode) |
+| `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
+| `work_finished` | `idle` | Stop |
+
 ## State Machine (dog.js)
 
-Five states: `idle`, `wake`, `sleep`, `thinking`, `questioning`
+Six states: `idle`, `waking_up`, `going_to_sleep`, `working`, `planning`, `waiting_for_action`
 
 | State | Frames | Duration | Loops | Auto-transition |
 |-------|--------|----------|-------|-----------------|
 | idle | 4 | 1600ms | yes | — |
-| wake | 4 | 800ms | no | → idle (800ms) |
-| sleep | 4 | 2400ms | yes | — |
-| thinking | 4 | 1200ms | yes | → idle (10s inactivity) |
-| questioning | 4 | 1200ms | yes | → idle (10s inactivity) |
+| waking_up | 4 | 800ms | no | → idle (800ms) |
+| going_to_sleep | 4 | 2400ms | yes | — |
+| working | 4 | 1200ms | yes | — |
+| planning | 4 | 1200ms | yes | — |
+| waiting_for_action | 4 | 1600ms | yes | — |
 
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
-- **Persistent states** (thinking, questioning): reset their 10s inactivity timer on each new event
-- **One-shot states** (wake): plays once then auto-returns to idle
+- **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
+- **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
+- **One-shot states** (waking_up): plays once then auto-returns to idle
 
 ## Key Conventions
 
@@ -88,6 +105,7 @@ Five states: `idle`, `wake`, `sleep`, `thinking`, `questioning`
 | `app.log` | Electron stdout/stderr |
 | `install.log` | npm install output |
 | `installing` | Lock file during npm install (contains PID, stale after 10min) |
+| `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` |
 
 ## Development Commands
 

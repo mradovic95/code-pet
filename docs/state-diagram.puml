@@ -6,28 +6,32 @@ skinparam state {
 
 title Code Pet — State Machine
 
-[*] --> idle
+[*] --> waking_up : SessionStart\n//awaken//
 
 state "idle" as idle <<looping>> : Looping (4 frames, 1600ms)
-state "wake" as wake <<oneshot>> : One-shot (4 frames, 800ms)
-state "sleep" as sleep <<looping>> : Looping (4 frames, 2400ms)
-state "thinking" as thinking <<looping>> : Looping (4 frames, 1200ms)
-state "questioning" as questioning <<looping>> : Looping (4 frames, 1200ms)
+state "waking_up" as waking_up <<oneshot>> : One-shot (4 frames, 800ms)
+state "going_to_sleep" as going_to_sleep <<looping>> : Looping (4 frames, 2400ms)
+state "working" as working <<looping>> : Looping (4 frames, 1200ms)
+state "planning" as planning <<looping>> : Looping (4 frames, 1200ms)
+state "waiting_for_action" as waiting_for_action <<looping>> : Looping (4 frames, 1200ms)
 
 ' ── Hook-driven transitions (any state → target) ──
-idle --> wake : SessionStart\n//"wake" event//
-idle --> sleep : SessionEnd\n//"sleep" event//
-idle --> thinking : PromptSubmit\n//"thinking" event//
-idle --> questioning : Notification ("questioning")\n//"questioning" event//
+idle --> going_to_sleep : SessionEnd\n//falling_asleep//
+idle --> working : UserPromptSubmit\n//working_started//
+idle --> waiting_for_action : Notification\n//action_requested//
+idle --> planning : UserPromptSubmit (plan)\n//planning_started//
+
+' ── Stop returns to idle from active states ──
+working -[#red]-> idle : Stop\n//work_finished//
+planning -[#red]-> idle : Stop\n//work_finished//
 
 ' ── Auto-transitions (timeouts) ──
-wake -[#green,dashed]-> idle : auto\n800ms
-thinking -[#orange,dashed]-> idle : inactivity\n10s timeout
-questioning -[#orange,dashed]-> idle : inactivity\n10s timeout
+waking_up -[#green,dashed]-> idle : auto\n800ms
+going_to_sleep --> [*]
 
-' ── Persistent state self-loops (timer reset) ──
-thinking --> thinking : same event\n//resets 10s timer//
-questioning --> questioning : same event\n//resets 10s timer//
+' ── waiting_for_action exits via UserPromptSubmit ──
+waiting_for_action --> working : UserPromptSubmit\n//working_started//
+waiting_for_action --> planning : UserPromptSubmit (plan)\n//planning_started//
 
 note right of idle
   Any event can arrive in **any** state.
@@ -48,24 +52,25 @@ skinparam componentStyle rectangle
 package "Claude Code Hooks" {
   [SessionStart] as SS
   [SessionEnd] as SE
-  [PromptSubmit] as PS
+  [UserPromptSubmit] as PS
   [Notification] as NOTIF
   [Stop] as STOP
 }
 
 package "Pet States" {
-  [wake] #FADBD8
-  [sleep] #D4E6F1
-  [thinking] #D4E6F1
-  [questioning] #D4E6F1
+  [waking_up] #FADBD8
+  [going_to_sleep] #D4E6F1
+  [working] #D4E6F1
+  [planning] #D4E6F1
+  [waiting_for_action] #D4E6F1
   [idle] #D4E6F1
 }
 
-SS --> [wake] : always
-SE --> [sleep] : always
-PS --> [thinking] : always
-NOTIF --> [questioning] : arg = "questioning"
-NOTIF --> [idle] : default
+SS --> [waking_up] : always
+SE --> [going_to_sleep] : always
+PS --> [working] : normal mode
+PS --> [planning] : plan mode
+NOTIF --> [waiting_for_action] : permission_prompt
 STOP --> [idle] : always
 
 legend right

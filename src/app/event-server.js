@@ -5,7 +5,14 @@ const { app } = require('electron');
 const logger = require('./logger');
 const { getWindow } = require('./window-manager');
 
-const VALID_EVENTS = ['idle', 'wake', 'sleep', 'thinking', 'typing', 'success', 'error', 'questioning'];
+const EVENT_TO_STATE = {
+  awaken:           'waking_up',
+  falling_asleep:   'going_to_sleep',
+  working_started:  'working',
+  planning_started: 'planning',
+  action_requested: 'waiting_for_action',
+  work_finished:    'idle',
+};
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 
 let server = null;
@@ -44,22 +51,23 @@ function startServer() {
           const body = await readBody(req);
           const eventName = body.event;
 
-          if (!eventName || !VALID_EVENTS.includes(eventName)) {
+          const state = EVENT_TO_STATE[eventName];
+          if (!state) {
             sendJson(res, 400, {
               error: 'Invalid event',
-              valid: VALID_EVENTS,
+              valid: Object.keys(EVENT_TO_STATE),
             });
             return;
           }
 
-          logger.info(`Received event: ${eventName}`);
+          logger.info(`Received event: ${eventName} → state: ${state}`);
 
           const win = getWindow();
           if (win && !win.isDestroyed()) {
-            win.webContents.send('dog-event', eventName);
+            win.webContents.send('dog-event', state);
           }
 
-          sendJson(res, 200, { received: eventName });
+          sendJson(res, 200, { received: eventName, state });
           return;
         }
 

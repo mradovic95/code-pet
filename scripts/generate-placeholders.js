@@ -22,7 +22,7 @@ const STATES = {
     mouth: 'smile',
     extras: [],
   },
-  wake: {
+  waking_up: {
     frames: 4,
     color: '#F5A623',
     label: 'wake',
@@ -30,7 +30,7 @@ const STATES = {
     mouth: 'open',
     extras: ['!'],
   },
-  sleep: {
+  going_to_sleep: {
     frames: 4,
     color: '#9B9B9B',
     label: 'sleep',
@@ -38,23 +38,35 @@ const STATES = {
     mouth: 'flat',
     extras: ['Z', 'z', 'Z', 'z'],
   },
-  thinking: {
+  working: {
     frames: 4,
     color: '#4A90D9',
-    label: 'think',
+    label: 'work',
     eyes: 'open',
     mouth: 'flat',
     extras: ['.', '..', '...', '..'],
   },
-  questioning: {
+  planning: {
     frames: 4,
-    color: '#F5A623',
-    label: '?',
+    color: '#9B59B6',
+    label: 'plan',
+    eyes: 'open',
+    mouth: 'flat',
+    extras: ['1.', '2.', '3.', '..'],
+  },
+  waiting_for_action: {
+    frames: 4,
+    color: '#F39C12',
+    label: 'wait',
     eyes: 'wide',
     mouth: 'flat',
-    extras: [],
+    extras: ['...', '..', '...', '..'],
   },
 };
+
+function escapeXml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 function generateEyes(type, cx, cy, frame) {
   const leftX = cx - 8;
@@ -120,7 +132,7 @@ function generateFrame(state, frameIndex) {
   const bounceY = Math.sin((frameIndex / s.frames) * Math.PI * 2) * 2;
 
   // Ear positions
-  const earOffset = state === 'wake' ? -2 : 0;
+  const earOffset = state === 'waking_up' ? -2 : 0;
   const leftEarX = cx - 14;
   const rightEarX = cx + 14;
   const earTopY = cy - 22 + bounceY + earOffset;
@@ -130,7 +142,7 @@ function generateFrame(state, frameIndex) {
   let extrasEl = '';
   if (s.extras.length > 0) {
     const extraText = s.extras[frameIndex % s.extras.length];
-    extrasEl = `<text x="${cx + 18}" y="${cy - 18 + bounceY}" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">${extraText}</text>`;
+    extrasEl = `<text x="${cx + 18}" y="${cy - 18 + bounceY}" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">${escapeXml(extraText)}</text>`;
   }
 
   return `
@@ -149,14 +161,6 @@ function generateFrame(state, frameIndex) {
     ${generateMouth(s.mouth, cx, cy + bounceY)}
     <!-- Extras -->
     ${extrasEl}
-    ${state === 'questioning' ? (() => {
-      const angles = [-15, 0, 15, 0];
-      const angle = angles[frameIndex % angles.length];
-      const qx = cx;
-      const qy = cy - 24 + bounceY;
-      return `<!-- Question mark -->
-    <text x="${qx}" y="${qy}" font-family="sans-serif" font-size="18" font-weight="bold" fill="#FFD700" stroke="#333" stroke-width="0.8" text-anchor="middle" transform="rotate(${angle}, ${qx}, ${qy})">?</text>`;
-    })() : ''}
     <!-- Label -->
     <text x="${cx}" y="${58}" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">${s.label} ${frameIndex + 1}</text>
   `;
@@ -196,5 +200,5 @@ for (const state of Object.keys(STATES)) {
 }
 
 console.log('\nAll placeholder sprites generated!');
-console.log('Note: These are SVG files with .png extension — they work in Electron/Chromium.');
+console.log('Note: These are SVG files — they work in Electron/Chromium.');
 console.log('Replace with real PNG sprite sheets for production use.');

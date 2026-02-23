@@ -14,20 +14,11 @@
     ],
     "Notification": [
       {
-        "matcher": "elicitation_dialog",
+        "matcher": "permission_prompt",
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-notification.js questioning",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-notification.js idle",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-notification.js",
             "timeout": 5
           }
         ]

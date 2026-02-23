@@ -1,12 +1,30 @@
 'use strict';
 
-const { sendEvent } = require('./send-event');
+const { sendEvent, debugLog } = require('./send-event');
+
+function readStdin() {
+  return new Promise((resolve) => {
+    const chunks = [];
+    process.stdin.on('data', (chunk) => chunks.push(chunk));
+    process.stdin.on('end', () => {
+      try {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    process.stdin.on('error', () => resolve({}));
+  });
+}
 
 async function main() {
-  // Drain stdin (hook may pipe data)
-  for await (const _chunk of process.stdin) { /* discard */ }
+  const input = await readStdin();
 
-  await sendEvent('thinking');
+  debugLog(`on-prompt-submit stdin: ${JSON.stringify(input)}`);
+
+  const event = input.permission_mode === 'plan' ? 'planning_started' : 'working_started';
+  await sendEvent(event, { prompt_length: input.prompt?.length });
 
   process.stdout.write('{}');
 }

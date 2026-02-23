@@ -6,10 +6,10 @@ const { sendEvent } = require('./send-event');
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 
 async function main() {
-  // Send sleep event so the dog plays the sleep animation
-  await sendEvent('sleep');
+  // Send falling_asleep event so the dog plays the going_to_sleep animation
+  await sendEvent('falling_asleep');
 
-  // Wait for the sleep animation to be visible before shutting down
+  // Wait for the going_to_sleep animation to be visible before shutting down
   await new Promise((r) => setTimeout(r, 1500));
 
   // Gracefully shut down the Electron app

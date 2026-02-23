@@ -1,7 +1,7 @@
 # Code Pet
 
 An animated desktop pet companion that reacts to Claude Code activity. The pet appears as a small overlay in the
-bottom-right corner of your screen and responds to session events — thinking, typing, success, errors, and more.
+bottom-right corner of your screen and responds to session events — working, planning, waiting, and more.
 
 ## Installation
 
@@ -35,10 +35,10 @@ claude plugin remove code-pet
 
 ```
 Session starts → hook launches Electron overlay → pet wakes up
-Tool call begins → pet thinks or types
-Tool call ends → pet celebrates or reacts to errors
-Notification → pet returns to idle
-Inactivity → pet returns to idle after 10s
+Prompt submitted → pet starts working (or planning in plan mode)
+Notification → pet waits for action
+Stop → pet returns to idle
+Session ends → pet goes to sleep
 ```
 
 The overlay is transparent, frameless, always-on-top, click-through, and never steals focus.
@@ -54,32 +54,31 @@ curl http://localhost:31425/health
 # Send an event
 curl -X POST http://localhost:31425/event \
   -H 'Content-Type: application/json' \
-  -d '{"event":"thinking"}'
+  -d '{"event":"working_started"}'
 
 # Shutdown
 curl -X POST http://localhost:31425/shutdown
 ```
 
-Valid events: `idle`, `wake`, `sleep`, `thinking`, `typing`, `success`, `error`
+Valid events: `awaken`, `falling_asleep`, `working_started`, `planning_started`, `action_requested`, `work_finished`
 
 ## Custom Sprites
 
 Replace the placeholder sprite sheets in `assets/sprites/` with your own artwork:
 
-- Each file is a horizontal strip PNG
+- Each file is a horizontal strip SVG
 - Each frame is exactly 64x64px
-- Transparent background (PNG-24 with alpha)
+- Transparent background
 - Frame counts are configured in `src/renderer/dog.js` (`SPRITES` object)
 
-| File           | Frames | Description                         |
-|----------------|--------|-------------------------------------|
-| `idle.png`     | 4      | Default resting animation (loops)   |
-| `wake.png`     | 4      | Session start greeting (plays once) |
-| `sleep.png`    | 4      | Sleeping/inactive (loops)           |
-| `thinking.png` | 4      | Processing/reading (loops)          |
-| `typing.png`   | 6      | Writing/editing files (loops)       |
-| `success.png`  | 4      | Tool succeeded (plays once)         |
-| `error.png`    | 4      | Tool failed (plays once)            |
+| File                     | Frames | Description                         |
+|--------------------------|--------|-------------------------------------|
+| `idle.svg`               | 4      | Default resting animation (loops)   |
+| `waking_up.svg`          | 4      | Session start greeting (plays once) |
+| `going_to_sleep.svg`     | 4      | Sleeping/inactive (loops)           |
+| `working.svg`            | 4      | Processing/working (loops)          |
+| `planning.svg`           | 4      | Planning mode (loops)               |
+| `waiting_for_action.svg` | 4      | Waiting for user action (loops)     |
 
 To regenerate the placeholder sprites:
 
@@ -98,7 +97,7 @@ code-pet/
 ├── src/
 │   ├── app/                      # Electron main process
 │   └── renderer/                 # Overlay UI + sprite animation
-├── assets/sprites/               # Sprite sheet PNGs
+├── assets/sprites/               # Sprite sheet SVGs
 └── scripts/                      # Development utilities
 ```
 
@@ -108,6 +107,10 @@ code-pet/
 - macOS, Linux, or Windows
 - Claude Code with plugin support
 
+## Troubleshooting
 
+Force-stop the pet and clean up its PID file:
 
-pkill -9 -f code-pet; rm -f ~/.code-pet/app.pid 
+```bash
+pkill -9 -f code-pet; rm -f ~/.code-pet/app.pid
+```

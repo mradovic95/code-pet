@@ -1,21 +1,18 @@
 'use strict';
 
 const SPRITES = {
-  idle:     { frames: 4, duration: 1600, loop: true },
-  wake:     { frames: 4, duration: 800,  loop: false },
-  sleep:    { frames: 4, duration: 2400, loop: true },
-  thinking: { frames: 4, duration: 1200, loop: true },
-  questioning: { frames: 4, duration: 1200, loop: true },
+  idle:               { frames: 4, duration: 1600, loop: true },
+  waking_up:          { frames: 4, duration: 800,  loop: false },
+  going_to_sleep:     { frames: 4, duration: 2400, loop: true },
+  working:            { frames: 4, duration: 1200, loop: true },
+  planning:           { frames: 4, duration: 1200, loop: true },
+  waiting_for_action: { frames: 4, duration: 1600, loop: true },
 };
 
-// Auto-transition targets for non-looping or transient states
+// Auto-transition targets for non-looping states
 const AUTO_TRANSITIONS = {
-  wake:    { next: 'idle', delay: 800 },
+  waking_up: { next: 'idle', delay: 800 },
 };
-
-// Persistent states auto-return to idle after inactivity
-const PERSISTENT_STATES = new Set(['thinking', 'questioning']);
-const INACTIVITY_TIMEOUT = 10000; // 10 seconds
 
 const DEBOUNCE_MS = 300;
 
@@ -23,7 +20,6 @@ const dogStateMachine = (() => {
   const el = document.getElementById('dog');
   let currentState = 'idle';
   let autoTransitionTimer = null;
-  let inactivityTimer = null;
   let debounceTimer = null;
   let lastChangeTime = 0;
   let queuedEvent = null;
@@ -33,23 +29,10 @@ const dogStateMachine = (() => {
       clearTimeout(autoTransitionTimer);
       autoTransitionTimer = null;
     }
-    if (inactivityTimer) {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = null;
-    }
   }
 
   function applyState(state) {
     if (!SPRITES[state]) return;
-
-    // For persistent states, reset inactivity timer even if state unchanged
-    if (state === currentState && PERSISTENT_STATES.has(state)) {
-      if (inactivityTimer) {
-        clearTimeout(inactivityTimer);
-      }
-      inactivityTimer = setTimeout(() => applyState('idle'), INACTIVITY_TIMEOUT);
-      return;
-    }
 
     if (state === currentState) return;
 
@@ -76,11 +59,6 @@ const dogStateMachine = (() => {
     if (AUTO_TRANSITIONS[state]) {
       const { next, delay } = AUTO_TRANSITIONS[state];
       autoTransitionTimer = setTimeout(() => applyState(next), delay);
-    }
-
-    // Set up inactivity timeout for persistent states
-    if (PERSISTENT_STATES.has(state)) {
-      inactivityTimer = setTimeout(() => applyState('idle'), INACTIVITY_TIMEOUT);
     }
   }
 

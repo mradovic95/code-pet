@@ -19,7 +19,6 @@
     <path d="M27,34 Q32,39 37,34" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
     
-    
     <!-- Label -->
     <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 1</text>
   
@@ -39,7 +38,6 @@
     <!-- Mouth -->
     <path d="M91,36 Q96,41 101,36" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
-    
     
     <!-- Label -->
     <text x="96" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 2</text>
@@ -61,7 +59,6 @@
     <path d="M155,34 Q160,39 165,34" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
     
-    
     <!-- Label -->
     <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 3</text>
   
@@ -81,7 +78,6 @@
     <!-- Mouth -->
     <path d="M219,32 Q224,37 229,32" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
     <!-- Extras -->
-    
     
     <!-- Label -->
     <text x="224" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 4</text>

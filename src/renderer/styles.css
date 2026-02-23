@@ -37,46 +37,57 @@ html, body {
   to { background-position-x: -256px; }
 }
 
-/* --- Wake: 4 frames, 800ms, once --- */
-#dog.wake {
-  background-image: url('../../assets/sprites/wake.svg');
+/* --- Waking Up: 4 frames, 800ms, once --- */
+#dog.waking_up {
+  background-image: url('../../assets/sprites/waking_up.svg');
   background-size: calc(64px * 4) 64px;
-  animation: wake-anim 800ms steps(4) forwards;
+  animation: waking_up-anim 800ms steps(4) forwards;
 }
-@keyframes wake-anim {
+@keyframes waking_up-anim {
   from { background-position-x: 0; }
   to { background-position-x: -256px; }
 }
 
-/* --- Sleep: 4 frames, 2400ms, loops --- */
-#dog.sleep {
-  background-image: url('../../assets/sprites/sleep.svg');
+/* --- Going to Sleep: 4 frames, 2400ms, loops --- */
+#dog.going_to_sleep {
+  background-image: url('../../assets/sprites/going_to_sleep.svg');
   background-size: calc(64px * 4) 64px;
-  animation: sleep-anim 2400ms steps(4) infinite;
+  animation: going_to_sleep-anim 2400ms steps(4) infinite;
 }
-@keyframes sleep-anim {
+@keyframes going_to_sleep-anim {
   from { background-position-x: 0; }
   to { background-position-x: -256px; }
 }
 
-/* --- Thinking: 4 frames, 1200ms, loops --- */
-#dog.thinking {
-  background-image: url('../../assets/sprites/thinking.svg');
+/* --- Working: 4 frames, 1200ms, loops --- */
+#dog.working {
+  background-image: url('../../assets/sprites/working.svg');
   background-size: calc(64px * 4) 64px;
-  animation: thinking-anim 1200ms steps(4) infinite;
+  animation: working-anim 1200ms steps(4) infinite;
 }
-@keyframes thinking-anim {
+@keyframes working-anim {
   from { background-position-x: 0; }
   to { background-position-x: -256px; }
 }
 
-/* --- Questioning: 4 frames, 1200ms, loops --- */
-#dog.questioning {
-  background-image: url('../../assets/sprites/questioning.svg');
+/* --- Planning: 4 frames, 1200ms, loops --- */
+#dog.planning {
+  background-image: url('../../assets/sprites/planning.svg');
   background-size: calc(64px * 4) 64px;
-  animation: questioning-anim 1200ms steps(4) infinite;
+  animation: planning-anim 1200ms steps(4) infinite;
 }
-@keyframes questioning-anim {
+@keyframes planning-anim {
+  from { background-position-x: 0; }
+  to { background-position-x: -256px; }
+}
+
+/* --- Waiting for Action: 4 frames, 1600ms, loops --- */
+#dog.waiting_for_action {
+  background-image: url('../../assets/sprites/waiting_for_action.svg');
+  background-size: calc(64px * 4) 64px;
+  animation: waiting_for_action-anim 1600ms steps(4) infinite;
+}
+@keyframes waiting_for_action-anim {
   from { background-position-x: 0; }
   to { background-position-x: -256px; }
 }
