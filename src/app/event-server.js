@@ -14,8 +14,14 @@ const EVENT_TO_STATE = {
   work_finished:    'idle',
 };
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
+const SLEEP_GRACE_MS = 2000;
 
 let server = null;
+let sleepGraceTimer = null;
+let sleepGracePending = false;
+let lastEventName = null;
+let lastEventTime = 0;
+let lastActiveEvent = null;
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -38,6 +44,14 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
+function cancelSleepGrace() {
+  if (sleepGraceTimer) {
+    clearTimeout(sleepGraceTimer);
+    sleepGraceTimer = null;
+  }
+  sleepGracePending = false;
+}
+
 function startServer() {
   return new Promise((resolve, reject) => {
     server = http.createServer(async (req, res) => {
@@ -48,6 +62,11 @@ function startServer() {
             return;
           }
           sendJson(res, 200, { status: 'ok' });
+          return;
+        }
+
+        if (req.method === 'GET' && req.url === '/last-event') {
+          sendJson(res, 200, { event: lastEventName, timestamp: lastEventTime, activeEvent: lastActiveEvent });
           return;
         }
 
@@ -64,7 +83,47 @@ function startServer() {
             return;
           }
 
+          lastEventName = eventName;
+          lastEventTime = Date.now();
+
+          // Track last active work event for state restoration
+          if (eventName === 'working_started' || eventName === 'planning_started') {
+            lastActiveEvent = eventName;
+          }
+          // Reset on lifecycle/terminal events
+          if (eventName === 'work_finished' || eventName === 'falling_asleep' || eventName === 'awaken') {
+            lastActiveEvent = null;
+          }
+
           logger.info(`Received event: ${eventName} → state: ${state}`);
+
+          if (eventName === 'falling_asleep') {
+            // Start grace period — don't forward yet
+            cancelSleepGrace();
+            sleepGracePending = true;
+            sleepGraceTimer = setTimeout(() => {
+              sleepGracePending = false;
+              sleepGraceTimer = null;
+              logger.info('Sleep grace expired → forwarding going_to_sleep');
+              sendToRenderer('dog-event', 'going_to_sleep');
+            }, SLEEP_GRACE_MS);
+            sendJson(res, 200, { received: eventName, state, grace: true });
+            return;
+          }
+
+          if (eventName === 'awaken' && sleepGracePending) {
+            // Awaken during grace — cancel sleep, don't forward either event
+            cancelSleepGrace();
+            logger.info('Awaken during sleep grace — cancelled sleep, skipping waking_up');
+            sendJson(res, 200, { received: eventName, state, graceCancelled: true });
+            return;
+          }
+
+          // Any other event cancels a pending sleep grace
+          if (sleepGracePending) {
+            cancelSleepGrace();
+            logger.info(`Event ${eventName} cancelled pending sleep grace`);
+          }
 
           sendToRenderer('dog-event', state);
 

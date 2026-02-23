@@ -12,6 +12,7 @@ Animated desktop pet that reacts to Claude Code activity. A transparent, always-
 
 ```
 .claude-plugin/plugin.json   # Claude Code plugin manifest
+.claude-plugin/marketplace.json # Claude Code marketplace metadata
 hooks/
   hooks.json                 # Hook event → script mapping
   scripts/                   # Hook handlers (plain Node.js, no Electron)
@@ -19,22 +20,27 @@ hooks/
     send-event.js            # HTTP POST client to event server
     on-session-start.js      # SessionStart: bootstrap → launch app → send awaken
     on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron
-    on-notification.js       # Notification: send action_requested
-    on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started
-    on-stop.js               # Stop: send work_finished
+    on-notification.js       # Notification: send action_requested (+notification payload)
+    on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started (+prompt_length)
+    on-post-tool-use.js      # PostToolUse: logs tool usage to debug log (no state change)
+    on-stop.js               # Stop: send work_finished (+stop_reason)
 src/
   app/                       # Electron main process
     main.js                  # Entry point: PID → server → overlay window
-    event-server.js          # HTTP server on 127.0.0.1:31425
+    event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
     process-manager.js       # PID file, app launch/stop, health checks
     window-manager.js        # Transparent click-through BrowserWindow
     logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
     preload.js               # Context bridge: window.assistantDog.onEvent()
+    settings-preload.js      # Context bridge for settings window
   renderer/                  # Chromium renderer (the visible overlay)
     index.html               # Shell: <div id="dog">, loads dog.js + ipc.js
     dog.js                   # Sprite state machine (core animation logic)
     ipc.js                   # Wires IPC events to state machine
     styles.css               # CSS sprite strip animations for all 6 states
+    settings.html            # Settings window UI (opened on double-click)
+    settings.js              # Settings window logic
+    settings.css             # Settings window styling
 assets/sprites/              # Horizontal sprite strips (64×64px per frame)
 scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
@@ -68,6 +74,8 @@ Six semantic events map to six visual states:
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
 | `work_finished` | `idle` | Stop |
 
+> `on-post-tool-use.js` handles `PostToolUse` but only logs to `hooks-debug.log` — it does not send a semantic event or trigger any state change.
+
 ## State Machine (dog.js)
 
 Six states: `idle`, `waking_up`, `going_to_sleep`, `working`, `planning`, `waiting_for_action`
@@ -75,7 +83,7 @@ Six states: `idle`, `waking_up`, `going_to_sleep`, `working`, `planning`, `waiti
 | State | Frames | Duration | Loops | Auto-transition |
 |-------|--------|----------|-------|-----------------|
 | idle | 4 | 1600ms | yes | — |
-| waking_up | 4 | 800ms | no | → idle (800ms) |
+| waking_up | 20 | 4000ms | no | → idle (4000ms) |
 | going_to_sleep | 4 | 2400ms | yes | — |
 | working | 4 | 1200ms | yes | — |
 | planning | 4 | 1200ms | yes | — |
@@ -85,6 +93,7 @@ Six states: `idle`, `waking_up`, `going_to_sleep`, `working`, `planning`, `waiti
 - **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
 - **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
 - **One-shot states** (waking_up): plays once then auto-returns to idle
+- **Sleep grace**: when `falling_asleep` arrives, event-server.js waits 2 seconds before forwarding to the renderer. If `awaken` arrives during grace, sleep is cancelled silently. Prevents jarring flicker during rapid session stop/start.
 
 ## Key Conventions
 
