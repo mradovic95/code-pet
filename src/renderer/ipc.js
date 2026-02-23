@@ -3,3 +3,5 @@
 window.assistantDog.onEvent((eventName) => {
   dogStateMachine.setState(eventName);
 });
+
+window.assistantDog.signalReady();

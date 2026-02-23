@@ -3,7 +3,7 @@
 const http = require('http');
 const { app } = require('electron');
 const logger = require('./logger');
-const { getWindow } = require('./window-manager');
+const { getWindow, sendToRenderer, isRendererReady } = require('./window-manager');
 
 const EVENT_TO_STATE = {
   awaken:           'waking_up',
@@ -43,6 +43,10 @@ function startServer() {
     server = http.createServer(async (req, res) => {
       try {
         if (req.method === 'GET' && req.url === '/health') {
+          if (!isRendererReady()) {
+            sendJson(res, 503, { status: 'waiting', reason: 'renderer not ready' });
+            return;
+          }
           sendJson(res, 200, { status: 'ok' });
           return;
         }
@@ -62,10 +66,7 @@ function startServer() {
 
           logger.info(`Received event: ${eventName} → state: ${state}`);
 
-          const win = getWindow();
-          if (win && !win.isDestroyed()) {
-            win.webContents.send('dog-event', state);
-          }
+          sendToRenderer('dog-event', state);
 
           sendJson(res, 200, { received: eventName, state });
           return;

@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('assistantDog', {
       callback(eventName);
     });
   },
+  signalReady: () => ipcRenderer.send('renderer-ready'),
 });

@@ -23,12 +23,12 @@ const STATES = {
     extras: [],
   },
   waking_up: {
-    frames: 4,
+    frames: 20,
     color: '#F5A623',
     label: 'wake',
     eyes: 'wide',
     mouth: 'open',
-    extras: ['!'],
+    extras: ['!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!', '!', '!!'],
   },
   going_to_sleep: {
     frames: 4,

@@ -1,10 +1,24 @@
 'use strict';
 
-const { BrowserWindow, screen } = require('electron');
+const { BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const logger = require('./logger');
 
 let overlayWindow = null;
+let rendererReady = false;
+let eventQueue = [];
+
+ipcMain.on('renderer-ready', () => {
+  rendererReady = true;
+  logger.info('Renderer signaled ready');
+  for (const { channel, data } of eventQueue) {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send(channel, data);
+      logger.info(`Flushed queued event: ${channel} → ${data}`);
+    }
+  }
+  eventQueue = [];
+});
 
 function createOverlayWindow() {
   const { workArea } = screen.getPrimaryDisplay();
@@ -47,6 +61,8 @@ function createOverlayWindow() {
 
   overlayWindow.on('closed', () => {
     overlayWindow = null;
+    rendererReady = false;
+    eventQueue = [];
   });
 
   logger.info(`Overlay window created at (${workArea.x + workArea.width - 96 - 16}, ${workArea.y + workArea.height - 96 - 16})`);
@@ -58,4 +74,17 @@ function getWindow() {
   return overlayWindow;
 }
 
-module.exports = { createOverlayWindow, getWindow };
+function sendToRenderer(channel, data) {
+  if (rendererReady && overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send(channel, data);
+  } else {
+    eventQueue.push({ channel, data });
+    logger.info(`Queued event (renderer not ready): ${channel} → ${data}`);
+  }
+}
+
+function isRendererReady() {
+  return rendererReady;
+}
+
+module.exports = { createOverlayWindow, getWindow, sendToRenderer, isRendererReady };

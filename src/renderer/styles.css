@@ -37,15 +37,15 @@ html, body {
   to { background-position-x: -256px; }
 }
 
-/* --- Waking Up: 4 frames, 800ms, once --- */
+/* --- Waking Up: 20 frames, 4000ms, once --- */
 #dog.waking_up {
   background-image: url('../../assets/sprites/waking_up.svg');
-  background-size: calc(64px * 4) 64px;
-  animation: waking_up-anim 800ms steps(4) forwards;
+  background-size: calc(64px * 20) 64px;
+  animation: waking_up-anim 4000ms steps(20) forwards;
 }
 @keyframes waking_up-anim {
   from { background-position-x: 0; }
-  to { background-position-x: -256px; }
+  to { background-position-x: -1280px; }
 }
 
 /* --- Going to Sleep: 4 frames, 2400ms, loops --- */

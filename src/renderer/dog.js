@@ -2,7 +2,7 @@
 
 const SPRITES = {
   idle:               { frames: 4, duration: 1600, loop: true },
-  waking_up:          { frames: 4, duration: 800,  loop: false },
+  waking_up:          { frames: 20, duration: 4000, loop: false },
   going_to_sleep:     { frames: 4, duration: 2400, loop: true },
   working:            { frames: 4, duration: 1200, loop: true },
   planning:           { frames: 4, duration: 1200, loop: true },
@@ -11,7 +11,7 @@ const SPRITES = {
 
 // Auto-transition targets for non-looping states
 const AUTO_TRANSITIONS = {
-  waking_up: { next: 'idle', delay: 800 },
+  waking_up: { next: 'idle', delay: 4000 },
 };
 
 const DEBOUNCE_MS = 300;
