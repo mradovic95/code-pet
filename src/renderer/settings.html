@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Pet Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="titlebar">
+    <span class="titlebar-title">Code Pet Settings</span>
+    <button id="close-btn" class="titlebar-close">&times;</button>
+  </div>
+  <div class="content">
+    <div class="section">
+      <div class="section-title">Appearance</div>
+      <div class="field">
+        <label>Pet Size</label>
+        <select disabled>
+          <option>Small (64px)</option>
+          <option selected>Medium (96px)</option>
+          <option>Large (128px)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Position</label>
+        <select disabled>
+          <option>Top Left</option>
+          <option>Top Right</option>
+          <option>Bottom Left</option>
+          <option selected>Bottom Right</option>
+        </select>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Behavior</div>
+      <div class="field">
+        <label>Animation Speed</label>
+        <select disabled>
+          <option>Slow</option>
+          <option selected>Normal</option>
+          <option>Fast</option>
+        </select>
+      </div>
+      <div class="field field-checkbox">
+        <input type="checkbox" id="all-workspaces" checked disabled>
+        <label for="all-workspaces">Show on all workspaces</label>
+      </div>
+    </div>
+    <div class="notice">
+      Settings are not yet functional. They will be enabled in a future update.
+    </div>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

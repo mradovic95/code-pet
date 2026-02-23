@@ -1,7 +1,7 @@
 'use strict';
 
 const { app } = require('electron');
-const { createOverlayWindow } = require('./window-manager');
+const { createOverlayWindow, closeSettingsWindow } = require('./window-manager');
 const { startServer, stopServer } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const logger = require('./logger');
@@ -41,6 +41,7 @@ if (!gotLock) {
 
   app.on('before-quit', async () => {
     logger.info('Shutting down...');
+    closeSettingsWindow();
     await stopServer();
     removePid();
   });

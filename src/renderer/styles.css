@@ -20,6 +20,7 @@ html, body {
   background-size: cover;
   image-rendering: pixelated;
   transition: opacity 0.1s ease;
+  cursor: pointer;
 }
 
 #dog.transitioning {

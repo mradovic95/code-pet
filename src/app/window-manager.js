@@ -5,8 +5,27 @@ const path = require('path');
 const logger = require('./logger');
 
 let overlayWindow = null;
+let settingsWindow = null;
 let rendererReady = false;
 let eventQueue = [];
+
+ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    if (ignore) {
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      overlayWindow.setIgnoreMouseEvents(false);
+    }
+  }
+});
+
+ipcMain.on('open-settings', () => {
+  createSettingsWindow();
+});
+
+ipcMain.on('close-settings', () => {
+  closeSettingsWindow();
+});
 
 ipcMain.on('renderer-ready', () => {
   rendererReady = true;
@@ -87,4 +106,62 @@ function isRendererReady() {
   return rendererReady;
 }
 
-module.exports = { createOverlayWindow, getWindow, sendToRenderer, isRendererReady };
+function createSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return settingsWindow;
+  }
+
+  const overlayBounds = overlayWindow ? overlayWindow.getBounds() : null;
+  const settingsWidth = 320;
+  const settingsHeight = 400;
+
+  let x, y;
+  if (overlayBounds) {
+    x = overlayBounds.x - settingsWidth - 16;
+    y = overlayBounds.y + overlayBounds.height - settingsHeight;
+  } else {
+    const { workArea } = screen.getPrimaryDisplay();
+    x = workArea.x + workArea.width - settingsWidth - 128;
+    y = workArea.y + workArea.height - settingsHeight - 16;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: settingsWidth,
+    height: settingsHeight,
+    x,
+    y,
+    frame: false,
+    transparent: false,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: false,
+    hasShadow: true,
+    backgroundColor: '#1e1e2e',
+    webPreferences: {
+      preload: path.join(__dirname, 'settings-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  settingsWindow.setAlwaysOnTop(true, 'floating');
+
+  settingsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'settings.html'));
+
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+
+  logger.info('Settings window created');
+  return settingsWindow;
+}
+
+function closeSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+    settingsWindow = null;
+  }
+}
+
+module.exports = { createOverlayWindow, getWindow, sendToRenderer, isRendererReady, closeSettingsWindow };

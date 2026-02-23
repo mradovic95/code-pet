@@ -92,5 +92,19 @@ const dogStateMachine = (() => {
     return currentState;
   }
 
+  // Click-through toggle: enable clicks when hovering over the dog
+  el.addEventListener('mouseenter', () => {
+    window.assistantDog.setIgnoreMouseEvents(false);
+  });
+
+  el.addEventListener('mouseleave', () => {
+    window.assistantDog.setIgnoreMouseEvents(true);
+  });
+
+  // Open settings on double-click
+  el.addEventListener('dblclick', () => {
+    window.assistantDog.openSettings();
+  });
+
   return { setState, getState };
 })();
