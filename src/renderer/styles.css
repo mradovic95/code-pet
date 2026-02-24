@@ -5,17 +5,53 @@
 }
 
 html, body {
-  width: 96px;
-  height: 96px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: transparent;
   -webkit-app-region: no-drag;
 }
 
-#dog {
+#pets-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.pet-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  width: 100%;
+  transition: opacity 0.3s ease;
+}
+
+.pet-slot.removing {
+  opacity: 0;
+}
+
+.pet-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 10px;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+  pointer-events: none;
+}
+
+.dog {
   width: 64px;
   height: 64px;
-  margin: 16px;
   background-repeat: no-repeat;
   background-size: cover;
   image-rendering: pixelated;
@@ -23,12 +59,12 @@ html, body {
   cursor: pointer;
 }
 
-#dog.transitioning {
+.dog.transitioning {
   opacity: 0.6;
 }
 
 /* --- Idle: 4 frames, 1600ms, loops --- */
-#dog.idle {
+.dog.idle {
   background-image: url('../../assets/sprites/idle.svg');
   background-size: calc(64px * 4) 64px;
   animation: idle-anim 1600ms steps(4) infinite;
@@ -39,7 +75,7 @@ html, body {
 }
 
 /* --- Waking Up: 20 frames, 4000ms, once --- */
-#dog.waking_up {
+.dog.waking_up {
   background-image: url('../../assets/sprites/waking_up.svg');
   background-size: calc(64px * 20) 64px;
   animation: waking_up-anim 4000ms steps(20) forwards;
@@ -50,7 +86,7 @@ html, body {
 }
 
 /* --- Working: 4 frames, 1200ms, loops --- */
-#dog.working {
+.dog.working {
   background-image: url('../../assets/sprites/working.svg');
   background-size: calc(64px * 4) 64px;
   animation: working-anim 1200ms steps(4) infinite;
@@ -61,7 +97,7 @@ html, body {
 }
 
 /* --- Planning: 4 frames, 1200ms, loops --- */
-#dog.planning {
+.dog.planning {
   background-image: url('../../assets/sprites/planning.svg');
   background-size: calc(64px * 4) 64px;
   animation: planning-anim 1200ms steps(4) infinite;
@@ -72,7 +108,7 @@ html, body {
 }
 
 /* --- Waiting for Action: 4 frames, 1600ms, loops --- */
-#dog.waiting_for_action {
+.dog.waiting_for_action {
   background-image: url('../../assets/sprites/waiting_for_action.svg');
   background-size: calc(64px * 4) 64px;
   animation: waiting_for_action-anim 1600ms steps(4) infinite;

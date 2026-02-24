@@ -8,6 +8,16 @@ const pathMod = require('path');
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 const DEBUG_LOG = pathMod.join(os.homedir(), '.code-pet', 'hooks-debug.log');
 
+function getProjectContext() {
+  try {
+    const cwd = process.cwd();
+    const name = pathMod.basename(cwd).replace(/[-_]/g, ' ');
+    return { project: cwd, projectName: name };
+  } catch {
+    return { project: 'unknown', projectName: 'unknown' };
+  }
+}
+
 function debugLog(msg) {
   try {
     const line = `[${new Date().toISOString()}] ${msg}\n`;
@@ -19,7 +29,7 @@ function debugLog(msg) {
 function sendEvent(eventName, data) {
   debugLog(`hook → ${eventName} (port ${PORT})`);
   return new Promise((resolve) => {
-    const payload = JSON.stringify({ event: eventName, ...data });
+    const payload = JSON.stringify({ event: eventName, ...getProjectContext(), ...data });
 
     const req = http.request(
       {

@@ -4,10 +4,17 @@ const { BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const logger = require('./logger');
 
+const PET_SLOT_HEIGHT = 100; // px per pet: 64 sprite + 16 label + 20 padding
+const PET_WINDOW_WIDTH = 120; // wider than 96 to fit labels
+const WINDOW_MARGIN = 16;
+const MAX_VISIBLE_PETS = 8;
+
 let overlayWindow = null;
 let settingsWindow = null;
 let rendererReady = false;
 let eventQueue = [];
+// Will be set by event-server after it initializes
+let getProjectsSnapshotFn = null;
 
 ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
@@ -30,23 +37,32 @@ ipcMain.on('close-settings', () => {
 ipcMain.on('renderer-ready', () => {
   rendererReady = true;
   logger.info('Renderer signaled ready');
+  // Flush queued events
   for (const { channel, data } of eventQueue) {
     if (overlayWindow && !overlayWindow.isDestroyed()) {
       overlayWindow.webContents.send(channel, data);
-      logger.info(`Flushed queued event: ${channel} → ${data}`);
+      logger.info(`Flushed queued event: ${channel} → ${JSON.stringify(data)}`);
     }
   }
   eventQueue = [];
+  // Send current project snapshot for renderer reload recovery
+  if (getProjectsSnapshotFn) {
+    const snapshot = getProjectsSnapshotFn();
+    if (Object.keys(snapshot).length > 0) {
+      overlayWindow.webContents.send('pet-init', snapshot);
+      logger.info(`Sent pet-init with ${Object.keys(snapshot).length} projects`);
+    }
+  }
 });
 
 function createOverlayWindow() {
   const { workArea } = screen.getPrimaryDisplay();
 
   overlayWindow = new BrowserWindow({
-    width: 96,
-    height: 96,
-    x: workArea.x + workArea.width - 96 - 16,
-    y: workArea.y + workArea.height - 96 - 16,
+    width: PET_WINDOW_WIDTH,
+    height: PET_SLOT_HEIGHT,
+    x: workArea.x + workArea.width - PET_WINDOW_WIDTH - WINDOW_MARGIN,
+    y: workArea.y + workArea.height - PET_SLOT_HEIGHT - WINDOW_MARGIN,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -84,9 +100,23 @@ function createOverlayWindow() {
     eventQueue = [];
   });
 
-  logger.info(`Overlay window created at (${workArea.x + workArea.width - 96 - 16}, ${workArea.y + workArea.height - 96 - 16})`);
+  logger.info(`Overlay window created at (${workArea.x + workArea.width - PET_WINDOW_WIDTH - WINDOW_MARGIN}, ${workArea.y + workArea.height - PET_SLOT_HEIGHT - WINDOW_MARGIN})`);
 
   return overlayWindow;
+}
+
+function resizeForPetCount(count) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const visible = Math.min(count, MAX_VISIBLE_PETS);
+  const newHeight = PET_SLOT_HEIGHT * Math.max(visible, 1);
+  const { workArea } = screen.getPrimaryDisplay();
+  overlayWindow.setBounds({
+    x: workArea.x + workArea.width - PET_WINDOW_WIDTH - WINDOW_MARGIN,
+    y: workArea.y + workArea.height - newHeight - WINDOW_MARGIN,
+    width: PET_WINDOW_WIDTH,
+    height: newHeight,
+  });
+  logger.info(`Resized overlay for ${count} pets (${PET_WINDOW_WIDTH}x${newHeight})`);
 }
 
 function getWindow() {
@@ -98,12 +128,16 @@ function sendToRenderer(channel, data) {
     overlayWindow.webContents.send(channel, data);
   } else {
     eventQueue.push({ channel, data });
-    logger.info(`Queued event (renderer not ready): ${channel} → ${data}`);
+    logger.info(`Queued event (renderer not ready): ${channel} → ${JSON.stringify(data)}`);
   }
 }
 
 function isRendererReady() {
   return rendererReady;
+}
+
+function setProjectsSnapshotFn(fn) {
+  getProjectsSnapshotFn = fn;
 }
 
 function createSettingsWindow() {
@@ -164,4 +198,13 @@ function closeSettingsWindow() {
   }
 }
 
-module.exports = { createOverlayWindow, getWindow, sendToRenderer, isRendererReady, closeSettingsWindow };
+module.exports = {
+  createOverlayWindow,
+  getWindow,
+  sendToRenderer,
+  isRendererReady,
+  resizeForPetCount,
+  setProjectsSnapshotFn,
+  closeSettingsWindow,
+  PET_SLOT_HEIGHT,
+};

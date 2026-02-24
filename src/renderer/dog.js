@@ -15,95 +15,145 @@ const AUTO_TRANSITIONS = {
 
 const DEBOUNCE_MS = 300;
 
-const dogStateMachine = (() => {
-  const el = document.getElementById('dog');
-  let currentState = 'idle';
-  let autoTransitionTimer = null;
-  let debounceTimer = null;
-  let lastChangeTime = 0;
-  let queuedEvent = null;
+class DogStateMachine {
+  constructor(el) {
+    this.el = el;
+    this.currentState = 'idle';
+    this.autoTransitionTimer = null;
+    this.debounceTimer = null;
+    this.lastChangeTime = 0;
+    this.queuedEvent = null;
+  }
 
-  function clearTimers() {
-    if (autoTransitionTimer) {
-      clearTimeout(autoTransitionTimer);
-      autoTransitionTimer = null;
+  clearTimers() {
+    if (this.autoTransitionTimer) {
+      clearTimeout(this.autoTransitionTimer);
+      this.autoTransitionTimer = null;
     }
   }
 
-  function applyState(state) {
+  applyState(state) {
     if (!SPRITES[state]) return;
 
-    if (state === currentState) return;
+    if (state === this.currentState) return;
 
-    clearTimers();
+    this.clearTimers();
 
     // Transition animation
-    el.classList.add('transitioning');
+    this.el.classList.add('transitioning');
 
     // Remove all state classes
-    Object.keys(SPRITES).forEach((s) => el.classList.remove(s));
+    Object.keys(SPRITES).forEach((s) => this.el.classList.remove(s));
 
     // Force animation restart by triggering reflow
-    void el.offsetWidth;
+    void this.el.offsetWidth;
 
     // Apply new state class
-    el.classList.add(state);
-    currentState = state;
-    lastChangeTime = Date.now();
+    this.el.classList.add(state);
+    this.currentState = state;
+    this.lastChangeTime = Date.now();
 
     // Remove transition class after brief fade
-    setTimeout(() => el.classList.remove('transitioning'), 100);
+    setTimeout(() => this.el.classList.remove('transitioning'), 100);
 
     // Set up auto-transition for non-looping states
     if (AUTO_TRANSITIONS[state]) {
       const { next, delay } = AUTO_TRANSITIONS[state];
-      autoTransitionTimer = setTimeout(() => applyState(next), delay);
+      this.autoTransitionTimer = setTimeout(() => this.applyState(next), delay);
     }
   }
 
-  function setState(event) {
+  setState(event) {
     const now = Date.now();
-    const elapsed = now - lastChangeTime;
+    const elapsed = now - this.lastChangeTime;
 
     if (elapsed < DEBOUNCE_MS) {
       // Queue this event; only the latest queued event fires
-      queuedEvent = event;
-      if (!debounceTimer) {
-        debounceTimer = setTimeout(() => {
-          debounceTimer = null;
-          const pending = queuedEvent;
-          queuedEvent = null;
-          if (pending) applyState(pending);
+      this.queuedEvent = event;
+      if (!this.debounceTimer) {
+        this.debounceTimer = setTimeout(() => {
+          this.debounceTimer = null;
+          const pending = this.queuedEvent;
+          this.queuedEvent = null;
+          if (pending) this.applyState(pending);
         }, DEBOUNCE_MS - elapsed);
       }
       return;
     }
 
-    queuedEvent = null;
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-      debounceTimer = null;
+    this.queuedEvent = null;
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
     }
-    applyState(event);
+    this.applyState(event);
   }
 
-  function getState() {
-    return currentState;
+  getState() {
+    return this.currentState;
   }
 
-  // Click-through toggle: enable clicks when hovering over the dog
-  el.addEventListener('mouseenter', () => {
-    window.assistantDog.setIgnoreMouseEvents(false);
-  });
+  destroy() {
+    this.clearTimers();
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+  }
+}
 
-  el.addEventListener('mouseleave', () => {
-    window.assistantDog.setIgnoreMouseEvents(true);
-  });
+class PetManager {
+  constructor(container) {
+    this.container = container;
+    this.pets = new Map(); // project path → { slot, dogEl, labelEl, stateMachine }
+  }
 
-  // Open settings on double-click
-  el.addEventListener('dblclick', () => {
-    window.assistantDog.openSettings();
-  });
+  updatePet(project, state, projectName) {
+    if (!this.pets.has(project)) {
+      this._addPet(project, projectName);
+    }
+    this.pets.get(project).stateMachine.setState(state);
+  }
 
-  return { setState, getState };
-})();
+  _addPet(project, projectName) {
+    const slot = document.createElement('div');
+    slot.className = 'pet-slot';
+    slot.dataset.project = project;
+
+    const dogEl = document.createElement('div');
+    dogEl.className = 'dog idle';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'pet-label';
+    labelEl.textContent = projectName || 'unknown';
+
+    slot.appendChild(dogEl);
+    slot.appendChild(labelEl);
+    this.container.appendChild(slot);
+
+    const stateMachine = new DogStateMachine(dogEl);
+
+    // Per-pet mouse interaction
+    dogEl.addEventListener('mouseenter', () =>
+      window.assistantDog.setIgnoreMouseEvents(false));
+    dogEl.addEventListener('mouseleave', () =>
+      window.assistantDog.setIgnoreMouseEvents(true));
+    dogEl.addEventListener('dblclick', () =>
+      window.assistantDog.openSettings());
+
+    this.pets.set(project, { slot, dogEl, labelEl, stateMachine });
+  }
+
+  removePet(project) {
+    const pet = this.pets.get(project);
+    if (!pet) return;
+    pet.stateMachine.destroy();
+    pet.slot.classList.add('removing');
+    setTimeout(() => {
+      pet.slot.remove();
+      this.pets.delete(project);
+    }, 300);
+  }
+}
+
+const petManager = new PetManager(document.getElementById('pets-container'));

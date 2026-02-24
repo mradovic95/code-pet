@@ -1,9 +1,10 @@
 'use strict';
 
 const http = require('http');
+const url = require('url');
 const { app } = require('electron');
 const logger = require('./logger');
-const { getWindow, sendToRenderer, isRendererReady } = require('./window-manager');
+const { getWindow, sendToRenderer, isRendererReady, resizeForPetCount } = require('./window-manager');
 
 const EVENT_TO_STATE = {
   awaken:           'waking_up',
@@ -15,9 +16,86 @@ const EVENT_TO_STATE = {
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 
 let server = null;
-let lastEventName = null;
-let lastEventTime = 0;
-let lastActiveEvent = null;
+
+// Per-project state: Map<projectPath, { lastEventName, lastActiveEvent, lastEventTime, projectName }>
+const projects = new Map();
+let shutdownTimer = null;
+
+function getOrCreateProject(projectPath, projectName) {
+  if (projects.has(projectPath)) {
+    const proj = projects.get(projectPath);
+    // Cancel pending shutdown if a new event arrives
+    if (shutdownTimer) {
+      clearTimeout(shutdownTimer);
+      shutdownTimer = null;
+      logger.info('Cancelled shutdown timer — new event arrived');
+    }
+    // Update projectName if provided
+    if (projectName) proj.projectName = projectName;
+    return proj;
+  }
+  const proj = {
+    lastEventName: null,
+    lastActiveEvent: null,
+    lastEventTime: 0,
+    projectName: projectName || 'unknown',
+  };
+  projects.set(projectPath, proj);
+  // Cancel pending shutdown
+  if (shutdownTimer) {
+    clearTimeout(shutdownTimer);
+    shutdownTimer = null;
+    logger.info('Cancelled shutdown timer — new project registered');
+  }
+  logger.info(`New project registered: ${projectPath} (${proj.projectName})`);
+  resizeForPetCount(projects.size);
+  return proj;
+}
+
+function removeProject(projectPath) {
+  if (!projects.has(projectPath)) return;
+  projects.delete(projectPath);
+  logger.info(`Project removed: ${projectPath} (${projects.size} remaining)`);
+  sendToRenderer('pet-remove', { project: projectPath });
+  resizeForPetCount(projects.size);
+  scheduleShutdownIfEmpty();
+}
+
+function scheduleShutdownIfEmpty() {
+  if (projects.size > 0) return;
+  if (shutdownTimer) return;
+  logger.info('No projects remaining — scheduling shutdown in 5s');
+  shutdownTimer = setTimeout(() => {
+    if (projects.size === 0) {
+      logger.info('Shutdown timer fired — no projects, quitting');
+      app.quit();
+    }
+  }, 5000);
+}
+
+function getProjectsSnapshot() {
+  const snapshot = {};
+  for (const [path, state] of projects) {
+    snapshot[path] = {
+      lastEventName: state.lastEventName,
+      lastActiveEvent: state.lastActiveEvent,
+      lastEventTime: state.lastEventTime,
+      projectName: state.projectName,
+    };
+  }
+  return snapshot;
+}
+
+// Stale project cleanup: remove projects with no activity for 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [path, state] of projects) {
+    if (now - state.lastEventTime > 30 * 60 * 1000) {
+      logger.info(`Removing stale project: ${path} (last activity ${Math.round((now - state.lastEventTime) / 60000)}min ago)`);
+      removeProject(path);
+    }
+  }
+}, 60000);
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -53,51 +131,67 @@ function startServer() {
           return;
         }
 
-        if (req.method === 'GET' && req.url === '/last-event') {
-          sendJson(res, 200, { event: lastEventName, timestamp: lastEventTime, activeEvent: lastActiveEvent });
+        if (req.method === 'GET' && req.url.startsWith('/last-event')) {
+          const parsed = url.parse(req.url, true);
+          const projectParam = parsed.query.project;
+          if (projectParam && projects.has(projectParam)) {
+            const proj = projects.get(projectParam);
+            sendJson(res, 200, {
+              event: proj.lastEventName,
+              timestamp: proj.lastEventTime,
+              activeEvent: proj.lastActiveEvent,
+            });
+          } else {
+            // Return all projects state for debugging
+            sendJson(res, 200, { projects: getProjectsSnapshot() });
+          }
           return;
         }
 
         if (req.method === 'POST' && req.url === '/event') {
           const body = await readBody(req);
           const eventName = body.event;
+          const projectPath = body.project || 'unknown';
+          const projectName = body.projectName || 'unknown';
+
+          // Get or create per-project state
+          const proj = getOrCreateProject(projectPath, projectName);
 
           // Handle question_answered: restore to previous active state
           if (eventName === 'question_answered') {
-            if (lastActiveEvent === 'working_started' || lastActiveEvent === 'planning_started') {
-              const restoredState = EVENT_TO_STATE[lastActiveEvent];
-              logger.info(`question_answered → restoring to ${restoredState} (from ${lastActiveEvent})`);
-              lastEventName = lastActiveEvent;
-              lastEventTime = Date.now();
-              sendToRenderer('dog-event', restoredState);
+            if (proj.lastActiveEvent === 'working_started' || proj.lastActiveEvent === 'planning_started') {
+              const restoredState = EVENT_TO_STATE[proj.lastActiveEvent];
+              logger.info(`[${projectName}] question_answered → restoring to ${restoredState} (from ${proj.lastActiveEvent})`);
+              proj.lastEventName = proj.lastActiveEvent;
+              proj.lastEventTime = Date.now();
+              sendToRenderer('pet-event', { project: projectPath, state: restoredState, projectName });
               sendJson(res, 200, { received: eventName, state: restoredState, restored: true });
             } else {
-              logger.info(`question_answered → no active state to restore, ignoring`);
+              logger.info(`[${projectName}] question_answered → no active state to restore, ignoring`);
               sendJson(res, 200, { received: eventName, ignored: true });
             }
             return;
           }
 
-          // Handle falling_asleep: restore from waiting_for_action, suppress during active work, or track for shutdown
+          // Handle falling_asleep: restore from waiting_for_action, suppress during active work, or remove project
           if (eventName === 'falling_asleep') {
-            if (lastEventName === 'action_requested' && lastActiveEvent) {
+            if (proj.lastEventName === 'action_requested' && proj.lastActiveEvent) {
               // Case 1: Pet is waiting for action with prior work state — restore to working/planning
-              const restoredState = EVENT_TO_STATE[lastActiveEvent];
-              logger.info(`falling_asleep during waiting_for_action → restoring to ${restoredState} (from ${lastActiveEvent})`);
-              lastEventName = lastActiveEvent;
-              lastEventTime = Date.now();
-              sendToRenderer('dog-event', restoredState);
+              const restoredState = EVENT_TO_STATE[proj.lastActiveEvent];
+              logger.info(`[${projectName}] falling_asleep during waiting_for_action → restoring to ${restoredState}`);
+              proj.lastEventName = proj.lastActiveEvent;
+              proj.lastEventTime = Date.now();
+              sendToRenderer('pet-event', { project: projectPath, state: restoredState, projectName });
               sendJson(res, 200, { received: eventName, state: restoredState, restored: true });
-            } else if (lastActiveEvent) {
-              // Case 2: Pet is actively working/planning — suppress (spurious SessionEnd after AskQuestion/permission answer)
-              logger.info(`Suppressing falling_asleep — active state (lastActive=${lastActiveEvent}, lastEvent=${lastEventName})`);
+            } else if (proj.lastActiveEvent) {
+              // Case 2: Pet is actively working/planning — suppress (spurious SessionEnd)
+              logger.info(`[${projectName}] Suppressing falling_asleep — active state (lastActive=${proj.lastActiveEvent})`);
               sendJson(res, 200, { received: eventName, suppressed: true });
             } else {
-              // Case 3: No active state — track for shutdown (on-session-end.js will check /last-event)
-              logger.info(`falling_asleep → tracked for shutdown (no active state)`);
-              lastEventName = 'falling_asleep';
-              lastEventTime = Date.now();
-              sendJson(res, 200, { received: eventName, tracked: true });
+              // Case 3: No active state — remove this project's pet
+              logger.info(`[${projectName}] falling_asleep → removing project (no active state)`);
+              removeProject(projectPath);
+              sendJson(res, 200, { received: eventName, removed: true });
             }
             return;
           }
@@ -111,30 +205,30 @@ function startServer() {
             return;
           }
 
-          // Handle awaken: suppress if any active state or waiting_for_action
+          // Handle awaken: suppress if project already has active state or waiting_for_action
           if (eventName === 'awaken') {
-            if (lastActiveEvent !== null || lastEventName === 'action_requested') {
-              logger.info(`Suppressing awaken — non-zero state (lastActive=${lastActiveEvent}, lastEvent=${lastEventName})`);
+            if (proj.lastActiveEvent !== null || proj.lastEventName === 'action_requested') {
+              logger.info(`[${projectName}] Suppressing awaken — non-zero state (lastActive=${proj.lastActiveEvent}, lastEvent=${proj.lastEventName})`);
               sendJson(res, 200, { received: eventName, state, suppressed: true });
               return;
             }
           }
 
-          lastEventName = eventName;
-          lastEventTime = Date.now();
+          proj.lastEventName = eventName;
+          proj.lastEventTime = Date.now();
 
           // Track last active work event for state restoration
           if (eventName === 'working_started' || eventName === 'planning_started') {
-            lastActiveEvent = eventName;
+            proj.lastActiveEvent = eventName;
           }
           // Reset on terminal event
           if (eventName === 'work_finished') {
-            lastActiveEvent = null;
+            proj.lastActiveEvent = null;
           }
 
-          logger.info(`Received event: ${eventName} → state: ${state}`);
+          logger.info(`[${projectName}] Received event: ${eventName} → state: ${state}`);
 
-          sendToRenderer('dog-event', state);
+          sendToRenderer('pet-event', { project: projectPath, state, projectName });
 
           sendJson(res, 200, { received: eventName, state });
           return;
@@ -179,4 +273,4 @@ function stopServer() {
   });
 }
 
-module.exports = { startServer, stopServer };
+module.exports = { startServer, stopServer, getProjectsSnapshot };
