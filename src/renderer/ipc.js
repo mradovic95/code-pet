@@ -8,19 +8,19 @@ const EVENT_TO_STATE_RENDERER = {
   work_finished:    'idle',
 };
 
-window.assistantDog.onPetEvent(({ project, state, projectName }) => {
+window.codePet.onPetEvent(({ project, state, projectName }) => {
   petManager.updatePet(project, state, projectName);
 });
 
-window.assistantDog.onPetRemove(({ project }) => {
+window.codePet.onPetRemove(({ project }) => {
   petManager.removePet(project);
 });
 
-window.assistantDog.onPetInit((snapshot) => {
+window.codePet.onPetInit((snapshot) => {
   for (const [project, data] of Object.entries(snapshot)) {
     const state = EVENT_TO_STATE_RENDERER[data.lastEventName] || 'idle';
     petManager.updatePet(project, state, data.projectName);
   }
 });
 
-window.assistantDog.signalReady();
+window.codePet.signalReady();

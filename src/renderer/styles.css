@@ -49,7 +49,7 @@ html, body {
   pointer-events: none;
 }
 
-.dog {
+.pet {
   width: 64px;
   height: 64px;
   background-repeat: no-repeat;
@@ -59,11 +59,11 @@ html, body {
   cursor: pointer;
 }
 
-.dog.transitioning {
+.pet.transitioning {
   opacity: 0.6;
 }
 
-.dog.clicked {
+.pet.clicked {
   animation: click-pulse 200ms ease-out;
 }
 
@@ -74,7 +74,7 @@ html, body {
 }
 
 /* --- Idle: 4 frames, 1600ms, loops --- */
-.dog.idle {
+.pet.idle {
   background-image: url('../../assets/sprites/idle.svg');
   background-size: calc(64px * 4) 64px;
   animation: idle-anim 1600ms steps(4) infinite;
@@ -85,7 +85,7 @@ html, body {
 }
 
 /* --- Waking Up: 20 frames, 4000ms, once --- */
-.dog.waking_up {
+.pet.waking_up {
   background-image: url('../../assets/sprites/waking_up.svg');
   background-size: calc(64px * 20) 64px;
   animation: waking_up-anim 4000ms steps(20) forwards;
@@ -96,7 +96,7 @@ html, body {
 }
 
 /* --- Working: 4 frames, 1200ms, loops --- */
-.dog.working {
+.pet.working {
   background-image: url('../../assets/sprites/working.svg');
   background-size: calc(64px * 4) 64px;
   animation: working-anim 1200ms steps(4) infinite;
@@ -107,7 +107,7 @@ html, body {
 }
 
 /* --- Planning: 4 frames, 1200ms, loops --- */
-.dog.planning {
+.pet.planning {
   background-image: url('../../assets/sprites/planning.svg');
   background-size: calc(64px * 4) 64px;
   animation: planning-anim 1200ms steps(4) infinite;
@@ -118,7 +118,7 @@ html, body {
 }
 
 /* --- Waiting for Action: 4 frames, 1600ms, loops --- */
-.dog.waiting_for_action {
+.pet.waiting_for_action {
   background-image: url('../../assets/sprites/waiting_for_action.svg');
   background-size: calc(64px * 4) 64px;
   animation: waiting_for_action-anim 1600ms steps(4) infinite;

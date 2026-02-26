@@ -31,11 +31,12 @@ src/
     process-manager.js       # PID file, app launch/stop, health checks
     window-manager.js        # Transparent click-through BrowserWindow
     logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
-    preload.js               # Context bridge: window.assistantDog.onPetEvent()
+    preload.js               # Context bridge: window.codePet.onPetEvent()
     settings-preload.js      # Context bridge for settings window
   renderer/                  # Chromium renderer (the visible overlay)
-    index.html               # Shell: <div id="dog">, loads dog.js + ipc.js
-    dog.js                   # Sprite state machine (core animation logic)
+    index.html               # Shell: <div id="pets-container">, loads pet.js + pet-manager.js + ipc.js
+    pet.js                   # Sprite state machine + interaction (Pet class)
+    pet-manager.js           # Multi-project pet orchestration (PetManager class)
     ipc.js                   # Wires IPC events to state machine
     styles.css               # CSS sprite strip animations for all 5 states
     settings.html            # Settings window UI (opened on double-click)
@@ -59,8 +60,8 @@ Claude Code hooks (stdin JSON)
       → event-server.js: EVENT_TO_STATE mapping + special handlers → resolves state name
         → IPC: sendToRenderer('pet-event', { project, state, projectName })
           → preload.js context bridge
-            → dog.js state machine
-              → CSS class swap on #dog → sprite animation plays
+            → pet.js state machine
+              → CSS class swap on .pet → sprite animation plays
 ```
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
@@ -69,7 +70,7 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 Five semantic events map to five visual states. Two additional events (`falling_asleep`, `question_answered`) are handled specially by the server without a dedicated visual state.
 
-| Event (hook sends) | State (dog.js) | Triggered by |
+| Event (hook sends) | State (pet.js) | Triggered by |
 |---------------------|----------------|--------------|
 | `awaken` | `waking_up` | SessionStart |
 | `working_started` | `working` | UserPromptSubmit (normal mode) |
@@ -83,7 +84,7 @@ Five semantic events map to five visual states. Two additional events (`falling_
 
 > `falling_asleep` is handled specially by the server: restores from `waiting_for_action` to the previous active state, is suppressed during active work (spurious SessionEnd), or is tracked for shutdown when no active state exists.
 
-## State Machine (dog.js)
+## State Machine & Interaction (pet.js)
 
 Five states: `idle`, `waking_up`, `working`, `planning`, `waiting_for_action`
 
@@ -142,4 +143,4 @@ npx electron src/app/main.js
 
 ## Sprite Format
 
-Each sprite is a horizontal SVG strip of 64×64px frames with transparent background. Frame counts must match the `SPRITES` config in `src/renderer/dog.js`. CSS in `styles.css` uses `background-position` with `steps(N)` to animate.
+Each sprite is a horizontal SVG strip of 64×64px frames with transparent background. Frame counts must match the `SPRITES` config in `src/renderer/pet.js`. CSS in `styles.css` uses `background-position` with `steps(N)` to animate.

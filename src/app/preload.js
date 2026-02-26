@@ -2,7 +2,7 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('assistantDog', {
+contextBridge.exposeInMainWorld('codePet', {
   onPetEvent: (callback) => {
     ipcRenderer.on('pet-event', (_event, data) => callback(data));
   },

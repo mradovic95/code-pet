@@ -11,7 +11,7 @@ async function main() {
   const result = bootstrap(PLUGIN_ROOT);
 
   if (!result.ready) {
-    // Dependencies installing in background, dog can't launch yet
+    // Dependencies installing in background, pet can't launch yet
     process.stdout.write('{}');
     process.exit(0);
   }

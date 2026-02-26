@@ -67,7 +67,8 @@ package "Electron App" as electron #FFF3E0 {
 
   package "Renderer — Overlay" as renderer_pkg <<src/renderer/>> #FFCCBC {
     [ipc.js] as ipcjs
-    [dog.js\nDogStateMachine\nPetManager] as dogjs
+    [pet.js\nPet] as petjs
+    [pet-manager.js\nPetManager] as petmgrjs
     [styles.css] as css
   }
 
@@ -138,8 +139,9 @@ ipcjs -[#E65100,bold]-> winmgr : <<IPC>>\nrenderer-ready\nset-ignore-mouse-event
 ' ══════════════════════════════════════════════════
 ' Renderer internal wiring
 ' ══════════════════════════════════════════════════
-ipcjs ..> dogjs : updatePet()\nremovePet()
-dogjs ..> css : CSS class swap\n(sprite animation)
+ipcjs ..> petmgrjs : updatePet()\nremovePet()
+petmgrjs ..> petjs : new Pet()
+petjs ..> css : CSS class swap\n(sprite animation)
 
 ' ══════════════════════════════════════════════════
 ' Settings window wiring

@@ -69,7 +69,7 @@ Replace the placeholder sprite sheets in `assets/sprites/` with your own artwork
 - Each file is a horizontal strip SVG
 - Each frame is exactly 64x64px
 - Transparent background
-- Frame counts are configured in `src/renderer/dog.js` (`SPRITES` object)
+- Frame counts are configured in `src/renderer/pet.js` (`SPRITES` object)
 
 | File                     | Frames | Description                         |
 |--------------------------|--------|-------------------------------------|
