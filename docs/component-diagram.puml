@@ -1,0 +1,185 @@
+@startuml code-pet-components
+title Code Pet — Component Diagram
+
+skinparam component {
+  BackgroundColor #FAFAFA
+  BorderColor #555555
+}
+skinparam package {
+  BackgroundColor #F5F5F5
+  BorderColor #888888
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #CCCC88
+}
+skinparam legend {
+  BackgroundColor #F0F0F0
+  BorderColor #AAAAAA
+}
+
+' ══════════════════════════════════════════════════
+' CLAUDE CODE (external actor)
+' ══════════════════════════════════════════════════
+package "Claude Code" as claude #E8EAF6 {
+  [SessionStart] as hook_ss
+  [SessionEnd] as hook_se
+  [UserPromptSubmit] as hook_ps
+  [Notification] as hook_notif
+  [PostToolUse] as hook_ptu
+  [Stop] as hook_stop
+}
+
+' ══════════════════════════════════════════════════
+' HOOK SCRIPTS (hooks/scripts/)
+' ══════════════════════════════════════════════════
+package "Hook Scripts" as hooks <<hooks/scripts/>> #E8F5E9 {
+  package "Lifecycle" {
+    [on-session-start.js] as oss
+    [on-session-end.js] as ose
+  }
+  package "Event Handlers" {
+    [on-prompt-submit.js] as ops
+    [on-notification.js] as onot
+    [on-post-tool-use.js] as optu
+    [on-stop.js] as ost
+  }
+  package "Shared" {
+    [send-event.js] as send
+    [bootstrap.js] as boot
+  }
+}
+
+' ══════════════════════════════════════════════════
+' ELECTRON APP (src/app/ + src/renderer/)
+' ══════════════════════════════════════════════════
+package "Electron App" as electron #FFF3E0 {
+
+  package "Main Process" as main_pkg <<src/app/>> #FFE0B2 {
+    [main.js] as mainjs
+    [event-server.js\n:31425\n(/event, /health,\n/last-event, /shutdown)] as evtsrv
+    [window-manager.js] as winmgr
+    [process-manager.js] as procmgr
+    [logger.js] as logger
+    [preload.js] as preload
+    [settings-preload.js] as settingspreload
+  }
+
+  package "Renderer — Overlay" as renderer_pkg <<src/renderer/>> #FFCCBC {
+    [ipc.js] as ipcjs
+    [dog.js\nDogStateMachine\nPetManager] as dogjs
+    [styles.css] as css
+  }
+
+  package "Renderer — Settings" as settings_pkg <<src/renderer/>> #FFCCBC {
+    [settings.js] as settingsjs
+    [settings.html\nsettings.css] as settingshtml
+  }
+}
+
+' ══════════════════════════════════════════════════
+' INTERFACE 1: Claude Code → Hook Scripts (stdin JSON)
+' ══════════════════════════════════════════════════
+hook_ss -[#1565C0]-> oss : <<stdin JSON>>
+hook_se -[#1565C0]-> ose : <<stdin JSON>>
+hook_ps -[#1565C0]-> ops : <<stdin JSON>>
+hook_notif -[#1565C0]-> onot : <<stdin JSON>>
+hook_ptu -[#1565C0]-> optu : <<stdin JSON>>
+hook_stop -[#1565C0]-> ost : <<stdin JSON>>
+
+' ══════════════════════════════════════════════════
+' Hook scripts internal wiring
+' ══════════════════════════════════════════════════
+oss ..> boot : require()
+oss ..> send : awaken
+ose ..> send : falling_asleep
+ops ..> send : working_started\n/ planning_started
+onot ..> send : action_requested
+optu ..> send : question_answered\n(AskUserQuestion only)
+ost ..> send : work_finished
+
+' ══════════════════════════════════════════════════
+' INTERFACE 2: Hook Scripts → Event Server (HTTP)
+' ══════════════════════════════════════════════════
+send -[#C62828,bold]-> evtsrv : <<HTTP POST>>\n/event
+
+' ══════════════════════════════════════════════════
+' Hook Scripts → Process Manager (function calls)
+' ══════════════════════════════════════════════════
+oss -[#7B1FA2,dashed]-> procmgr : <<require()>>\nisRunning()\nlaunchApp()\nhealthCheck()
+ose -[#7B1FA2,dashed]-> procmgr : <<require()>>\nstopApp()
+
+' Process manager uses HTTP internally
+procmgr ..> evtsrv : <<HTTP>>\nGET /health\nPOST /shutdown
+
+' ══════════════════════════════════════════════════
+' Main Process internal wiring
+' ══════════════════════════════════════════════════
+mainjs ..> evtsrv : startServer()\nstopServer()
+mainjs ..> winmgr : createOverlayWindow()
+mainjs ..> procmgr : writePid()\nremovePid()
+mainjs ..> logger
+evtsrv ..> winmgr : sendToRenderer()
+evtsrv ..> logger
+winmgr ..> logger
+procmgr ..> logger
+
+' ══════════════════════════════════════════════════
+' INTERFACE 3: Main → Renderer (Electron IPC, downstream)
+' ══════════════════════════════════════════════════
+winmgr -[#2E7D32,bold]-> preload : webContents.send()
+preload -[#2E7D32,bold]-> ipcjs : <<IPC>>\npet-event\npet-remove\npet-init
+
+' ══════════════════════════════════════════════════
+' INTERFACE 4: Renderer → Main (Electron IPC, upstream)
+' ══════════════════════════════════════════════════
+ipcjs -[#E65100,bold]-> winmgr : <<IPC>>\nrenderer-ready\nset-ignore-mouse-events\nopen-settings
+
+' ══════════════════════════════════════════════════
+' Renderer internal wiring
+' ══════════════════════════════════════════════════
+ipcjs ..> dogjs : updatePet()\nremovePet()
+dogjs ..> css : CSS class swap\n(sprite animation)
+
+' ══════════════════════════════════════════════════
+' Settings window wiring
+' ══════════════════════════════════════════════════
+winmgr ..> settingspreload : createSettingsWindow()
+settingsjs -[#E65100,bold]-> winmgr : <<IPC>>\nclose-settings
+settingsjs ..> settingshtml
+
+' ══════════════════════════════════════════════════
+' Notes
+' ══════════════════════════════════════════════════
+note bottom of electron
+  **Runtime state** (~/.code-pet/)
+  app.pid — running Electron PID
+  code-pet.log — structured app log (1MB max)
+  app.log — Electron stdout/stderr
+  install.log — npm install output
+  installing — lock file during install
+  hooks-debug.log — hook event log
+end note
+
+note right of css
+  **Sprite assets**
+  assets/sprites/*.svg
+  Horizontal strips of
+  64x64px frames with
+  transparent background
+end note
+
+' ══════════════════════════════════════════════════
+' Legend
+' ══════════════════════════════════════════════════
+legend right
+  | Arrow | Interface |
+  | <color:#1565C0>**solid blue**</color> | stdin JSON (Claude Code invokes hook) |
+  | <color:#C62828>**solid red**</color> | HTTP POST to :31425/event |
+  | <color:#2E7D32>**solid green**</color> | Electron IPC (main → renderer) |
+  | <color:#E65100>**solid orange**</color> | Electron IPC (renderer → main) |
+  | <color:#7B1FA2>**dashed purple**</color> | require() function call |
+  | dotted grey | Internal module wiring |
+end legend
+
+@enduml

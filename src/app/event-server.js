@@ -39,6 +39,8 @@ function getOrCreateProject(projectPath, projectName) {
     lastActiveEvent: null,
     lastEventTime: 0,
     projectName: projectName || 'unknown',
+    claudePid: null,
+    tty: null,
   };
   projects.set(projectPath, proj);
   // Cancel pending shutdown
@@ -81,6 +83,8 @@ function getProjectsSnapshot() {
       lastActiveEvent: state.lastActiveEvent,
       lastEventTime: state.lastEventTime,
       projectName: state.projectName,
+      claudePid: state.claudePid,
+      tty: state.tty,
     };
   }
   return snapshot;
@@ -156,6 +160,14 @@ function startServer() {
 
           // Get or create per-project state
           const proj = getOrCreateProject(projectPath, projectName);
+
+          // Update claudePid and tty on every event to keep them fresh
+          if (body.claudePid) {
+            proj.claudePid = body.claudePid;
+          }
+          if (body.tty) {
+            proj.tty = body.tty;
+          }
 
           // Handle question_answered: restore to previous active state
           if (eventName === 'question_answered') {
@@ -273,4 +285,14 @@ function stopServer() {
   });
 }
 
-module.exports = { startServer, stopServer, getProjectsSnapshot };
+function getClaudePidForProject(projectPath) {
+  const proj = projects.get(projectPath);
+  return proj ? proj.claudePid : null;
+}
+
+function getTtyForProject(projectPath) {
+  const proj = projects.get(projectPath);
+  return proj ? proj.tty : null;
+}
+
+module.exports = { startServer, stopServer, getProjectsSnapshot, getClaudePidForProject, getTtyForProject };

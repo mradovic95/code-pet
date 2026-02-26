@@ -3,6 +3,7 @@
 const { BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('path');
 const logger = require('./logger');
+const { focusTerminal } = require('./terminal-focus');
 
 const PET_SLOT_HEIGHT = 100; // px per pet: 64 sprite + 16 label + 20 padding
 const PET_WINDOW_WIDTH = 120; // wider than 96 to fit labels
@@ -15,6 +16,8 @@ let rendererReady = false;
 let eventQueue = [];
 // Will be set by event-server after it initializes
 let getProjectsSnapshotFn = null;
+let getClaudePidFn = null;
+let getTtyFn = null;
 
 ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
@@ -28,6 +31,21 @@ ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
 
 ipcMain.on('open-settings', () => {
   createSettingsWindow();
+});
+
+ipcMain.on('focus-terminal', (_event, project) => {
+  if (!getClaudePidFn) {
+    logger.warn('focus-terminal: no PID lookup function set');
+    return;
+  }
+  const pid = getClaudePidFn(project);
+  if (pid) {
+    const projectDirName = project ? path.basename(project) : null;
+    const storedTty = getTtyFn ? getTtyFn(project) : null;
+    focusTerminal(pid, projectDirName, project, storedTty);
+  } else {
+    logger.info(`focus-terminal: no claudePid for project ${project}`);
+  }
 });
 
 ipcMain.on('close-settings', () => {
@@ -140,6 +158,14 @@ function setProjectsSnapshotFn(fn) {
   getProjectsSnapshotFn = fn;
 }
 
+function setClaudePidFn(fn) {
+  getClaudePidFn = fn;
+}
+
+function setTtyFn(fn) {
+  getTtyFn = fn;
+}
+
 function createSettingsWindow() {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();
@@ -205,6 +231,8 @@ module.exports = {
   isRendererReady,
   resizeForPetCount,
   setProjectsSnapshotFn,
+  setClaudePidFn,
+  setTtyFn,
   closeSettingsWindow,
   PET_SLOT_HEIGHT,
 };

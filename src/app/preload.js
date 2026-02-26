@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld('assistantDog', {
   signalReady: () => ipcRenderer.send('renderer-ready'),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
   openSettings: () => ipcRenderer.send('open-settings'),
+  focusTerminal: (project) => ipcRenderer.send('focus-terminal', project),
 });

@@ -1,8 +1,8 @@
 'use strict';
 
 const { app } = require('electron');
-const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn } = require('./window-manager');
-const { startServer, stopServer, getProjectsSnapshot } = require('./event-server');
+const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn } = require('./window-manager');
+const { startServer, stopServer, getProjectsSnapshot, getClaudePidForProject, getTtyForProject } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const logger = require('./logger');
 
@@ -32,6 +32,8 @@ if (!gotLock) {
     }
 
     setProjectsSnapshotFn(getProjectsSnapshot);
+    setClaudePidFn(getClaudePidForProject);
+    setTtyFn(getTtyForProject);
     createOverlayWindow();
     logger.info('Code Pet is running');
   });

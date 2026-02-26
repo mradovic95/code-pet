@@ -134,12 +134,28 @@ class PetManager {
     const stateMachine = new DogStateMachine(dogEl);
 
     // Per-pet mouse interaction
+    let clickTimer = null;
     dogEl.addEventListener('mouseenter', () =>
       window.assistantDog.setIgnoreMouseEvents(false));
     dogEl.addEventListener('mouseleave', () =>
       window.assistantDog.setIgnoreMouseEvents(true));
-    dogEl.addEventListener('dblclick', () =>
-      window.assistantDog.openSettings());
+    dogEl.addEventListener('click', () => {
+      if (clickTimer) return; // already waiting for double-click disambiguation
+      clickTimer = setTimeout(() => {
+        clickTimer = null;
+        // Single click: focus the Claude Code terminal
+        window.assistantDog.focusTerminal(project);
+        dogEl.classList.add('clicked');
+        setTimeout(() => dogEl.classList.remove('clicked'), 200);
+      }, 250);
+    });
+    dogEl.addEventListener('dblclick', () => {
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+      }
+      window.assistantDog.openSettings();
+    });
 
     this.pets.set(project, { slot, dogEl, labelEl, stateMachine });
   }

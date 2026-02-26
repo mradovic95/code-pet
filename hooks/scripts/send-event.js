@@ -4,17 +4,29 @@ const http = require('http');
 const fs = require('fs');
 const os = require('os');
 const pathMod = require('path');
+const { execFileSync } = require('child_process');
 
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 const DEBUG_LOG = pathMod.join(os.homedir(), '.code-pet', 'hooks-debug.log');
+
+function captureTty(pid) {
+  try {
+    const raw = execFileSync('ps', ['-o', 'tty=', '-p', String(pid)], { timeout: 1000 }).toString().trim();
+    if (!raw || raw === '??' || raw === '-') return null;
+    return raw.startsWith('/dev/') ? raw : `/dev/${raw}`;
+  } catch {
+    return null;
+  }
+}
 
 function getProjectContext() {
   try {
     const cwd = process.cwd();
     const name = pathMod.basename(cwd).replace(/[-_]/g, ' ');
-    return { project: cwd, projectName: name };
+    const tty = captureTty(process.ppid);
+    return { project: cwd, projectName: name, claudePid: process.ppid, tty };
   } catch {
-    return { project: 'unknown', projectName: 'unknown' };
+    return { project: 'unknown', projectName: 'unknown', claudePid: process.ppid, tty: null };
   }
 }
 
