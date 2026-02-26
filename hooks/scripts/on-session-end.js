@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { sendEvent, debugLog } = require('./send-event');
+const { sendEvent } = require('./send-event');
 
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 

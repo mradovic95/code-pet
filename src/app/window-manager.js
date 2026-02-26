@@ -137,10 +137,6 @@ function resizeForPetCount(count) {
   logger.info(`Resized overlay for ${count} pets (${PET_WINDOW_WIDTH}x${newHeight})`);
 }
 
-function getWindow() {
-  return overlayWindow;
-}
-
 function sendToRenderer(channel, data) {
   if (rendererReady && overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send(channel, data);
@@ -226,7 +222,6 @@ function closeSettingsWindow() {
 
 module.exports = {
   createOverlayWindow,
-  getWindow,
   sendToRenderer,
   isRendererReady,
   resizeForPetCount,
@@ -234,5 +229,4 @@ module.exports = {
   setClaudePidFn,
   setTtyFn,
   closeSettingsWindow,
-  PET_SLOT_HEIGHT,
 };

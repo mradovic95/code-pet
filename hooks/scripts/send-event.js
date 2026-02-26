@@ -77,22 +77,4 @@ function sendEvent(eventName, data) {
   });
 }
 
-function fetchLastEvent() {
-  return new Promise((resolve) => {
-    const req = http.get(
-      { hostname: '127.0.0.1', port: PORT, path: '/last-event', timeout: 1000 },
-      (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => {
-          try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-          catch { resolve(null); }
-        });
-      }
-    );
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-  });
-}
-
-module.exports = { sendEvent, debugLog, fetchLastEvent };
+module.exports = { sendEvent, debugLog };

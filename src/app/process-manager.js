@@ -173,7 +173,6 @@ module.exports = {
   PORT,
   STATE_DIR,
   writePid,
-  readPid,
   removePid,
   isRunning,
   healthCheck,

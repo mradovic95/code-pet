@@ -4,7 +4,7 @@ const http = require('http');
 const url = require('url');
 const { app } = require('electron');
 const logger = require('./logger');
-const { getWindow, sendToRenderer, isRendererReady, resizeForPetCount } = require('./window-manager');
+const { sendToRenderer, isRendererReady, resizeForPetCount } = require('./window-manager');
 
 const EVENT_TO_STATE = {
   awaken:           'waking_up',

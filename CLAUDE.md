@@ -31,7 +31,7 @@ src/
     process-manager.js       # PID file, app launch/stop, health checks
     window-manager.js        # Transparent click-through BrowserWindow
     logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
-    preload.js               # Context bridge: window.assistantDog.onEvent()
+    preload.js               # Context bridge: window.assistantDog.onPetEvent()
     settings-preload.js      # Context bridge for settings window
   renderer/                  # Chromium renderer (the visible overlay)
     index.html               # Shell: <div id="dog">, loads dog.js + ipc.js
@@ -57,7 +57,7 @@ Claude Code hooks (stdin JSON)
   → hooks/scripts/*.js (plain Node.js)
     → HTTP POST to 127.0.0.1:31425/event { event: "<semantic_event>" }
       → event-server.js: EVENT_TO_STATE mapping + special handlers → resolves state name
-        → IPC: win.webContents.send('dog-event', state)
+        → IPC: sendToRenderer('pet-event', { project, state, projectName })
           → preload.js context bridge
             → dog.js state machine
               → CSS class swap on #dog → sprite animation plays
