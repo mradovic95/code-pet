@@ -109,6 +109,29 @@ body {
   color: #6c7086;
 }
 
+.btn-dismiss {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  color: #f38ba8;
+  border: 1px solid #f38ba8;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-dismiss:hover {
+  background: #f38ba8;
+  color: #1e1e2e;
+}
+
+.btn-dismiss:active {
+  background: #eba0ac;
+  color: #1e1e2e;
+}
+
 .notice {
   margin-top: 8px;
   padding: 10px 12px;

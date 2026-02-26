@@ -14,6 +14,6 @@ contextBridge.exposeInMainWorld('codePet', {
   },
   signalReady: () => ipcRenderer.send('renderer-ready'),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
-  openSettings: () => ipcRenderer.send('open-settings'),
+  openSettings: (project) => ipcRenderer.send('open-settings', project),
   focusTerminal: (project) => ipcRenderer.send('focus-terminal', project),
 });

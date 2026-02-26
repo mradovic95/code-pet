@@ -1,18 +1,19 @@
 @startuml code-pet-states
 skinparam state {
   BackgroundColor<<looping>> #D4E6F1
-  BackgroundColor<<oneshot>> #FADBD8
 }
 
 title Code Pet — State Machine
 
-[*] --> waking_up : SessionStart\n//awaken//\n(only when zero state)
+[*] --> idle : SessionStart\n//awaken//\n(only when zero state)
 
 state "idle" as idle <<looping>> : Looping (4 frames, 1600ms)
-state "waking_up" as waking_up <<oneshot>> : One-shot (20 frames, 4000ms)
 state "working" as working <<looping>> : Looping (4 frames, 1200ms)
 state "planning" as planning <<looping>> : Looping (4 frames, 1200ms)
 state "waiting_for_action" as waiting_for_action <<looping>> : Looping (4 frames, 1600ms)
+
+' ── Awaken: stays in idle, plays renderer-only waking_up animation ──
+idle -[#green,dashed]-> idle : SessionStart\n//awaken//\n(plays waking_up animation)
 
 ' ── Hook-driven transitions (any state → target) ──
 idle --> working : UserPromptSubmit\n//working_started//
@@ -22,9 +23,6 @@ idle --> planning : UserPromptSubmit (plan)\n//planning_started//
 ' ── Stop returns to idle from active states ──
 working -[#red]-> idle : Stop\n//work_finished//
 planning -[#red]-> idle : Stop\n//work_finished//
-
-' ── Auto-transitions (timeouts) ──
-waking_up -[#green,dashed]-> idle : auto\n4000ms
 
 ' ── Awaken suppressed during ALL non-zero states ──
 working -[#grey,dotted]-> working : SessionStart\n//awaken// (suppressed)
@@ -48,12 +46,12 @@ note right of idle
   Transitions shown from idle for clarity,
   but the pet accepts all events regardless
   of current state (no guards), except:
-  **awaken** is suppressed whenever
-  lastActiveEvent is set or lastEventName
-  is action_requested (any non-zero state).
+  **awaken** is ignored in all non-idle
+  states via the whitelist pattern (only
+  IdleState overrides onAwaken).
   **falling_asleep** restores from
-  waiting_for_action, is suppressed during
-  active work, or is tracked for shutdown.
+  waiting_for_action, removes the project
+  in all other states (idle, working, planning).
   Debounce: 300ms collapses rapid events.
 end note
 
@@ -75,14 +73,13 @@ package "Claude Code Hooks" {
 }
 
 package "Pet States" {
-  [waking_up] #FADBD8
   [working] #D4E6F1
   [planning] #D4E6F1
   [waiting_for_action] #D4E6F1
   [idle] #D4E6F1
 }
 
-SS --> [waking_up] : when zero state
+SS --> [idle] : when zero state\n(plays waking_up animation)
 SE --> [working] : restore from\nwaiting_for_action
 SE --> [planning] : restore from\nwaiting_for_action
 PS --> [working] : normal mode
@@ -95,21 +92,21 @@ STOP --> [idle] : always
 note bottom of SS
   //awaken// suppressed when pet has
   any active state (working, planning,
-  waiting_for_action). Only fires
-  waking_up when pet is idle/fresh.
+  waiting_for_action). When idle/fresh,
+  stays in idle and plays renderer-only
+  waking_up animation.
 end note
 
 note bottom of SE
   //falling_asleep// restores from
-  waiting_for_action; suppressed during
-  active work; tracked for shutdown
-  when pet has no active state.
+  waiting_for_action if prior active state;
+  removes the project in all other states
+  (idle, working, planning).
 end note
 
 legend right
   | Color | Meaning |
-  | <#D4E6F1> | Looping state |
-  | <#FADBD8> | One-shot state |
+  | <#D4E6F1> | Server-side state |
 end legend
 
 @enduml

@@ -47,7 +47,7 @@ class Pet {
         clearTimeout(this.clickTimer);
         this.clickTimer = null;
       }
-      window.codePet.openSettings();
+      window.codePet.openSettings(this.project);
     });
   }
 

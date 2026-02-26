@@ -18,6 +18,8 @@ let eventQueue = [];
 let getProjectsSnapshotFn = null;
 let getClaudePidFn = null;
 let getTtyFn = null;
+let dispatchEventFn = null;
+let currentSettingsProject = null;
 
 ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
@@ -29,7 +31,8 @@ ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
   }
 });
 
-ipcMain.on('open-settings', () => {
+ipcMain.on('open-settings', (_event, project) => {
+  currentSettingsProject = project || null;
   createSettingsWindow();
 });
 
@@ -49,6 +52,15 @@ ipcMain.on('focus-terminal', (_event, project) => {
 });
 
 ipcMain.on('close-settings', () => {
+  closeSettingsWindow();
+});
+
+ipcMain.on('dismiss-project', () => {
+  if (currentSettingsProject && dispatchEventFn) {
+    const projectName = path.basename(currentSettingsProject);
+    dispatchEventFn(currentSettingsProject, projectName, 'falling_asleep');
+    logger.info(`Dismissed pet for project: ${currentSettingsProject}`);
+  }
   closeSettingsWindow();
 });
 
@@ -162,6 +174,10 @@ function setTtyFn(fn) {
   getTtyFn = fn;
 }
 
+function setDispatchEventFn(fn) {
+  dispatchEventFn = fn;
+}
+
 function createSettingsWindow() {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();
@@ -228,5 +244,6 @@ module.exports = {
   setProjectsSnapshotFn,
   setClaudePidFn,
   setTtyFn,
+  setDispatchEventFn,
   closeSettingsWindow,
 };
