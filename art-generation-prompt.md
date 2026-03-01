@@ -22,37 +22,37 @@ Prompts tailored for free text-to-sprite-sheet tools like SEELE AI, CGDream, Byl
 
 **Base description:** A cute small golden/orange dog, chibi style, simple geometric shapes, dark outlines, expressive eyes, pixel art style, 64x64 pixel frame, transparent background
 
-| State | Prompt |
-|-------|--------|
-| idle | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog sitting calmly, gentle breathing animation, slight body rise and fall, relaxed ears, happy closed-mouth smile. Pixel art, dark outlines, transparent background." |
-| working | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog typing energetically on a tiny laptop, paws moving rapidly, focused determined expression, slight head bobbing. Pixel art, dark outlines, transparent background." |
-| planning | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog thinking deeply, paw on chin, thought bubble appearing/disappearing, looking upward, contemplative expression. Pixel art, dark outlines, transparent background." |
-| waiting_for_action | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog looking up expectantly, tail wagging, ears perked up, alert posture, waiting patiently with wide eyes. Pixel art, dark outlines, transparent background." |
-| waking_up | "Sprite sheet, 20 frames, horizontal strip, 1280x64px. A cute golden chibi dog waking up from sleep — starts curled up sleeping, gradually stretches, yawns wide, shakes body, stands up alert and happy. Full wake-up sequence. Pixel art, dark outlines, transparent background." |
+| State | Prompt                                                                                                                                                                                                                                                                            |
+|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| idle | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog sitting calmly, gentle breathing animation, slight body rise and fall, relaxed ears, happy closed-mouth smile. Pixel art, dark outlines, transparent background."                                    |
+| working | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog typing energetically on a tiny laptop, paws moving rapidly, focused determined expression, slight head bobbing. Pixel art, dark outlines, transparent background."                                   |
+| planning | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog thinking deeply, paw on chin, thought bubble appearing/disappearing, looking upward, contemplative expression. Pixel art, dark outlines, transparent background."                                    |
+| waiting_for_action | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog looking up expectantly, tail wagging, ears perked up, alert posture, waiting patiently with wide eyes. Pixel art, dark outlines, transparent background."                                            |
+| waking_up | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute golden chibi dog waking up from sleep — starts curled up sleeping, gradually stretches, yawns wide, shakes body, stands up alert and happy. Full wake-up sequence. Pixel art, dark outlines, transparent background." |
 
 ### 🐱 Cat
 
 **Base description:** A cute small green-tinted cat, chibi style, pointed ears, whiskers, sly playful expression, pixel art style, 64x64 pixel frame, transparent background
 
-| State | Prompt |
-|-------|--------|
-| idle | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute green chibi cat sitting with tail curled around paws, slow tail swish, eyes blinking lazily, relaxed posture. Pixel art, dark outlines, transparent background." |
-| working | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute green chibi cat batting at code on a tiny screen, paws swiping quickly, focused intense eyes, ears forward. Pixel art, dark outlines, transparent background." |
-| planning | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute green chibi cat with narrowed scheming eyes, tail tip twitching, one paw raised thoughtfully, plotting expression. Pixel art, dark outlines, transparent background." |
-| waiting_for_action | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute green chibi cat meowing for attention, mouth opening and closing, paw reaching up, impatient tail flick. Pixel art, dark outlines, transparent background." |
-| waking_up | "Sprite sheet, 20 frames, horizontal strip, 1280x64px. A cute green chibi cat waking up — starts curled in a ball, one eye opens, big stretch with arched back, licks paw, sits up alert with perked ears. Full wake-up sequence. Pixel art, dark outlines, transparent background." |
+| State | Prompt                                                                                                                                                                                                                                                                             |
+|-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| idle | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute  chibi cat sitting with tail curled around paws, slow tail swish, eyes blinking lazily, relaxed posture. Pixel art, dark outlines, transparent background."                                                       |
+| working | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute  chibi cat batting at code on a tiny screen, paws swiping quickly, focused intense eyes, ears forward. Pixel art, dark outlines, transparent background."                                                         |
+| planning | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute  chibi cat with narrowed scheming eyes, tail tip twitching, one paw raised thoughtfully, plotting expression. Pixel art, dark outlines, transparent background."                                                  |
+| waiting_for_action | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute  chibi cat meowing for attention, mouth opening and closing, paw reaching up, impatient tail flick. Pixel art, dark outlines, transparent background."                                                            |
+| waking_up | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute  chibi cat waking up — starts curled in a ball, one eye opens, big stretch with arched back, licks paw, sits up alert with perked ears. Full wake-up sequence. Pixel art, dark outlines, transparent background." |
 
 ### 🐦 Bird
 
 **Base description:** A cute small blue bird, chibi style, round body, small beak, tiny wings, cheerful expression, pixel art style, 64x64 pixel frame, transparent background
 
-| State | Prompt |
-|-------|--------|
-| idle | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute blue chibi bird perched calmly, gentle body bob, feathers ruffling slightly, content expression, small beak closed. Pixel art, dark outlines, transparent background." |
-| working | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute blue chibi bird pecking at a tiny keyboard rapidly, wings tucked, head bobbing up and down quickly, determined look. Pixel art, dark outlines, transparent background." |
-| planning | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute blue chibi bird tilting head side to side, wing raised to chin thinking, musical note appearing, contemplating. Pixel art, dark outlines, transparent background." |
-| waiting_for_action | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute blue chibi bird hopping in place, wings spread slightly, chirping with open beak, looking up eagerly. Pixel art, dark outlines, transparent background." |
-| waking_up | "Sprite sheet, 20 frames, horizontal strip, 1280x64px. A cute blue chibi bird waking up — starts as a fluffy sleeping ball on perch, head emerges from wing, blinks, ruffles all feathers, stretches wings wide, shakes, settles alert. Full wake-up sequence. Pixel art, dark outlines, transparent background." |
+| State | Prompt                                                                                                                                                                                                                                                                                                     |
+|-------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| idle | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute chibi bird perched calmly, gentle body bob, feathers ruffling slightly, content expression, small beak closed. Pixel art, dark outlines, transparent background."                                                                              |
+| working | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute chibi bird pecking at a tiny laptop rapidly, laptop sohuld be clraly wissilbe, wings tucked, head bobbing up and down quickly, determined look. Pixel art, dark outlines, transparent background."                                             |
+| planning | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute chibi bird tilting head side to side, wing raised to chin thinking, musical note appearing, contemplating. Pixel art, dark outlines, transparent background."                                                                                  |
+| waiting_for_action | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A blue chibi bird hopping in place, wings spread slightly, chirping with open beak, looking up eagerly. Pixel art, dark outlines, transparent background."                                                                                            |
+| waking_up | "Sprite sheet, 4 frames, horizontal strip, 256x64px. A cute chibi bird waking up — starts as a fluffy sleeping ball on perch, head emerges from wing, blinks, ruffles all feathers, stretches wings wide, shakes, settles alert. Full wake-up sequence. Pixel art, dark outlines, transparent background." |
 
 ### 🐉 Dragon
 

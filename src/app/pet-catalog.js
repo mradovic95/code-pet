@@ -97,6 +97,7 @@ class PetCatalog {
       tier: m.tier || 'free',
       sprites: m.sprites,
       autoTransitions: m.autoTransitions || {},
+      sounds: m.sounds || {},
       frameSize: m.frameSize || 64,
       _dir: m._dir,
     }));

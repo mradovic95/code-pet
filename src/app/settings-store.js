@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   projectPets: {},
   licenseKey: null,
   activationId: null,
+  soundEnabled: false,
 };
 
 let settings = { ...DEFAULT_SETTINGS };
@@ -76,6 +77,15 @@ function setActivationId(id) {
   save();
 }
 
+function getSoundEnabled() {
+  return !!settings.soundEnabled;
+}
+
+function setSoundEnabled(enabled) {
+  settings.soundEnabled = !!enabled;
+  save();
+}
+
 module.exports = {
   load,
   save,
@@ -87,4 +97,6 @@ module.exports = {
   setLicenseKey,
   getActivationId,
   setActivationId,
+  getSoundEnabled,
+  setSoundEnabled,
 };

@@ -2,6 +2,7 @@
 
 let _petCatalog = [];
 let _premiumSprites = {}; // petId -> { idle: "data:...", working: "data:...", ... }
+let _soundEnabled = false;
 
 function setPetCatalog(catalog) {
   _petCatalog = catalog;
@@ -98,6 +99,10 @@ class PetManager {
       this.pets.delete(project);
     }, 300);
   }
+}
+
+function isSoundEnabled() {
+  return _soundEnabled;
 }
 
 const petManager = new PetManager(document.getElementById('pets-container'));

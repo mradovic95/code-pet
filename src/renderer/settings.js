@@ -182,6 +182,14 @@ document.getElementById('license-btn').addEventListener('click', async () => {
   btn.textContent = 'Activate';
 });
 
+// --- Sound toggle ---
+
+const soundToggle = document.getElementById('sound-toggle');
+soundToggle.checked = window.codePetSettings.getSoundEnabled();
+soundToggle.addEventListener('change', () => {
+  window.codePetSettings.setSoundEnabled(soundToggle.checked);
+});
+
 // --- Init ---
 
 renderPetSelector();

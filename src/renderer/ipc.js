@@ -35,4 +35,8 @@ window.codePet.onPremiumSprites(({ petId, sprites }) => {
   setPremiumSprites(petId, sprites);
 });
 
+window.codePet.onSoundSettingChanged(({ enabled }) => {
+  _soundEnabled = enabled;
+});
+
 window.codePet.signalReady();

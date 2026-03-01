@@ -313,3 +313,21 @@ body {
 .license-status.info {
   color: #89b4fa;
 }
+
+/* --- Sound toggle --- */
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #cdd6f4;
+}
+
+.toggle-row input[type="checkbox"] {
+  accent-color: #89b4fa;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}

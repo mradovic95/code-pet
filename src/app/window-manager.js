@@ -87,6 +87,18 @@ ipcMain.on('get-settings-project', (event) => {
   event.returnValue = currentSettingsProject;
 });
 
+ipcMain.on('get-sound-enabled', (event) => {
+  const settingsStore = require('./settings-store');
+  event.returnValue = settingsStore.getSoundEnabled();
+});
+
+ipcMain.on('set-sound-enabled', (_event, enabled) => {
+  const settingsStore = require('./settings-store');
+  settingsStore.setSoundEnabled(enabled);
+  sendToRenderer('sound-setting-changed', { enabled: !!enabled });
+  logger.info(`Sound ${enabled ? 'enabled' : 'disabled'}`);
+});
+
 ipcMain.on('set-pet-type', (_event, petType) => {
   const settingsStore = require('./settings-store');
   if (currentSettingsProject) {
@@ -197,6 +209,9 @@ ipcMain.on('renderer-ready', () => {
     overlayWindow.webContents.send('pet-catalog', catalogFn());
     logger.info('Sent pet-catalog to renderer');
   }
+  // Send sound setting
+  const settingsStore = require('./settings-store');
+  overlayWindow.webContents.send('sound-setting-changed', { enabled: settingsStore.getSoundEnabled() });
   // Send current project snapshot for renderer reload recovery
   if (getProjectsSnapshotFn) {
     const snapshot = getProjectsSnapshotFn();

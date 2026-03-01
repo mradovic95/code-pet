@@ -5,35 +5,38 @@
   "tier": "free",
   "sprites": {
     "idle": {
-      "file": "idle.svg",
+      "file": "idle.png",
       "frames": 4,
       "duration": 1600,
       "loop": true
     },
     "waking_up": {
-      "file": "waking_up.svg",
+      "file": "waking_up.png",
       "frames": 20,
       "duration": 4000,
       "loop": false
     },
     "working": {
-      "file": "working.svg",
+      "file": "working.png",
       "frames": 4,
       "duration": 1200,
       "loop": true
     },
     "planning": {
-      "file": "planning.svg",
+      "file": "planning.png",
       "frames": 4,
       "duration": 1200,
       "loop": true
     },
     "waiting_for_action": {
-      "file": "waiting_for_action.svg",
+      "file": "waiting_for_action.png",
       "frames": 4,
       "duration": 1600,
       "loop": true
     }
+  },
+  "sounds": {
+    "waiting_for_action": "notification.wav"
   },
   "autoTransitions": {
     "waking_up": {

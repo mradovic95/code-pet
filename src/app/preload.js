@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('codePet', {
   onPremiumSprites: (callback) => {
     ipcRenderer.on('premium-sprites', (_event, data) => callback(data));
   },
+  onSoundSettingChanged: (callback) => {
+    ipcRenderer.on('sound-setting-changed', (_event, data) => callback(data));
+  },
   signalReady: () => ipcRenderer.send('renderer-ready'),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
   openSettings: (project) => ipcRenderer.send('open-settings', project),

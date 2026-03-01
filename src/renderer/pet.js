@@ -21,6 +21,7 @@ class Pet {
     this.petType = petType || 'dog';
     this.sprites = manifest ? manifest.sprites : DEFAULT_SPRITES;
     this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
+    this.sounds = manifest ? (manifest.sounds || {}) : {};
     this.currentState = 'idle';
     this.autoTransitionTimer = null;
     this.debounceTimer = null;
@@ -85,6 +86,11 @@ class Pet {
     // Remove transition class after brief fade
     setTimeout(() => this.el.classList.remove('transitioning'), 100);
 
+    // Play notification sound if entering waiting_for_action
+    if (state === 'waiting_for_action' && isSoundEnabled()) {
+      this._playNotificationSound();
+    }
+
     // Set up auto-transition for non-looping states
     if (this.autoTransitions[state]) {
       const { next, delay } = this.autoTransitions[state];
@@ -122,10 +128,19 @@ class Pet {
     return this.currentState;
   }
 
+  _playNotificationSound() {
+    const soundFile = this.sounds && this.sounds.waiting_for_action;
+    if (!soundFile) return;
+    const audio = new Audio(`../../assets/pets/${this.petType}/${soundFile}`);
+    audio.volume = 0.5;
+    audio.play().catch(() => {}); // silently fail
+  }
+
   changePetType(petType, manifest) {
     this.petType = petType;
     this.sprites = manifest ? manifest.sprites : DEFAULT_SPRITES;
     this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
+    this.sounds = manifest ? (manifest.sounds || {}) : {};
     this.el.dataset.petType = petType;
 
     // Re-apply current state to pick up new sprites
