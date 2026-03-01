@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="64" viewBox="0 0 1280 64">
+  <rect width="1280" height="64" fill="none"/>
+  
+    <!-- Frame 0: waking_up -->
+    
+    <polygon points="12,18 18,2 24,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="15,17 18,6 21,17" fill="#FFB6C1" stroke="none"/>
+    <polygon points="40,18 46,2 52,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="43,17 46,6 49,17" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="32" cy="28" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="24" cy="24" r="4" fill="#333"/>
+        <circle cx="40" cy="24" r="4" fill="#333"/>
+        <circle cx="25" cy="23" r="1.5" fill="white"/>
+        <circle cx="41" cy="23" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="32" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="32" cy="35" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="50" y="10" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 1</text>
+  
+    <!-- Frame 1: waking_up -->
+    
+    <polygon points="76,18.618033988749893 82,2.618033988749895 88,18.618033988749893" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="79,17.618033988749893 82,6.618033988749895 85,17.618033988749893" fill="#FFB6C1" stroke="none"/>
+    <polygon points="104,18.618033988749893 110,2.618033988749895 116,18.618033988749893" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="107,17.618033988749893 110,6.618033988749895 113,17.618033988749893" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="96" cy="28.618033988749893" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="88" cy="24.618033988749893" r="4" fill="#333"/>
+        <circle cx="104" cy="24.618033988749893" r="4" fill="#333"/>
+        <circle cx="89" cy="23.618033988749893" r="1.5" fill="white"/>
+        <circle cx="105" cy="23.618033988749893" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="96" cy="30.618033988749893" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="96" cy="35.61803398874989" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="114" y="10.618033988749895" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="96" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 2</text>
+  
+    <!-- Frame 2: waking_up -->
+    
+    <polygon points="140,19.175570504584947 146,3.1755705045849467 152,19.175570504584947" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="143,18.175570504584947 146,7.175570504584947 149,18.175570504584947" fill="#FFB6C1" stroke="none"/>
+    <polygon points="168,19.175570504584947 174,3.1755705045849467 180,19.175570504584947" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="171,18.175570504584947 174,7.175570504584947 177,18.175570504584947" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="160" cy="29.175570504584947" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="152" cy="25.175570504584947" r="4" fill="#333"/>
+        <circle cx="168" cy="25.175570504584947" r="4" fill="#333"/>
+        <circle cx="153" cy="24.175570504584947" r="1.5" fill="white"/>
+        <circle cx="169" cy="24.175570504584947" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="160" cy="31.175570504584947" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="160" cy="36.17557050458495" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="178" y="11.175570504584947" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 3</text>
+  
+    <!-- Frame 3: waking_up -->
+    
+    <polygon points="204,19.618033988749893 210,3.618033988749895 216,19.618033988749893" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="207,18.618033988749893 210,7.618033988749895 213,18.618033988749893" fill="#FFB6C1" stroke="none"/>
+    <polygon points="232,19.618033988749893 238,3.618033988749895 244,19.618033988749893" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="235,18.618033988749893 238,7.618033988749895 241,18.618033988749893" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="224" cy="29.618033988749893" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="216" cy="25.618033988749893" r="4" fill="#333"/>
+        <circle cx="232" cy="25.618033988749893" r="4" fill="#333"/>
+        <circle cx="217" cy="24.618033988749893" r="1.5" fill="white"/>
+        <circle cx="233" cy="24.618033988749893" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="224" cy="31.618033988749893" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="224" cy="36.61803398874989" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="242" y="11.618033988749895" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="224" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 4</text>
+  
+    <!-- Frame 4: waking_up -->
+    
+    <polygon points="268,19.902113032590307 274,3.9021130325903073 280,19.902113032590307" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="271,18.902113032590307 274,7.902113032590307 277,18.902113032590307" fill="#FFB6C1" stroke="none"/>
+    <polygon points="296,19.902113032590307 302,3.9021130325903073 308,19.902113032590307" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="299,18.902113032590307 302,7.902113032590307 305,18.902113032590307" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="288" cy="29.902113032590307" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="280" cy="25.902113032590307" r="4" fill="#333"/>
+        <circle cx="296" cy="25.902113032590307" r="4" fill="#333"/>
+        <circle cx="281" cy="24.902113032590307" r="1.5" fill="white"/>
+        <circle cx="297" cy="24.902113032590307" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="288" cy="31.902113032590307" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="288" cy="36.90211303259031" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="306" y="11.902113032590307" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="288" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 5</text>
+  
+    <!-- Frame 5: waking_up -->
+    
+    <polygon points="332,20 338,4 344,20" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="335,19 338,8 341,19" fill="#FFB6C1" stroke="none"/>
+    <polygon points="360,20 366,4 372,20" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="363,19 366,8 369,19" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="352" cy="30" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="344" cy="26" r="4" fill="#333"/>
+        <circle cx="360" cy="26" r="4" fill="#333"/>
+        <circle cx="345" cy="25" r="1.5" fill="white"/>
+        <circle cx="361" cy="25" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="352" cy="32" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="352" cy="37" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="370" y="12" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="352" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 6</text>
+  
+    <!-- Frame 6: waking_up -->
+    
+    <polygon points="396,19.902113032590307 402,3.9021130325903073 408,19.902113032590307" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="399,18.902113032590307 402,7.902113032590307 405,18.902113032590307" fill="#FFB6C1" stroke="none"/>
+    <polygon points="424,19.902113032590307 430,3.9021130325903073 436,19.902113032590307" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="427,18.902113032590307 430,7.902113032590307 433,18.902113032590307" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="416" cy="29.902113032590307" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="408" cy="25.902113032590307" r="4" fill="#333"/>
+        <circle cx="424" cy="25.902113032590307" r="4" fill="#333"/>
+        <circle cx="409" cy="24.902113032590307" r="1.5" fill="white"/>
+        <circle cx="425" cy="24.902113032590307" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="416" cy="31.902113032590307" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="416" cy="36.90211303259031" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="434" y="11.902113032590307" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="416" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 7</text>
+  
+    <!-- Frame 7: waking_up -->
+    
+    <polygon points="460,19.618033988749893 466,3.618033988749895 472,19.618033988749893" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="463,18.618033988749893 466,7.618033988749895 469,18.618033988749893" fill="#FFB6C1" stroke="none"/>
+    <polygon points="488,19.618033988749893 494,3.618033988749895 500,19.618033988749893" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="491,18.618033988749893 494,7.618033988749895 497,18.618033988749893" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="480" cy="29.618033988749893" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="472" cy="25.618033988749893" r="4" fill="#333"/>
+        <circle cx="488" cy="25.618033988749893" r="4" fill="#333"/>
+        <circle cx="473" cy="24.618033988749893" r="1.5" fill="white"/>
+        <circle cx="489" cy="24.618033988749893" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="480" cy="31.618033988749893" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="480" cy="36.61803398874989" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="498" y="11.618033988749895" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="480" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 8</text>
+  
+    <!-- Frame 8: waking_up -->
+    
+    <polygon points="524,19.175570504584947 530,3.1755705045849467 536,19.175570504584947" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="527,18.175570504584947 530,7.175570504584947 533,18.175570504584947" fill="#FFB6C1" stroke="none"/>
+    <polygon points="552,19.175570504584947 558,3.1755705045849467 564,19.175570504584947" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="555,18.175570504584947 558,7.175570504584947 561,18.175570504584947" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="544" cy="29.175570504584947" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="536" cy="25.175570504584947" r="4" fill="#333"/>
+        <circle cx="552" cy="25.175570504584947" r="4" fill="#333"/>
+        <circle cx="537" cy="24.175570504584947" r="1.5" fill="white"/>
+        <circle cx="553" cy="24.175570504584947" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="544" cy="31.175570504584947" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="544" cy="36.17557050458495" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="562" y="11.175570504584947" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="544" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 9</text>
+  
+    <!-- Frame 9: waking_up -->
+    
+    <polygon points="588,18.618033988749897 594,2.618033988749895 600,18.618033988749897" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="591,17.618033988749897 594,6.618033988749895 597,17.618033988749897" fill="#FFB6C1" stroke="none"/>
+    <polygon points="616,18.618033988749897 622,2.618033988749895 628,18.618033988749897" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="619,17.618033988749897 622,6.618033988749895 625,17.618033988749897" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="608" cy="28.618033988749897" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="600" cy="24.618033988749897" r="4" fill="#333"/>
+        <circle cx="616" cy="24.618033988749897" r="4" fill="#333"/>
+        <circle cx="601" cy="23.618033988749897" r="1.5" fill="white"/>
+        <circle cx="617" cy="23.618033988749897" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="608" cy="30.618033988749897" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="608" cy="35.6180339887499" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="626" y="10.618033988749895" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="608" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 10</text>
+  
+    <!-- Frame 10: waking_up -->
+    
+    <polygon points="652,18 658,2 664,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="655,17 658,6 661,17" fill="#FFB6C1" stroke="none"/>
+    <polygon points="680,18 686,2 692,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="683,17 686,6 689,17" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="672" cy="28" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="664" cy="24" r="4" fill="#333"/>
+        <circle cx="680" cy="24" r="4" fill="#333"/>
+        <circle cx="665" cy="23" r="1.5" fill="white"/>
+        <circle cx="681" cy="23" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="672" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="672" cy="35" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="690" y="10" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="672" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 11</text>
+  
+    <!-- Frame 11: waking_up -->
+    
+    <polygon points="716,17.381966011250103 722,1.3819660112501047 728,17.381966011250103" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="719,16.381966011250103 722,5.381966011250105 725,16.381966011250103" fill="#FFB6C1" stroke="none"/>
+    <polygon points="744,17.381966011250103 750,1.3819660112501047 756,17.381966011250103" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="747,16.381966011250103 750,5.381966011250105 753,16.381966011250103" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="736" cy="27.381966011250103" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="728" cy="23.381966011250103" r="4" fill="#333"/>
+        <circle cx="744" cy="23.381966011250103" r="4" fill="#333"/>
+        <circle cx="729" cy="22.381966011250103" r="1.5" fill="white"/>
+        <circle cx="745" cy="22.381966011250103" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="736" cy="29.381966011250103" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="736" cy="34.3819660112501" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="754" y="9.381966011250105" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="736" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 12</text>
+  
+    <!-- Frame 12: waking_up -->
+    
+    <polygon points="780,16.824429495415053 786,0.8244294954150542 792,16.824429495415053" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="783,15.824429495415053 786,4.824429495415054 789,15.824429495415053" fill="#FFB6C1" stroke="none"/>
+    <polygon points="808,16.824429495415053 814,0.8244294954150542 820,16.824429495415053" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="811,15.824429495415053 814,4.824429495415054 817,15.824429495415053" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="800" cy="26.824429495415053" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="792" cy="22.824429495415053" r="4" fill="#333"/>
+        <circle cx="808" cy="22.824429495415053" r="4" fill="#333"/>
+        <circle cx="793" cy="21.824429495415053" r="1.5" fill="white"/>
+        <circle cx="809" cy="21.824429495415053" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="800" cy="28.824429495415053" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="800" cy="33.82442949541505" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="818" y="8.824429495415053" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="800" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 13</text>
+  
+    <!-- Frame 13: waking_up -->
+    
+    <polygon points="844,16.381966011250107 850,0.3819660112501051 856,16.381966011250107" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="847,15.381966011250107 850,4.381966011250105 853,15.381966011250107" fill="#FFB6C1" stroke="none"/>
+    <polygon points="872,16.381966011250107 878,0.3819660112501051 884,16.381966011250107" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="875,15.381966011250107 878,4.381966011250105 881,15.381966011250107" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="864" cy="26.381966011250107" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="856" cy="22.381966011250107" r="4" fill="#333"/>
+        <circle cx="872" cy="22.381966011250107" r="4" fill="#333"/>
+        <circle cx="857" cy="21.381966011250107" r="1.5" fill="white"/>
+        <circle cx="873" cy="21.381966011250107" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="864" cy="28.381966011250107" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="864" cy="33.38196601125011" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="882" y="8.381966011250105" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="864" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 14</text>
+  
+    <!-- Frame 14: waking_up -->
+    
+    <polygon points="908,16.097886967409693 914,0.09788696740969272 920,16.097886967409693" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="911,15.097886967409693 914,4.097886967409693 917,15.097886967409693" fill="#FFB6C1" stroke="none"/>
+    <polygon points="936,16.097886967409693 942,0.09788696740969272 948,16.097886967409693" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="939,15.097886967409693 942,4.097886967409693 945,15.097886967409693" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="928" cy="26.097886967409693" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="920" cy="22.097886967409693" r="4" fill="#333"/>
+        <circle cx="936" cy="22.097886967409693" r="4" fill="#333"/>
+        <circle cx="921" cy="21.097886967409693" r="1.5" fill="white"/>
+        <circle cx="937" cy="21.097886967409693" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="928" cy="28.097886967409693" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="928" cy="33.09788696740969" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="946" y="8.097886967409693" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="928" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 15</text>
+  
+    <!-- Frame 15: waking_up -->
+    
+    <polygon points="972,16 978,0 984,16" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="975,15 978,4 981,15" fill="#FFB6C1" stroke="none"/>
+    <polygon points="1000,16 1006,0 1012,16" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1003,15 1006,4 1009,15" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="992" cy="26" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="984" cy="22" r="4" fill="#333"/>
+        <circle cx="1000" cy="22" r="4" fill="#333"/>
+        <circle cx="985" cy="21" r="1.5" fill="white"/>
+        <circle cx="1001" cy="21" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="992" cy="28" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="992" cy="33" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="1010" y="8" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="992" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 16</text>
+  
+    <!-- Frame 16: waking_up -->
+    
+    <polygon points="1036,16.097886967409693 1042,0.09788696740969272 1048,16.097886967409693" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1039,15.097886967409693 1042,4.097886967409693 1045,15.097886967409693" fill="#FFB6C1" stroke="none"/>
+    <polygon points="1064,16.097886967409693 1070,0.09788696740969272 1076,16.097886967409693" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1067,15.097886967409693 1070,4.097886967409693 1073,15.097886967409693" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="1056" cy="26.097886967409693" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="1048" cy="22.097886967409693" r="4" fill="#333"/>
+        <circle cx="1064" cy="22.097886967409693" r="4" fill="#333"/>
+        <circle cx="1049" cy="21.097886967409693" r="1.5" fill="white"/>
+        <circle cx="1065" cy="21.097886967409693" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="1056" cy="28.097886967409693" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="1056" cy="33.09788696740969" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="1074" y="8.097886967409693" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="1056" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 17</text>
+  
+    <!-- Frame 17: waking_up -->
+    
+    <polygon points="1100,16.381966011250103 1106,0.3819660112501051 1112,16.381966011250103" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1103,15.381966011250103 1106,4.381966011250105 1109,15.381966011250103" fill="#FFB6C1" stroke="none"/>
+    <polygon points="1128,16.381966011250103 1134,0.3819660112501051 1140,16.381966011250103" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1131,15.381966011250103 1134,4.381966011250105 1137,15.381966011250103" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="1120" cy="26.381966011250103" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="1112" cy="22.381966011250103" r="4" fill="#333"/>
+        <circle cx="1128" cy="22.381966011250103" r="4" fill="#333"/>
+        <circle cx="1113" cy="21.381966011250103" r="1.5" fill="white"/>
+        <circle cx="1129" cy="21.381966011250103" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="1120" cy="28.381966011250103" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="1120" cy="33.3819660112501" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="1138" y="8.381966011250105" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="1120" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 18</text>
+  
+    <!-- Frame 18: waking_up -->
+    
+    <polygon points="1164,16.824429495415053 1170,0.8244294954150533 1176,16.824429495415053" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1167,15.824429495415053 1170,4.824429495415053 1173,15.824429495415053" fill="#FFB6C1" stroke="none"/>
+    <polygon points="1192,16.824429495415053 1198,0.8244294954150533 1204,16.824429495415053" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1195,15.824429495415053 1198,4.824429495415053 1201,15.824429495415053" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="1184" cy="26.824429495415053" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="1176" cy="22.824429495415053" r="4" fill="#333"/>
+        <circle cx="1192" cy="22.824429495415053" r="4" fill="#333"/>
+        <circle cx="1177" cy="21.824429495415053" r="1.5" fill="white"/>
+        <circle cx="1193" cy="21.824429495415053" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="1184" cy="28.824429495415053" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="1184" cy="33.82442949541505" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="1202" y="8.824429495415053" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!</text>
+    <!-- Label -->
+    <text x="1184" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 19</text>
+  
+    <!-- Frame 19: waking_up -->
+    
+    <polygon points="1228,17.381966011250103 1234,1.3819660112501047 1240,17.381966011250103" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1231,16.381966011250103 1234,5.381966011250105 1237,16.381966011250103" fill="#FFB6C1" stroke="none"/>
+    <polygon points="1256,17.381966011250103 1262,1.3819660112501047 1268,17.381966011250103" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="1259,16.381966011250103 1262,5.381966011250105 1265,16.381966011250103" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="1248" cy="27.381966011250103" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="1240" cy="23.381966011250103" r="4" fill="#333"/>
+        <circle cx="1256" cy="23.381966011250103" r="4" fill="#333"/>
+        <circle cx="1241" cy="22.381966011250103" r="1.5" fill="white"/>
+        <circle cx="1257" cy="22.381966011250103" r="1.5" fill="white"/>
+    <!-- Nose -->
+    <ellipse cx="1248" cy="29.381966011250103" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <ellipse cx="1248" cy="34.3819660112501" rx="4" ry="3" fill="#333"/>
+    <!-- Extras -->
+    <text x="1266" y="9.381966011250105" font-family="sans-serif" font-size="8" font-weight="bold" fill="#333" text-anchor="middle">!!</text>
+    <!-- Label -->
+    <text x="1248" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">wake 20</text>
+  
+</svg>

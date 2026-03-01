@@ -19,7 +19,15 @@ let getProjectsSnapshotFn = null;
 let getClaudePidFn = null;
 let getTtyFn = null;
 let dispatchEventFn = null;
+let catalogFn = null;
+let setPetTypeForProjectFn = null;
 let currentSettingsProject = null;
+// Marketplace references
+let licenseManagerRef = null;
+let premiumStoreRef = null;
+let marketplaceCatalogRef = null;
+let licenseApiRef = null;
+let catalogObjRef = null; // The PetCatalog instance for re-scanning
 
 ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
@@ -64,6 +72,115 @@ ipcMain.on('dismiss-project', () => {
   closeSettingsWindow();
 });
 
+ipcMain.on('get-pet-catalog', (event) => {
+  event.returnValue = catalogFn ? catalogFn() : [];
+});
+
+ipcMain.on('get-current-pet-type', (event) => {
+  const settingsStore = require('./settings-store');
+  event.returnValue = currentSettingsProject
+    ? settingsStore.getPetTypeForProject(currentSettingsProject)
+    : settingsStore.getDefaultPetType();
+});
+
+ipcMain.on('get-settings-project', (event) => {
+  event.returnValue = currentSettingsProject;
+});
+
+ipcMain.on('set-pet-type', (_event, petType) => {
+  const settingsStore = require('./settings-store');
+  if (currentSettingsProject) {
+    settingsStore.setPetTypeForProject(currentSettingsProject, petType);
+    if (setPetTypeForProjectFn) {
+      setPetTypeForProjectFn(currentSettingsProject, petType);
+    }
+    sendToRenderer('pet-type-changed', { project: currentSettingsProject, petType });
+  } else {
+    settingsStore.setDefaultPetType(petType);
+  }
+  logger.info(`Pet type changed to "${petType}" for ${currentSettingsProject || 'default'}`);
+});
+
+// --- Marketplace IPC handlers ---
+
+ipcMain.handle('get-marketplace-catalog', async () => {
+  if (!marketplaceCatalogRef) return [];
+  try {
+    return await marketplaceCatalogRef.getCatalog();
+  } catch (err) {
+    logger.warn(`Failed to get marketplace catalog: ${err.message}`);
+    return [];
+  }
+});
+
+ipcMain.handle('get-license-status', async () => {
+  if (!licenseManagerRef) return { hasLicense: false, ownedPets: [] };
+  return licenseManagerRef.getStatus();
+});
+
+ipcMain.handle('activate-license', async (_event, key) => {
+  if (!licenseManagerRef || !premiumStoreRef) {
+    return { success: false, error: 'License system not initialized' };
+  }
+
+  const result = await licenseManagerRef.activate(key);
+  if (!result.success) return result;
+
+  // Download sprites for newly owned pets
+  const PetCatalog = require('./pet-catalog');
+  for (const petId of result.ownedPets) {
+    if (!premiumStoreRef.isDownloaded(petId)) {
+      try {
+        await premiumStoreRef.download(petId, key);
+        logger.info(`Downloaded premium pet "${petId}" after activation`);
+      } catch (err) {
+        logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
+      }
+    }
+
+    // Load and send sprites to renderer
+    const sprites = premiumStoreRef.loadSprites(petId, key);
+    if (sprites) {
+      sendToRenderer('premium-sprites', { petId, sprites });
+    }
+  }
+
+  // Re-scan premium pets so the catalog picks up the new pet
+  if (catalogObjRef && premiumStoreRef) {
+    catalogObjRef.scanPremium(premiumStoreRef.getPremiumDir());
+    // Update renderer catalog
+    if (catalogFn) {
+      sendToRenderer('pet-catalog', catalogFn());
+    }
+  }
+
+  return result;
+});
+
+ipcMain.handle('purchase-pet', async (_event, petId) => {
+  if (!licenseApiRef) {
+    return { success: false, error: 'License system not initialized' };
+  }
+
+  try {
+    const result = await licenseApiRef.purchase(petId);
+    logger.info(`Mock purchase completed for "${petId}": key=${result.licenseKey}`);
+    return result;
+  } catch (err) {
+    logger.warn(`Purchase failed for "${petId}": ${err.message}`);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-premium-sprites', async (_event, petId) => {
+  if (!premiumStoreRef || !licenseManagerRef) return null;
+
+  const key = licenseManagerRef.getLicenseKey();
+  if (!key || !premiumStoreRef.isDownloaded(petId)) return null;
+
+  return premiumStoreRef.loadSprites(petId, key);
+});
+
 ipcMain.on('renderer-ready', () => {
   rendererReady = true;
   logger.info('Renderer signaled ready');
@@ -75,6 +192,11 @@ ipcMain.on('renderer-ready', () => {
     }
   }
   eventQueue = [];
+  // Send pet catalog before project snapshot
+  if (catalogFn) {
+    overlayWindow.webContents.send('pet-catalog', catalogFn());
+    logger.info('Sent pet-catalog to renderer');
+  }
   // Send current project snapshot for renderer reload recovery
   if (getProjectsSnapshotFn) {
     const snapshot = getProjectsSnapshotFn();
@@ -154,7 +276,7 @@ function sendToRenderer(channel, data) {
     overlayWindow.webContents.send(channel, data);
   } else {
     eventQueue.push({ channel, data });
-    logger.info(`Queued event (renderer not ready): ${channel} → ${JSON.stringify(data)}`);
+    logger.info(`Queued event (renderer not ready): ${channel} → ${JSON.stringify(data).slice(0, 200)}`);
   }
 }
 
@@ -178,6 +300,34 @@ function setDispatchEventFn(fn) {
   dispatchEventFn = fn;
 }
 
+function setCatalogFn(fn) {
+  catalogFn = fn;
+}
+
+function setUpdatePetTypeFn(fn) {
+  setPetTypeForProjectFn = fn;
+}
+
+function setCatalogObj(obj) {
+  catalogObjRef = obj;
+}
+
+function setLicenseManagerFn(lm) {
+  licenseManagerRef = lm;
+}
+
+function setPremiumStoreFn(ps) {
+  premiumStoreRef = ps;
+}
+
+function setMarketplaceCatalogFn(mc) {
+  marketplaceCatalogRef = mc;
+}
+
+function setLicenseApiFn(api) {
+  licenseApiRef = api;
+}
+
 function createSettingsWindow() {
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus();
@@ -186,7 +336,7 @@ function createSettingsWindow() {
 
   const overlayBounds = overlayWindow ? overlayWindow.getBounds() : null;
   const settingsWidth = 320;
-  const settingsHeight = 400;
+  const settingsHeight = 520;
 
   let x, y;
   if (overlayBounds) {
@@ -245,5 +395,12 @@ module.exports = {
   setClaudePidFn,
   setTtyFn,
   setDispatchEventFn,
+  setCatalogFn,
+  setUpdatePetTypeFn,
+  setCatalogObj,
+  setLicenseManagerFn,
+  setPremiumStoreFn,
+  setMarketplaceCatalogFn,
+  setLicenseApiFn,
   closeSettingsWindow,
 };

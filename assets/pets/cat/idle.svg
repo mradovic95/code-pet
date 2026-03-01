@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
+  <rect width="256" height="64" fill="none"/>
+  
+    <!-- Frame 0: idle -->
+    
+    <polygon points="12,18 18,4 24,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="15,17 18,8 21,17" fill="#FFB6C1" stroke="none"/>
+    <polygon points="40,18 46,4 52,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="43,17 46,8 49,17" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="32" cy="28" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="24" cy="24" r="3" fill="#333"/>
+        <circle cx="40" cy="24" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="32" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M27,34 Q32,39 37,34" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <!-- Label -->
+    <text x="32" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 1</text>
+  
+    <!-- Frame 1: idle -->
+    
+    <polygon points="76,20 82,6 88,20" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="79,19 82,10 85,19" fill="#FFB6C1" stroke="none"/>
+    <polygon points="104,20 110,6 116,20" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="107,19 110,10 113,19" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="96" cy="30" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="88" cy="26" r="3" fill="#333"/>
+        <circle cx="104" cy="26" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="96" cy="32" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M91,36 Q96,41 101,36" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <!-- Label -->
+    <text x="96" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 2</text>
+  
+    <!-- Frame 2: idle -->
+    
+    <polygon points="140,18 146,4 152,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="143,17 146,8 149,17" fill="#FFB6C1" stroke="none"/>
+    <polygon points="168,18 174,4 180,18" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="171,17 174,8 177,17" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="160" cy="28" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="152" cy="24" r="3" fill="#333"/>
+        <circle cx="168" cy="24" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="160" cy="30" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M155,34 Q160,39 165,34" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <!-- Label -->
+    <text x="160" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 3</text>
+  
+    <!-- Frame 3: idle -->
+    
+    <polygon points="204,16 210,2 216,16" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="207,15 210,6 213,15" fill="#FFB6C1" stroke="none"/>
+    <polygon points="232,16 238,2 244,16" fill="#7BC67E" stroke="#333" stroke-width="1"/>
+    <polygon points="235,15 238,6 241,15" fill="#FFB6C1" stroke="none"/>
+    <!-- Head -->
+    <circle cx="224" cy="26" r="18" fill="#7BC67E" stroke="#333" stroke-width="1.5"/>
+    <!-- Eyes -->
+    
+        <circle cx="216" cy="22" r="3" fill="#333"/>
+        <circle cx="232" cy="22" r="3" fill="#333"/>
+    <!-- Nose -->
+    <ellipse cx="224" cy="28" rx="2.5" ry="2" fill="#333"/>
+    <!-- Mouth -->
+    <path d="M219,32 Q224,37 229,32" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Extras -->
+    
+    <!-- Label -->
+    <text x="224" y="58" font-family="sans-serif" font-size="7" fill="#666" text-anchor="middle">idle 4</text>
+  
+</svg>

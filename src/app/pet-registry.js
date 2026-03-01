@@ -1,6 +1,7 @@
 'use strict';
 
 const PetContext = require('./state-machine/pet-context');
+const settingsStore = require('./settings-store');
 
 class PetRegistry {
   constructor() {
@@ -19,7 +20,8 @@ class PetRegistry {
       if (projectName) pet.projectName = projectName;
       return pet;
     }
-    const pet = new PetContext(projectName);
+    const petType = settingsStore.getPetTypeForProject(projectPath);
+    const pet = new PetContext(projectName, petType);
     this._projects.set(projectPath, pet);
     if (this.onProjectAdded) {
       this.onProjectAdded(projectPath, pet, this._projects.size);

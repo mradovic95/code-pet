@@ -3,11 +3,12 @@
 const { VALID_EVENTS, STATES } = require('./events');
 
 class PetContext {
-  constructor(projectName) {
+  constructor(projectName, petType) {
     this.lastActiveEvent = null;
     this.lastEventName = null;
     this.lastEventTime = 0;
     this.projectName = projectName || 'unknown';
+    this.petType = petType || 'dog';
     this.claudePid = null;
     this.tty = null;
     this.changeState(STATES.IDLE);
@@ -42,6 +43,7 @@ class PetContext {
       lastActiveEvent: this.lastActiveEvent,
       lastEventTime: this.lastEventTime,
       projectName: this.projectName,
+      petType: this.petType,
       claudePid: this.claudePid,
       tty: this.tty,
     };

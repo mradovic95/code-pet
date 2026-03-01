@@ -8,8 +8,8 @@ const EVENT_TO_STATE_RENDERER = {
   work_finished:    'idle',
 };
 
-window.codePet.onPetEvent(({ project, state, projectName }) => {
-  petManager.updatePet(project, state, projectName);
+window.codePet.onPetEvent(({ project, state, projectName, petType }) => {
+  petManager.updatePet(project, state, projectName, petType);
 });
 
 window.codePet.onPetRemove(({ project }) => {
@@ -19,8 +19,20 @@ window.codePet.onPetRemove(({ project }) => {
 window.codePet.onPetInit((snapshot) => {
   for (const [project, data] of Object.entries(snapshot)) {
     const state = EVENT_TO_STATE_RENDERER[data.lastEventName] || 'idle';
-    petManager.updatePet(project, state, data.projectName);
+    petManager.updatePet(project, state, data.projectName, data.petType);
   }
+});
+
+window.codePet.onPetCatalog((catalog) => {
+  setPetCatalog(catalog);
+});
+
+window.codePet.onPetTypeChanged(({ project, petType }) => {
+  petManager.changePetType(project, petType);
+});
+
+window.codePet.onPremiumSprites(({ petId, sprites }) => {
+  setPremiumSprites(petId, sprites);
 });
 
 window.codePet.signalReady();

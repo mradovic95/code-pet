@@ -70,7 +70,7 @@ function dispatchEvent(projectPath, projectName, eventName) {
   logger.info(`[${projectName}] ${eventName} → ${JSON.stringify(result.response)}`);
 
   if (result.rendererState) {
-    sendToRenderer('pet-event', { project: projectPath, state: result.rendererState, projectName });
+    sendToRenderer('pet-event', { project: projectPath, state: result.rendererState, projectName, petType: pet.petType });
   }
 
   if (result.action === 'remove_project') {
@@ -168,10 +168,18 @@ function stopServer() {
   });
 }
 
+function setPetTypeForProject(projectPath, petType) {
+  const pet = registry.get(projectPath);
+  if (pet) {
+    pet.petType = petType;
+  }
+}
+
 module.exports = {
   startServer,
   stopServer,
   dispatchEvent,
+  setPetTypeForProject,
   getProjectsSnapshot: () => registry.getSnapshot(),
   getClaudePidForProject: (p) => registry.getClaudePid(p),
   getTtyForProject: (p) => registry.getTty(p),

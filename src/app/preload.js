@@ -12,6 +12,15 @@ contextBridge.exposeInMainWorld('codePet', {
   onPetInit: (callback) => {
     ipcRenderer.on('pet-init', (_event, data) => callback(data));
   },
+  onPetCatalog: (callback) => {
+    ipcRenderer.on('pet-catalog', (_event, data) => callback(data));
+  },
+  onPetTypeChanged: (callback) => {
+    ipcRenderer.on('pet-type-changed', (_event, data) => callback(data));
+  },
+  onPremiumSprites: (callback) => {
+    ipcRenderer.on('premium-sprites', (_event, data) => callback(data));
+  },
   signalReady: () => ipcRenderer.send('renderer-ready'),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
   openSettings: (project) => ipcRenderer.send('open-settings', project),

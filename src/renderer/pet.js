@@ -1,6 +1,6 @@
 'use strict';
 
-const SPRITES = {
+const DEFAULT_SPRITES = {
   idle:               { frames: 4, duration: 1600, loop: true },
   waking_up:          { frames: 20, duration: 4000, loop: false },
   working:            { frames: 4, duration: 1200, loop: true },
@@ -8,23 +8,26 @@ const SPRITES = {
   waiting_for_action: { frames: 4, duration: 1600, loop: true },
 };
 
-// Auto-transition targets for non-looping states
-const AUTO_TRANSITIONS = {
+const DEFAULT_AUTO_TRANSITIONS = {
   waking_up: { next: 'idle', delay: 4000 },
 };
 
 const DEBOUNCE_MS = 300;
 
 class Pet {
-  constructor(el, project) {
+  constructor(el, project, petType, manifest) {
     this.el = el;
     this.project = project;
+    this.petType = petType || 'dog';
+    this.sprites = manifest ? manifest.sprites : DEFAULT_SPRITES;
+    this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
     this.currentState = 'idle';
     this.autoTransitionTimer = null;
     this.debounceTimer = null;
     this.clickTimer = null;
     this.lastChangeTime = 0;
     this.queuedEvent = null;
+    this.el.dataset.petType = this.petType;
     this._setupInteraction();
   }
 
@@ -59,7 +62,7 @@ class Pet {
   }
 
   applyState(state) {
-    if (!SPRITES[state]) return;
+    if (!this.sprites[state]) return;
 
     if (state === this.currentState) return;
 
@@ -69,7 +72,7 @@ class Pet {
     this.el.classList.add('transitioning');
 
     // Remove all state classes
-    Object.keys(SPRITES).forEach((s) => this.el.classList.remove(s));
+    Object.keys(this.sprites).forEach((s) => this.el.classList.remove(s));
 
     // Force animation restart by triggering reflow
     void this.el.offsetWidth;
@@ -83,8 +86,8 @@ class Pet {
     setTimeout(() => this.el.classList.remove('transitioning'), 100);
 
     // Set up auto-transition for non-looping states
-    if (AUTO_TRANSITIONS[state]) {
-      const { next, delay } = AUTO_TRANSITIONS[state];
+    if (this.autoTransitions[state]) {
+      const { next, delay } = this.autoTransitions[state];
       this.autoTransitionTimer = setTimeout(() => this.applyState(next), delay);
     }
   }
@@ -117,6 +120,18 @@ class Pet {
 
   getState() {
     return this.currentState;
+  }
+
+  changePetType(petType, manifest) {
+    this.petType = petType;
+    this.sprites = manifest ? manifest.sprites : DEFAULT_SPRITES;
+    this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
+    this.el.dataset.petType = petType;
+
+    // Re-apply current state to pick up new sprites
+    const prevState = this.currentState;
+    this.currentState = null; // force re-apply
+    this.applyState(prevState);
   }
 
   destroy() {

@@ -12,47 +12,25 @@
     <button id="close-btn" class="titlebar-close">&times;</button>
   </div>
   <div class="content">
+    <div id="project-label" class="project-label"></div>
     <div class="section">
-      <div class="section-title">Appearance</div>
-      <div class="field">
-        <label>Pet Size</label>
-        <select disabled>
-          <option>Small (64px)</option>
-          <option selected>Medium (96px)</option>
-          <option>Large (128px)</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Position</label>
-        <select disabled>
-          <option>Top Left</option>
-          <option>Top Right</option>
-          <option>Bottom Left</option>
-          <option selected>Bottom Right</option>
-        </select>
-      </div>
+      <div class="section-title">Your Pets</div>
+      <div id="pet-selector"></div>
     </div>
-    <div class="section">
-      <div class="section-title">Behavior</div>
-      <div class="field">
-        <label>Animation Speed</label>
-        <select disabled>
-          <option>Slow</option>
-          <option selected>Normal</option>
-          <option>Fast</option>
-        </select>
+    <div class="section" id="marketplace-section" style="display:none;">
+      <div class="section-title">Get More Pets</div>
+      <div id="marketplace-grid"></div>
+    </div>
+    <div class="section" id="license-section">
+      <div class="license-row">
+        <input type="text" id="license-input" class="license-input" placeholder="Enter license key">
+        <button id="license-btn" class="license-btn">Activate</button>
       </div>
-      <div class="field field-checkbox">
-        <input type="checkbox" id="all-workspaces" checked disabled>
-        <label for="all-workspaces">Show on all workspaces</label>
-      </div>
+      <div id="license-status" class="license-status"></div>
     </div>
     <div class="section">
       <div class="section-title">Actions</div>
       <button id="dismiss-btn" class="btn-dismiss">Dismiss Pet</button>
-    </div>
-    <div class="notice">
-      Settings are not yet functional. They will be enabled in a future update.
     </div>
   </div>
   <script src="settings.js"></script>

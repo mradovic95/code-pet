@@ -1,0 +1,45 @@
+{
+  "id": "bird",
+  "name": "Bird",
+  "description": "A swift coding bird",
+  "tier": "free",
+  "sprites": {
+    "idle": {
+      "file": "idle.svg",
+      "frames": 4,
+      "duration": 1600,
+      "loop": true
+    },
+    "waking_up": {
+      "file": "waking_up.svg",
+      "frames": 20,
+      "duration": 4000,
+      "loop": false
+    },
+    "working": {
+      "file": "working.svg",
+      "frames": 4,
+      "duration": 1200,
+      "loop": true
+    },
+    "planning": {
+      "file": "planning.svg",
+      "frames": 4,
+      "duration": 1200,
+      "loop": true
+    },
+    "waiting_for_action": {
+      "file": "waiting_for_action.svg",
+      "frames": 4,
+      "duration": 1600,
+      "loop": true
+    }
+  },
+  "autoTransitions": {
+    "waking_up": {
+      "next": "idle",
+      "delay": 4000
+    }
+  },
+  "frameSize": 64
+}

@@ -58,7 +58,7 @@ body {
 }
 
 .section {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .section-title {
@@ -68,45 +68,6 @@ body {
   letter-spacing: 0.05em;
   color: #a6adc8;
   margin-bottom: 10px;
-}
-
-.field {
-  margin-bottom: 12px;
-}
-
-.field label {
-  display: block;
-  font-size: 12px;
-  color: #bac2de;
-  margin-bottom: 4px;
-}
-
-.field select {
-  width: 100%;
-  padding: 6px 8px;
-  background: #313244;
-  color: #6c7086;
-  border: 1px solid #45475a;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: not-allowed;
-}
-
-.field-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.field-checkbox input[type="checkbox"] {
-  accent-color: #89b4fa;
-  cursor: not-allowed;
-}
-
-.field-checkbox label {
-  margin-bottom: 0;
-  cursor: not-allowed;
-  color: #6c7086;
 }
 
 .btn-dismiss {
@@ -132,13 +93,223 @@ body {
   color: #1e1e2e;
 }
 
-.notice {
-  margin-top: 8px;
-  padding: 10px 12px;
+#pet-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.pet-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
   background: #313244;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.pet-card:hover {
+  background: #45475a;
+}
+
+.pet-card.selected {
+  border-color: #89b4fa;
+}
+
+.pet-card-preview {
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+}
+
+.pet-card-info {
+  min-width: 0;
+  text-align: center;
+}
+
+.pet-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cdd6f4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.pet-card-desc {
+  display: none;
+}
+
+.project-label {
+  font-size: 12px;
+  color: #a6adc8;
+  margin-bottom: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Marketplace --- */
+
+#marketplace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.marketplace-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px 8px;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  position: relative;
+}
+
+.marketplace-card.owned {
+  border-color: #a6e3a1;
+}
+
+.marketplace-preview {
+  width: 36px;
+  height: 36px;
+  background: #45475a;
   border-radius: 6px;
-  border-left: 3px solid #89b4fa;
+}
+
+.badge-locked {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.badge-owned {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  background: #a6e3a1;
+  color: #1e1e2e;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.marketplace-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cdd6f4;
+}
+
+.marketplace-price {
   font-size: 11px;
   color: #a6adc8;
-  line-height: 1.4;
+}
+
+.marketplace-card.owned .marketplace-price {
+  color: #a6e3a1;
+}
+
+.marketplace-buy-btn {
+  margin-top: 4px;
+  padding: 4px 16px;
+  background: #89b4fa;
+  color: #1e1e2e;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.marketplace-buy-btn:hover {
+  background: #74c7ec;
+}
+
+.marketplace-buy-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- License --- */
+
+.license-row {
+  display: flex;
+  gap: 6px;
+}
+
+.license-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  color: #cdd6f4;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.license-input:focus {
+  border-color: #89b4fa;
+}
+
+.license-input::placeholder {
+  color: #6c7086;
+}
+
+.license-btn {
+  padding: 6px 14px;
+  background: #a6e3a1;
+  color: #1e1e2e;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.license-btn:hover {
+  background: #94e2d5;
+}
+
+.license-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.license-status {
+  font-size: 11px;
+  margin-top: 6px;
+  min-height: 16px;
+}
+
+.license-status.success {
+  color: #a6e3a1;
+}
+
+.license-status.error {
+  color: #f38ba8;
+}
+
+.license-status.info {
+  color: #89b4fa;
 }

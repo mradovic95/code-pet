@@ -1,22 +1,96 @@
 'use strict';
 
 /**
- * Generates placeholder sprite sheet PNGs for Code Pet.
- * Uses inline SVG → Buffer → PNG file approach (no external dependencies).
- * Each sprite is a horizontal strip of 64x64px frames.
+ * Generates placeholder sprite sheets for Code Pet.
+ * Each sprite is a horizontal SVG strip of 64x64px frames.
  *
- * Run: node scripts/generate-placeholders.js
+ * Usage:
+ *   node scripts/generate-placeholders.js          # generates dog (default)
+ *   node scripts/generate-placeholders.js dog       # generates dog
+ *   node scripts/generate-placeholders.js cat       # generates cat
+ *   node scripts/generate-placeholders.js bird      # generates bird
+ *   node scripts/generate-placeholders.js all       # generates all pets
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const SPRITES_DIR = path.join(__dirname, '..', 'assets', 'sprites');
+const PETS_DIR = path.join(__dirname, '..', 'assets', 'pets');
+const PETS_DEV_DIR = path.join(__dirname, '..', 'assets', 'pets-dev');
+
+const PET_CONFIGS = {
+  dog: {
+    name: 'Dog',
+    description: 'A loyal coding companion',
+    tier: 'free',
+    colors: {
+      idle: '#F5A623',
+      waking_up: '#F5A623',
+      working: '#4A90D9',
+      planning: '#9B59B6',
+      waiting_for_action: '#F39C12',
+    },
+    earShape: 'floppy', // triangular dog ears
+  },
+  cat: {
+    name: 'Cat',
+    description: 'A curious coding cat',
+    tier: 'free',
+    colors: {
+      idle: '#7BC67E',
+      waking_up: '#7BC67E',
+      working: '#4ECDC4',
+      planning: '#A78BFA',
+      waiting_for_action: '#FBBF24',
+    },
+    earShape: 'pointy', // pointy cat ears
+  },
+  bird: {
+    name: 'Bird',
+    description: 'A swift coding bird',
+    tier: 'free',
+    colors: {
+      idle: '#60A5FA',
+      waking_up: '#60A5FA',
+      working: '#38BDF8',
+      planning: '#C084FC',
+      waiting_for_action: '#FB923C',
+    },
+    earShape: 'wing', // small wing shapes on sides
+  },
+  dragon: {
+    name: 'Dragon',
+    description: 'A fiery coding dragon',
+    tier: 'premium',
+    colors: {
+      idle: '#E74C3C',
+      waking_up: '#E74C3C',
+      working: '#C0392B',
+      planning: '#8E44AD',
+      waiting_for_action: '#F39C12',
+    },
+    earShape: 'horn', // dragon horns
+  },
+  panda: {
+    name: 'Panda',
+    description: 'A zen coding panda',
+    tier: 'premium',
+    colors: {
+      idle: '#ECF0F1',
+      waking_up: '#ECF0F1',
+      working: '#BDC3C7',
+      planning: '#95A5A6',
+      waiting_for_action: '#F1C40F',
+    },
+    earShape: 'round', // round panda ears
+  },
+};
 
 const STATES = {
   idle: {
     frames: 4,
-    color: '#F5A623',
+    duration: 1600,
+    loop: true,
     label: 'idle',
     eyes: 'open',
     mouth: 'smile',
@@ -24,7 +98,8 @@ const STATES = {
   },
   waking_up: {
     frames: 20,
-    color: '#F5A623',
+    duration: 4000,
+    loop: false,
     label: 'wake',
     eyes: 'wide',
     mouth: 'open',
@@ -32,7 +107,8 @@ const STATES = {
   },
   working: {
     frames: 4,
-    color: '#4A90D9',
+    duration: 1200,
+    loop: true,
     label: 'work',
     eyes: 'open',
     mouth: 'flat',
@@ -40,7 +116,8 @@ const STATES = {
   },
   planning: {
     frames: 4,
-    color: '#9B59B6',
+    duration: 1200,
+    loop: true,
     label: 'plan',
     eyes: 'open',
     mouth: 'flat',
@@ -48,7 +125,8 @@ const STATES = {
   },
   waiting_for_action: {
     frames: 4,
-    color: '#F39C12',
+    duration: 1600,
+    loop: true,
     label: 'wait',
     eyes: 'wide',
     mouth: 'flat',
@@ -60,7 +138,7 @@ function escapeXml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function generateEyes(type, cx, cy, frame) {
+function generateEyes(type, cx, cy) {
   const leftX = cx - 8;
   const rightX = cx + 8;
   const ey = cy - 4;
@@ -114,8 +192,63 @@ function generateMouth(type, cx, cy) {
   }
 }
 
-function generateFrame(state, frameIndex) {
+function generateEars(earShape, cx, cy, bounceY, color, state) {
+  const leftEarX = cx - 14;
+  const rightEarX = cx + 14;
+  const earOffset = state === 'waking_up' ? -2 : 0;
+
+  if (earShape === 'horn') {
+    // Dragon horns — curved spiky horns
+    const hornTopY = cy - 26 + bounceY + earOffset;
+    const hornBaseY = cy - 12 + bounceY;
+    return `
+    <polygon points="${leftEarX - 4},${hornBaseY} ${leftEarX - 1},${hornTopY} ${leftEarX + 4},${hornBaseY}" fill="#C0392B" stroke="#333" stroke-width="1"/>
+    <polygon points="${leftEarX - 2},${hornBaseY - 1} ${leftEarX - 1},${hornTopY + 3} ${leftEarX + 2},${hornBaseY - 1}" fill="#E74C3C" stroke="none"/>
+    <polygon points="${rightEarX - 4},${hornBaseY} ${rightEarX + 1},${hornTopY} ${rightEarX + 4},${hornBaseY}" fill="#C0392B" stroke="#333" stroke-width="1"/>
+    <polygon points="${rightEarX - 2},${hornBaseY - 1} ${rightEarX + 1},${hornTopY + 3} ${rightEarX + 2},${hornBaseY - 1}" fill="#E74C3C" stroke="none"/>`;
+  }
+
+  if (earShape === 'round') {
+    // Round panda ears — circular black ears
+    const earY = cy - 16 + bounceY + earOffset;
+    return `
+    <circle cx="${leftEarX}" cy="${earY}" r="7" fill="#333" stroke="#222" stroke-width="1"/>
+    <circle cx="${rightEarX}" cy="${earY}" r="7" fill="#333" stroke="#222" stroke-width="1"/>`;
+  }
+
+  if (earShape === 'wing') {
+    // Small wing shapes on the sides of the head
+    const wingY = cy - 2 + bounceY + earOffset;
+    const wingSpread = state === 'working' || state === 'waking_up' ? 4 : 2;
+    return `
+    <path d="M${leftEarX + 2},${wingY} Q${leftEarX - 8},${wingY - wingSpread} ${leftEarX - 6},${wingY + 8}" fill="${color}" stroke="#333" stroke-width="1" fill-opacity="0.8"/>
+    <path d="M${leftEarX + 2},${wingY + 2} Q${leftEarX - 5},${wingY - wingSpread + 2} ${leftEarX - 3},${wingY + 7}" fill="white" stroke="none" fill-opacity="0.3"/>
+    <path d="M${rightEarX - 2},${wingY} Q${rightEarX + 8},${wingY - wingSpread} ${rightEarX + 6},${wingY + 8}" fill="${color}" stroke="#333" stroke-width="1" fill-opacity="0.8"/>
+    <path d="M${rightEarX - 2},${wingY + 2} Q${rightEarX + 5},${wingY - wingSpread + 2} ${rightEarX + 3},${wingY + 7}" fill="white" stroke="none" fill-opacity="0.3"/>`;
+  }
+
+  if (earShape === 'pointy') {
+    // Pointy cat ears — taller and sharper
+    const earTopY = cy - 24 + bounceY + earOffset;
+    const earBaseY = cy - 10 + bounceY;
+    return `
+    <polygon points="${leftEarX - 6},${earBaseY} ${leftEarX},${earTopY} ${leftEarX + 6},${earBaseY}" fill="${color}" stroke="#333" stroke-width="1"/>
+    <polygon points="${leftEarX - 3},${earBaseY - 1} ${leftEarX},${earTopY + 4} ${leftEarX + 3},${earBaseY - 1}" fill="#FFB6C1" stroke="none"/>
+    <polygon points="${rightEarX - 6},${earBaseY} ${rightEarX},${earTopY} ${rightEarX + 6},${earBaseY}" fill="${color}" stroke="#333" stroke-width="1"/>
+    <polygon points="${rightEarX - 3},${earBaseY - 1} ${rightEarX},${earTopY + 4} ${rightEarX + 3},${earBaseY - 1}" fill="#FFB6C1" stroke="none"/>`;
+  }
+
+  // Default floppy dog ears
+  const earTopY = cy - 22 + bounceY + earOffset;
+  const earBaseY = cy - 10 + bounceY;
+  return `
+    <polygon points="${leftEarX - 5},${earBaseY} ${leftEarX},${earTopY} ${leftEarX + 5},${earBaseY}" fill="${color}" stroke="#333" stroke-width="1"/>
+    <polygon points="${rightEarX - 5},${earBaseY} ${rightEarX},${earTopY} ${rightEarX + 5},${earBaseY}" fill="${color}" stroke="#333" stroke-width="1"/>`;
+}
+
+function generateFrame(state, frameIndex, petConfig) {
   const s = STATES[state];
+  const color = petConfig.colors[state];
   const offsetX = frameIndex * 64;
   const cx = offsetX + 32;
   const cy = 28;
@@ -123,14 +256,7 @@ function generateFrame(state, frameIndex) {
   // Subtle vertical bounce per frame
   const bounceY = Math.sin((frameIndex / s.frames) * Math.PI * 2) * 2;
 
-  // Ear positions
-  const earOffset = state === 'waking_up' ? -2 : 0;
-  const leftEarX = cx - 14;
-  const rightEarX = cx + 14;
-  const earTopY = cy - 22 + bounceY + earOffset;
-  const earBaseY = cy - 10 + bounceY;
-
-  // Extras text (thought bubbles, Zzz, etc.)
+  // Extras text
   let extrasEl = '';
   if (s.extras.length > 0) {
     const extraText = s.extras[frameIndex % s.extras.length];
@@ -139,14 +265,11 @@ function generateFrame(state, frameIndex) {
 
   return `
     <!-- Frame ${frameIndex}: ${state} -->
-    <!-- Left ear -->
-    <polygon points="${leftEarX - 5},${earBaseY} ${leftEarX},${earTopY} ${leftEarX + 5},${earBaseY}" fill="${s.color}" stroke="#333" stroke-width="1"/>
-    <!-- Right ear -->
-    <polygon points="${rightEarX - 5},${earBaseY} ${rightEarX},${earTopY} ${rightEarX + 5},${earBaseY}" fill="${s.color}" stroke="#333" stroke-width="1"/>
+    ${generateEars(petConfig.earShape, cx, cy, bounceY, color, state)}
     <!-- Head -->
-    <circle cx="${cx}" cy="${cy + bounceY}" r="18" fill="${s.color}" stroke="#333" stroke-width="1.5"/>
+    <circle cx="${cx}" cy="${cy + bounceY}" r="18" fill="${color}" stroke="#333" stroke-width="1.5"/>
     <!-- Eyes -->
-    ${generateEyes(s.eyes, cx, cy + bounceY, frameIndex)}
+    ${generateEyes(s.eyes, cx, cy + bounceY)}
     <!-- Nose -->
     <ellipse cx="${cx}" cy="${cy + 2 + bounceY}" rx="2.5" ry="2" fill="#333"/>
     <!-- Mouth -->
@@ -158,14 +281,14 @@ function generateFrame(state, frameIndex) {
   `;
 }
 
-function generateSpriteSheet(state) {
+function generateSpriteSheet(state, petConfig) {
   const s = STATES[state];
   const width = s.frames * 64;
   const height = 64;
 
   let frames = '';
   for (let i = 0; i < s.frames; i++) {
-    frames += generateFrame(state, i);
+    frames += generateFrame(state, i, petConfig);
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -175,22 +298,63 @@ function generateSpriteSheet(state) {
 </svg>`;
 }
 
-// Ensure output directory exists
-if (!fs.existsSync(SPRITES_DIR)) {
-  fs.mkdirSync(SPRITES_DIR, { recursive: true });
+function generatePet(petId) {
+  const petConfig = PET_CONFIGS[petId];
+  if (!petConfig) {
+    console.error(`Unknown pet: "${petId}". Available: ${Object.keys(PET_CONFIGS).join(', ')}`);
+    process.exit(1);
+  }
+
+  // Premium pets go to assets/pets-dev/, free pets to assets/pets/
+  const baseDir = petConfig.tier === 'premium' ? PETS_DEV_DIR : PETS_DIR;
+  const petDir = path.join(baseDir, petId);
+  if (!fs.existsSync(petDir)) {
+    fs.mkdirSync(petDir, { recursive: true });
+  }
+
+  // Generate sprite sheets
+  for (const state of Object.keys(STATES)) {
+    const svg = generateSpriteSheet(state, petConfig);
+    const outputPath = path.join(petDir, `${state}.svg`);
+    fs.writeFileSync(outputPath, svg);
+    console.log(`Generated: ${outputPath} (${STATES[state].frames} frames)`);
+  }
+
+  // Generate manifest.json
+  const manifest = {
+    id: petId,
+    name: petConfig.name,
+    description: petConfig.description,
+    tier: petConfig.tier || 'free',
+    sprites: {},
+    autoTransitions: { waking_up: { next: 'idle', delay: 4000 } },
+    frameSize: 64,
+  };
+
+  for (const [state, config] of Object.entries(STATES)) {
+    manifest.sprites[state] = {
+      file: `${state}.svg`,
+      frames: config.frames,
+      duration: config.duration,
+      loop: config.loop,
+    };
+  }
+
+  const manifestPath = path.join(petDir, 'manifest.json');
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+  console.log(`Generated: ${manifestPath}`);
 }
 
-// Generate all sprite sheets as SVG (will be referenced directly)
-for (const state of Object.keys(STATES)) {
-  const svg = generateSpriteSheet(state);
-  const outputPath = path.join(SPRITES_DIR, `${state}.svg`);
+// CLI
+const arg = process.argv[2] || 'dog';
 
-  // Write as SVG with .png extension — Electron/Chromium can render SVG in <img> and CSS backgrounds
-  // For true PNG output, use a canvas library. SVG works perfectly as a placeholder.
-  fs.writeFileSync(outputPath, svg);
-  console.log(`Generated: ${outputPath} (${STATES[state].frames} frames)`);
+if (arg === 'all') {
+  for (const petId of Object.keys(PET_CONFIGS)) {
+    console.log(`\n--- Generating ${petId} ---`);
+    generatePet(petId);
+  }
+} else {
+  generatePet(arg);
 }
 
-console.log('\nAll placeholder sprites generated!');
-console.log('Note: These are SVG files — they work in Electron/Chromium.');
-console.log('Replace with real PNG sprite sheets for production use.');
+console.log('\nDone! SVG sprites work in Electron/Chromium.');
