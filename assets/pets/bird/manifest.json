@@ -12,7 +12,7 @@
     },
     "waking_up": {
       "file": "waking_up.png",
-      "frames": 20,
+      "frames": 4,
       "duration": 4000,
       "loop": false
     },
