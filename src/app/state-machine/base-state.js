@@ -8,7 +8,7 @@ const EVENT_METHOD_MAP = {
   [EVENTS.PLANNING_STARTED]:  'onPlanningStarted',
   [EVENTS.ACTION_REQUESTED]:  'onActionRequested',
   [EVENTS.WORK_FINISHED]:     'onWorkFinished',
-  [EVENTS.QUESTION_ANSWERED]: 'onQuestionAnswered',
+  [EVENTS.ACTION_COMPLETED]:  'onActionCompleted',
   [EVENTS.FALLING_ASLEEP]:    'onFallingAsleep',
 };
 
@@ -31,7 +31,7 @@ class BaseState {
   onPlanningStarted()  { return this.ignore(); }
   onActionRequested()  { return this.ignore(); }
   onWorkFinished()     { return this.ignore(); }
-  onQuestionAnswered() { return this.ignore(); }
+  onActionCompleted()  { return this.ignore(); }
   onFallingAsleep()    { return this.ignore(); }
 
   // --- Helpers ---

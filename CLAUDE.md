@@ -22,7 +22,7 @@ hooks/
     on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron
     on-notification.js       # Notification: send action_requested (+notification payload)
     on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started (+prompt_length)
-    on-post-tool-use.js      # PostToolUse: sends question_answered for AskUserQuestion, logs all tools
+    on-post-tool-use.js      # PostToolUse: sends action_completed for all tool completions
     on-stop.js               # Stop: send work_finished (+stop_reason)
 src/
   app/                       # Electron main process
@@ -82,7 +82,7 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 ## Events and States
 
-Four semantic events map to four server-side states. Three additional events (`awaken`, `falling_asleep`, `question_answered`) are handled specially by the server without a dedicated state.
+Four semantic events map to four server-side states. Three additional events (`awaken`, `falling_asleep`, `action_completed`) are handled specially by the server without a dedicated state.
 
 | Event (hook sends) | State (pet.js) | Triggered by |
 |---------------------|----------------|--------------|
@@ -91,12 +91,12 @@ Four semantic events map to four server-side states. Three additional events (`a
 | `planning_started` | `planning` | UserPromptSubmit (plan mode) |
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
 | `work_finished` | `idle` | Stop |
-| `question_answered` | *(restores previous)* | PostToolUse (AskUserQuestion) |
+| `action_completed` | *(restores previous)* | PostToolUse (any tool) |
 | `falling_asleep` | *(restores or tracks)* | SessionEnd |
 
 > `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (20 frames, 4s) and auto-transitions back to idle CSS.
 
-> `on-post-tool-use.js` sends `question_answered` when `AskUserQuestion` completes. The server restores the pet to its previous active state (`working` or `planning`) via `lastActiveEvent`. For all other tools, the hook only logs to `hooks-debug.log`.
+> `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored.
 
 > `falling_asleep` is handled specially by the server: restores from `waiting_for_action` to the previous active state, is suppressed during active work (spurious SessionEnd), or is tracked for shutdown when no active state exists.
 

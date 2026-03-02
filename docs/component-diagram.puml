@@ -96,7 +96,7 @@ oss ..> send : awaken
 ose ..> send : falling_asleep
 ops ..> send : working_started\n/ planning_started
 onot ..> send : action_requested
-optu ..> send : question_answered\n(AskUserQuestion only)
+optu ..> send : action_completed\n(all tool completions)
 ost ..> send : work_finished
 
 ' ══════════════════════════════════════════════════

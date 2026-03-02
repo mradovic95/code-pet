@@ -6,7 +6,7 @@ const EVENTS = {
   PLANNING_STARTED:  'planning_started',
   ACTION_REQUESTED:  'action_requested',
   WORK_FINISHED:     'work_finished',
-  QUESTION_ANSWERED: 'question_answered',
+  ACTION_COMPLETED:  'action_completed',
   FALLING_ASLEEP:    'falling_asleep',
 };
 

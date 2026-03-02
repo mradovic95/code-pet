@@ -60,7 +60,7 @@ curl -X POST http://localhost:31425/event \
 curl -X POST http://localhost:31425/shutdown
 ```
 
-Valid events: `awaken`, `falling_asleep`, `working_started`, `planning_started`, `action_requested`, `work_finished`, `question_answered`
+Valid events: `awaken`, `falling_asleep`, `working_started`, `planning_started`, `action_requested`, `work_finished`, `action_completed`
 
 ## Custom Sprites
 

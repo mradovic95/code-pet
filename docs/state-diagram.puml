@@ -33,9 +33,9 @@ waiting_for_action -[#grey,dotted]-> waiting_for_action : SessionStart\n//awaken
 waiting_for_action -[#blue,dashed]-> working : SessionEnd\n//falling_asleep//\n(restore)
 waiting_for_action -[#blue,dashed]-> planning : SessionEnd\n//falling_asleep//\n(restore)
 
-' ── question_answered restores previous active state ──
-waiting_for_action -[#purple,dashed]-> working : PostToolUse(AskUserQuestion)\n//question_answered//\n(restore)
-waiting_for_action -[#purple,dashed]-> planning : PostToolUse(AskUserQuestion)\n//question_answered//\n(restore)
+' ── action_completed restores previous active state ──
+waiting_for_action -[#purple,dashed]-> working : PostToolUse(any tool)\n//action_completed//\n(restore)
+waiting_for_action -[#purple,dashed]-> planning : PostToolUse(any tool)\n//action_completed//\n(restore)
 
 ' ── waiting_for_action exits via UserPromptSubmit ──
 waiting_for_action --> working : UserPromptSubmit\n//working_started//
@@ -85,8 +85,8 @@ SE --> [planning] : restore from\nwaiting_for_action
 PS --> [working] : normal mode
 PS --> [planning] : plan mode
 NOTIF --> [waiting_for_action] : permission_prompt
-PTU --> [working] : AskUserQuestion\n(restore)
-PTU --> [planning] : AskUserQuestion\n(restore)
+PTU --> [working] : any tool\n(restore)
+PTU --> [planning] : any tool\n(restore)
 STOP --> [idle] : always
 
 note bottom of SS

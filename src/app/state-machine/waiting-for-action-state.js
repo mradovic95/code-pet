@@ -23,7 +23,7 @@ class WaitingForActionState extends BaseState {
     return this.transitionTo(STATES.IDLE);
   }
 
-  onQuestionAnswered() {
+  onActionCompleted() {
     return this.restore(() => this.ignore());
   }
 

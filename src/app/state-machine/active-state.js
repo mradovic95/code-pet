@@ -22,7 +22,7 @@ class ActiveState extends BaseState {
     return this.removeProject();
   }
 
-  onQuestionAnswered() {
+  onActionCompleted() {
     this.context.lastEventName = this.selfEvent;
     return this.result({
       rendererState: this.name,

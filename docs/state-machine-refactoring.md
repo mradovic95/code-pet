@@ -10,7 +10,7 @@ All event handling lived inside the `/event` POST handler in `event-server.js` a
 
 - A flat `EVENT_TO_STATE` mapping converted event names to state names
 - Three module-level variables (`lastEventName`, `lastActiveEvent`, `lastEventTime`) tracked state
-- Special events (`question_answered`, `falling_asleep`, `awaken`) were handled via nested `if/else` blocks at the top of the handler
+- Special events (`action_completed`, `falling_asleep`, `awaken`) were handled via nested `if/else` blocks at the top of the handler
 - There was no concept of "current state" — the server only tracked the last event name and checked it when needed
 - Duplicate events were never filtered: sending `working_started` twice would re-send the state to the renderer both times
 - All transition logic, suppression rules, and restore-from-context behavior were interleaved with HTTP response code
@@ -19,7 +19,7 @@ The old handler (~70 lines of branching logic):
 
 ```
 POST /event → read body
-  → if question_answered: check lastActiveEvent, maybe restore
+  → if action_completed: check lastActiveEvent, maybe restore
   → if falling_asleep: 3-way branch on lastEventName/lastActiveEvent
   → else: lookup EVENT_TO_STATE
     → if awaken: suppress if lastActiveEvent set
@@ -90,10 +90,10 @@ The server (`event-server.js`) now contains **zero event logic** — it only:
 ```
 BaseState                         ← ignore-all defaults + helper methods
   ├── IdleState                   ← awaken, working, planning, action, falling_asleep
-  ├── ActiveState                 ← action_requested, work_finished, falling_asleep, question_answered
+  ├── ActiveState                 ← action_requested, work_finished, falling_asleep, action_completed
   │     ├── WorkingState          ← + planning_started
   │     └── PlanningState         ← + working_started
-  └── WaitingForActionState       ← working, planning, work_finished, question_answered, falling_asleep
+  └── WaitingForActionState       ← working, planning, work_finished, action_completed, falling_asleep
 ```
 
 `ActiveState` is an intermediate class shared by `WorkingState` and `PlanningState`. It handles the events common to both active work states (transition to waiting, finish work, remove project on falling asleep, re-render on question answered). Each subclass only adds the ability to switch to the *other* active state.
@@ -138,14 +138,14 @@ State transitions and tracked-field mutations (`lastActiveEvent`, `lastEventName
 | `planning_started` | **→ planning** | **→ planning** | ignore | **→ planning** |
 | `action_requested` | **→ waiting** | **→ waiting** | **→ waiting** | ignore |
 | `work_finished` | ignore | **→ idle** | **→ idle** | **→ idle** |
-| `question_answered` | ignore | re-render | re-render | restore / ignore |
+| `action_completed` | ignore | re-render | re-render | restore / ignore |
 | `falling_asleep` | remove | remove | remove | restore / remove |
 
 **Legend:**
 - **stay idle** = no state transition, sends renderer-only `waking_up` animation
 - **→ state** = transition to that state + send to renderer
 - **ignore** = `BaseState` default, no state change, no renderer update
-- **re-render** = send current state to renderer again (e.g., after AskUserQuestion completes)
+- **re-render** = send current state to renderer again (e.g., after any tool completes)
 - **restore** = transition to state stored in `lastActiveEvent` (if set), otherwise fall back to ignore or remove
 - **remove** = remove the project (triggers shutdown timer if no projects remain)
 
@@ -167,10 +167,10 @@ Manual verification via `test.sh`:
 ./test.sh working_started  # idle → working
 ./test.sh awaken           # ignored (WorkingState doesn't handle awaken)
 
-# question_answered restore
+# action_completed restore
 ./test.sh working_started       # → working
 ./test.sh action_requested      # → waiting_for_action
-./test.sh question_answered     # → working (restored from lastActiveEvent)
+./test.sh action_completed      # → working (restored from lastActiveEvent)
 
 # falling_asleep behavior
 ./test.sh working_started       # → working

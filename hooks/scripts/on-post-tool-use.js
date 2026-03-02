@@ -27,10 +27,8 @@ async function main() {
 
   debugLog(`PostToolUse: tool=${toolName} input=${toolInput} output=${toolOutput}`);
 
-  if (toolName === 'AskUserQuestion') {
-    debugLog(`PostToolUse: AskUserQuestion answered → sending question_answered`);
-    await sendEvent('question_answered');
-  }
+  debugLog(`PostToolUse: tool completed → sending action_completed`);
+  await sendEvent('action_completed');
 
   process.stdout.write('{}');
 }
