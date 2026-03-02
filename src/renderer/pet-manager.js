@@ -2,7 +2,7 @@
 
 let _petCatalog = [];
 let _premiumSprites = {}; // petId -> { idle: "data:...", working: "data:...", ... }
-let _soundEnabled = false;
+let _soundSettings = { idle: false, waiting_for_action: false };
 
 function setPetCatalog(catalog) {
   _petCatalog = catalog;
@@ -101,8 +101,8 @@ class PetManager {
   }
 }
 
-function isSoundEnabled() {
-  return _soundEnabled;
+function isSoundEnabledForState(state) {
+  return !!(_soundSettings && _soundSettings[state]);
 }
 
 const petManager = new PetManager(document.getElementById('pets-container'));

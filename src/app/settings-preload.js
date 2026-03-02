@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   setPetType: (petType) => ipcRenderer.send('set-pet-type', petType),
   // Sound
   getSoundEnabled: () => ipcRenderer.sendSync('get-sound-enabled'),
-  setSoundEnabled: (enabled) => ipcRenderer.send('set-sound-enabled', enabled),
+  setSoundEnabledForState: (state, enabled) => ipcRenderer.send('set-sound-enabled-for-state', { state, enabled }),
   // Marketplace
   activateLicense: (key) => ipcRenderer.invoke('activate-license', key),
   getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),

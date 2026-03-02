@@ -8,12 +8,14 @@ const logger = require('./logger');
 const SETTINGS_DIR = path.join(os.homedir(), '.code-pet');
 const SETTINGS_FILE = path.join(SETTINGS_DIR, 'settings.json');
 
+const DEFAULT_SOUND_SETTINGS = { idle: false, waiting_for_action: false };
+
 const DEFAULT_SETTINGS = {
   defaultPetType: 'dog',
   projectPets: {},
   licenseKey: null,
   activationId: null,
-  soundEnabled: false,
+  soundEnabled: { ...DEFAULT_SOUND_SETTINGS },
 };
 
 let settings = { ...DEFAULT_SETTINGS };
@@ -23,6 +25,13 @@ function load() {
     if (fs.existsSync(SETTINGS_FILE)) {
       const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
       settings = { ...DEFAULT_SETTINGS, ...data };
+      // Migrate boolean soundEnabled to per-state object
+      if (typeof settings.soundEnabled === 'boolean') {
+        settings.soundEnabled = settings.soundEnabled
+          ? { idle: false, waiting_for_action: true }
+          : { ...DEFAULT_SOUND_SETTINGS };
+        save();
+      }
     }
   } catch (err) {
     logger.warn(`Failed to load settings: ${err.message}`);
@@ -78,11 +87,16 @@ function setActivationId(id) {
 }
 
 function getSoundEnabled() {
-  return !!settings.soundEnabled;
+  return settings.soundEnabled && typeof settings.soundEnabled === 'object'
+    ? settings.soundEnabled
+    : { ...DEFAULT_SOUND_SETTINGS };
 }
 
-function setSoundEnabled(enabled) {
-  settings.soundEnabled = !!enabled;
+function setSoundEnabledForState(stateName, enabled) {
+  if (!settings.soundEnabled || typeof settings.soundEnabled !== 'object') {
+    settings.soundEnabled = { ...DEFAULT_SOUND_SETTINGS };
+  }
+  settings.soundEnabled[stateName] = !!enabled;
   save();
 }
 
@@ -98,5 +112,5 @@ module.exports = {
   getActivationId,
   setActivationId,
   getSoundEnabled,
-  setSoundEnabled,
+  setSoundEnabledForState,
 };

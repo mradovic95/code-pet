@@ -23,6 +23,7 @@ class Pet {
     this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
     this.sounds = manifest ? (manifest.sounds || {}) : {};
     this.currentState = 'idle';
+    this.hasBeenActive = false;
     this.autoTransitionTimer = null;
     this.debounceTimer = null;
     this.clickTimer = null;
@@ -86,9 +87,22 @@ class Pet {
     // Remove transition class after brief fade
     setTimeout(() => this.el.classList.remove('transitioning'), 100);
 
-    // Play notification sound if entering waiting_for_action
-    if (state === 'waiting_for_action' && isSoundEnabled()) {
-      this._playNotificationSound();
+    // Track active states for idle sound guard
+    if (state === 'working' || state === 'planning') {
+      this.hasBeenActive = true;
+    }
+
+    // Play sound for waiting_for_action
+    if (state === 'waiting_for_action' && isSoundEnabledForState('waiting_for_action')) {
+      this._playStateSound('waiting_for_action');
+    }
+
+    // Play sound for idle only after real work (not waking_up → idle)
+    if (state === 'idle' && this.hasBeenActive) {
+      if (isSoundEnabledForState('idle')) {
+        this._playStateSound('idle');
+      }
+      this.hasBeenActive = false;
     }
 
     // Set up auto-transition for non-looping states
@@ -128,8 +142,8 @@ class Pet {
     return this.currentState;
   }
 
-  _playNotificationSound() {
-    const soundFile = this.sounds && this.sounds.waiting_for_action;
+  _playStateSound(state) {
+    const soundFile = this.sounds && this.sounds[state];
     if (!soundFile) return;
     const audio = new Audio(`../../assets/pets/${this.petType}/${soundFile}`);
     audio.volume = 0.5;

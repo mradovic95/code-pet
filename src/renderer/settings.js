@@ -182,12 +182,18 @@ document.getElementById('license-btn').addEventListener('click', async () => {
   btn.textContent = 'Activate';
 });
 
-// --- Sound toggle ---
+// --- Sound toggles ---
 
-const soundToggle = document.getElementById('sound-toggle');
-soundToggle.checked = window.codePetSettings.getSoundEnabled();
-soundToggle.addEventListener('change', () => {
-  window.codePetSettings.setSoundEnabled(soundToggle.checked);
+const soundSettings = window.codePetSettings.getSoundEnabled();
+const soundToggleIdle = document.getElementById('sound-toggle-idle');
+const soundToggleWaiting = document.getElementById('sound-toggle-waiting');
+soundToggleIdle.checked = !!(soundSettings && soundSettings.idle);
+soundToggleWaiting.checked = !!(soundSettings && soundSettings.waiting_for_action);
+soundToggleIdle.addEventListener('change', () => {
+  window.codePetSettings.setSoundEnabledForState('idle', soundToggleIdle.checked);
+});
+soundToggleWaiting.addEventListener('change', () => {
+  window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
 });
 
 // --- Init ---

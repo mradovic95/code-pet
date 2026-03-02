@@ -36,7 +36,8 @@
     }
   },
   "sounds": {
-    "waiting_for_action": "notification.wav"
+    "idle": "idle.wav",
+    "waiting_for_action": "waiting_for_action.wav"
   },
   "autoTransitions": {
     "waking_up": {
