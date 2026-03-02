@@ -351,7 +351,7 @@ function createSettingsWindow() {
 
   const overlayBounds = overlayWindow ? overlayWindow.getBounds() : null;
   const settingsWidth = 320;
-  const settingsHeight = 520;
+  const settingsHeight = 620;
 
   let x, y;
   if (overlayBounds) {
