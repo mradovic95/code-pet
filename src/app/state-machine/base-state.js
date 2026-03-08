@@ -22,7 +22,7 @@ class BaseState {
   handleEvent(eventName) {
     this.eventName = eventName;
     const method = EVENT_METHOD_MAP[eventName];
-    logger.info(`[${this.context.project}] ${this.constructor.name}.handleEvent: received '${eventName}', dispatching to ${method}()`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.handleEvent: received '${eventName}', dispatching to ${method}()`);
     return this[method]();
   }
 
@@ -39,7 +39,7 @@ class BaseState {
   // --- Helpers ---
 
   transitionTo(stateName, responseExtras = {}) {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.transitionTo: ${this.name} -> ${stateName}`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.transitionTo: ${this.name} -> ${stateName}`);
     this.context.lastEventName = this.eventName;
     this.context.changeState(stateName);
     return this.result({
@@ -51,7 +51,7 @@ class BaseState {
   restore(fallback) {
     if (this.context.lastActiveEvent) {
       const restoredState = EVENT_TO_STATE[this.context.lastActiveEvent];
-      logger.info(`[${this.context.project}] ${this.constructor.name}.restore: restoring to ${restoredState} (lastActiveEvent=${this.context.lastActiveEvent})`);
+      logger.info(`[${this.context.projectName}] ${this.constructor.name}.restore: restoring to ${restoredState} (lastActiveEvent=${this.context.lastActiveEvent})`);
       this.context.lastEventName = this.context.lastActiveEvent;
       this.context.changeState(restoredState);
       return this.result({
@@ -59,26 +59,26 @@ class BaseState {
         response: { state: restoredState, restored: true },
       });
     }
-    logger.info(`[${this.context.project}] ${this.constructor.name}.restore: no lastActiveEvent, using fallback`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.restore: no lastActiveEvent, using fallback`);
     return fallback();
   }
 
   suppress() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.suppress: suppressing '${this.eventName}' in state '${this.name}'`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.suppress: suppressing '${this.eventName}' in state '${this.name}'`);
     return this.result({
       response: { suppressed: true },
     });
   }
 
   ignore() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.ignore: ignoring '${this.eventName}' in state '${this.name}'`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.ignore: ignoring '${this.eventName}' in state '${this.name}'`);
     return this.result({
       response: { ignored: true },
     });
   }
 
   removeProject() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.removeProject: removing project`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.removeProject: removing project`);
     this.context.lastEventName = this.eventName;
     return this.result({
       action: 'remove_project',

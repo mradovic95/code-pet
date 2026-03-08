@@ -10,7 +10,7 @@ class PlanningState extends ActiveState {
   }
 
   onWorkingStarted() {
-    logger.info(`[${this.context.project}] PlanningState.onWorkingStarted: switching from planning to working`);
+    logger.info(`[${this.context.projectName}] PlanningState.onWorkingStarted: switching from planning to working`);
     this.context.lastActiveEvent = this.eventName;
     return this.transitionTo(STATES.WORKING);
   }

@@ -11,23 +11,23 @@ class ActiveState extends BaseState {
   }
 
   onActionRequested() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.onActionRequested: transitioning to waiting_for_action`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.onActionRequested: transitioning to waiting_for_action`);
     return this.transitionTo(STATES.WAITING_FOR_ACTION);
   }
 
   onWorkFinished() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.onWorkFinished: clearing lastActiveEvent, transitioning to idle`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.onWorkFinished: clearing lastActiveEvent, transitioning to idle`);
     this.context.lastActiveEvent = null;
     return this.transitionTo(STATES.IDLE);
   }
 
   onFallingAsleep() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.onFallingAsleep: removing project`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.onFallingAsleep: removing project`);
     return this.removeProject();
   }
 
   onActionCompleted() {
-    logger.info(`[${this.context.project}] ${this.constructor.name}.onActionCompleted: re-affirming state '${this.name}'`);
+    logger.info(`[${this.context.projectName}] ${this.constructor.name}.onActionCompleted: re-affirming state '${this.name}'`);
     this.context.lastEventName = this.selfEvent;
     return this.result({
       rendererState: this.name,
