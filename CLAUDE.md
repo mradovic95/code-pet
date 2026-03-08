@@ -129,6 +129,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - Renderer uses `contextIsolation: true`, `nodeIntegration: false`
 - Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
+- Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )
 
 ## Runtime State (all in `~/.code-pet/`)
 
@@ -139,7 +140,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `app.log` | Electron stdout/stderr |
 | `install.log` | npm install output |
 | `installing` | Lock file during npm install (contains PID, stale after 10min) |
-| `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` |
+| `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` + full stdin JSON from each hook |
 
 ## Development Commands
 

@@ -8,6 +8,7 @@ const { execFileSync } = require('child_process');
 
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 const DEBUG_LOG = pathMod.join(os.homedir(), '.code-pet', 'hooks-debug.log');
+const PROJECT_NAME = pathMod.basename(process.cwd()).replace(/[-_]/g, ' ');
 
 function captureTty(pid) {
   try {
@@ -32,7 +33,7 @@ function getProjectContext() {
 
 function debugLog(msg) {
   try {
-    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    const line = `[${new Date().toISOString()}] [${PROJECT_NAME}] ${msg}\n`;
     fs.mkdirSync(pathMod.dirname(DEBUG_LOG), { recursive: true });
     fs.appendFileSync(DEBUG_LOG, line);
   } catch { /* ignore */ }

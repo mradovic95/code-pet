@@ -20,6 +20,7 @@ function readStdin() {
 
 async function main() {
   const input = await readStdin();
+  debugLog(`on-post-tool-use stdin: ${JSON.stringify(input)}`);
 
   const toolName = input.tool_name || 'unknown';
   const toolInput = input.tool_input ? JSON.stringify(input.tool_input) : '{}';
@@ -27,8 +28,8 @@ async function main() {
 
   debugLog(`PostToolUse: tool=${toolName} input=${toolInput} output=${toolOutput}`);
 
-  debugLog(`PostToolUse: tool completed → sending action_completed`);
-  await sendEvent('action_completed');
+  debugLog(`PostToolUse: tool completed → sending action_completed (permissionMode=${input.permission_mode || 'none'})`);
+  await sendEvent('action_completed', { permissionMode: input.permission_mode });
 
   process.stdout.write('{}');
 }

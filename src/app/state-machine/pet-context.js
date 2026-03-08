@@ -11,6 +11,7 @@ class PetContext {
     this.petType = petType || 'dog';
     this.claudePid = null;
     this.tty = null;
+    this.permissionMode = null;
     this.changeState(STATES.IDLE);
   }
 

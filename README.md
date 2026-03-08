@@ -113,3 +113,9 @@ Force-stop the pet and clean up its PID file:
 ```bash
 pkill -9 -f code-pet; rm -f ~/.code-pet/app.pid
 ```
+
+Check hook event logs for debugging:
+
+```bash
+tail -f ~/.code-pet/hooks-debug.log
+```

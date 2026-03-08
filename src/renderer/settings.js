@@ -201,9 +201,3 @@ soundToggleWaiting.addEventListener('change', () => {
 renderPetSelector();
 renderMarketplace();
 
-// Display project name
-const projectPath = window.codePetSettings.getProjectPath();
-if (projectPath) {
-  const dirName = projectPath.replace(/[/\\]$/, '').split(/[/\\]/).pop();
-  document.getElementById('project-label').textContent = dirName;
-}

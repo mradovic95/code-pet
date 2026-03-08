@@ -119,6 +119,7 @@ function startServer() {
 
           const pet = registry.getOrCreate(projectPath, projectName);
           pet.updateProcessInfo(body.claudePid, body.tty);
+          if (body.permissionMode) pet.permissionMode = body.permissionMode;
 
           const result = dispatchEvent(projectPath, projectName, eventName);
 

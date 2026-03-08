@@ -20,6 +20,10 @@ idle --> working : UserPromptSubmit\n//working_started//
 idle --> waiting_for_action : Notification\n//action_requested//
 idle --> planning : UserPromptSubmit (plan)\n//planning_started//
 
+' ── Permission prompt during active work ──
+working --> waiting_for_action : Notification\n//action_requested//
+planning --> waiting_for_action : Notification\n//action_requested//
+
 ' ── Stop returns to idle from active states ──
 working -[#red]-> idle : Stop\n//work_finished//
 planning -[#red]-> idle : Stop\n//work_finished//
@@ -37,13 +41,18 @@ waiting_for_action -[#blue,dashed]-> planning : SessionEnd\n//falling_asleep//\n
 waiting_for_action -[#purple,dashed]-> working : PostToolUse(any tool)\n//action_completed//\n(restore)
 waiting_for_action -[#purple,dashed]-> planning : PostToolUse(any tool)\n//action_completed//\n(restore)
 
+' ── Stop forces idle from waiting_for_action ──
+waiting_for_action -[#red]-> idle : Stop\n//work_finished//
+
 ' ── waiting_for_action exits via UserPromptSubmit ──
 waiting_for_action --> working : UserPromptSubmit\n//working_started//
 waiting_for_action --> planning : UserPromptSubmit (plan)\n//planning_started//
 
 note right of idle
   Any event can arrive in **any** state.
-  Transitions shown from idle for clarity,
+  **action_requested** works from idle,
+  working, and planning (via ActiveState).
+  Transitions not all shown from idle for clarity,
   but the pet accepts all events regardless
   of current state (no guards), except:
   **awaken** is ignored in all non-idle
