@@ -1,6 +1,7 @@
 'use strict';
 
 const { VALID_EVENTS, STATES } = require('./events');
+const { UsageTracker } = require('../../tracking');
 
 class PetContext {
   constructor(projectName, petType) {
@@ -12,6 +13,7 @@ class PetContext {
     this.claudePid = null;
     this.tty = null;
     this.permissionMode = null;
+    this.tracker = new UsageTracker();
     this.changeState(STATES.IDLE);
   }
 
@@ -38,6 +40,24 @@ class PetContext {
     if (tty) this.tty = tty;
   }
 
+  recordToolUsage(toolName, toolInput) {
+    if (!toolName) return;
+    if (toolName.startsWith('mcp__')) {
+      this.tracker.record('mcp_tool', toolName);
+    } else if (toolName === 'Skill') {
+      const skillName = (toolInput && toolInput.skill) ? toolInput.skill : 'unknown';
+      this.tracker.record('skill', skillName);
+    }
+  }
+
+  getUsageSnapshot() {
+    return this.tracker.getUsageSnapshot();
+  }
+
+  getUsageEvents() {
+    return this.tracker.getEvents().map(e => e.toJSON());
+  }
+
   getSnapshot() {
     return {
       lastEventName: this.lastEventName,
@@ -47,6 +67,7 @@ class PetContext {
       petType: this.petType,
       claudePid: this.claudePid,
       tty: this.tty,
+      usage: this.getUsageSnapshot(),
     };
   }
 }

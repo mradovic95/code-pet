@@ -196,6 +196,93 @@ soundToggleWaiting.addEventListener('change', () => {
   window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
 });
 
+// --- Tabs ---
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    document.getElementById('tab-general').style.display = target === 'general' ? '' : 'none';
+    document.getElementById('tab-usage').style.display = target === 'usage' ? '' : 'none';
+    if (target === 'usage') renderUsageTab();
+  });
+});
+
+function renderUsageTab() {
+  const usage = window.codePetSettings.getToolUsage();
+  renderUsageList('mcp-usage-list', usage.mcp, 'No MCP tool usage yet');
+  renderUsageList('skill-usage-list', usage.skills, 'No skill usage yet');
+  renderEventLog();
+}
+
+function renderEventLog() {
+  const container = document.getElementById('event-log');
+  const events = window.codePetSettings.getToolEvents();
+
+  if (!events || events.length === 0) {
+    container.innerHTML = '<div class="usage-empty">No events yet</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  // Newest first
+  const sorted = events.slice().sort((a, b) => b.timestamp - a.timestamp);
+
+  for (const evt of sorted) {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'event-timestamp';
+    const d = new Date(evt.timestamp);
+    timeEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const badge = document.createElement('span');
+    badge.className = 'event-type-badge ' + (evt.type === 'mcp_tool' ? 'badge-mcp' : 'badge-skill');
+    badge.textContent = evt.type === 'mcp_tool' ? 'MCP' : 'Skill';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'event-name';
+    nameEl.textContent = evt.name;
+    nameEl.title = evt.name;
+
+    row.appendChild(timeEl);
+    row.appendChild(badge);
+    row.appendChild(nameEl);
+    container.appendChild(row);
+  }
+}
+
+function renderUsageList(containerId, data, emptyMsg) {
+  const container = document.getElementById(containerId);
+  const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    container.innerHTML = `<div class="usage-empty">${emptyMsg}</div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const [name, count] of entries) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name';
+    nameEl.textContent = name;
+    nameEl.title = name;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'usage-count';
+    countEl.textContent = count;
+
+    row.appendChild(nameEl);
+    row.appendChild(countEl);
+    container.appendChild(row);
+  }
+}
+
 // --- Init ---
 
 renderPetSelector();

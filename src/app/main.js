@@ -2,8 +2,8 @@
 
 const path = require('path');
 const { app } = require('electron');
-const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, sendToRenderer } = require('./window-manager');
-const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getProjectsSnapshot, getClaudePidForProject, getTtyForProject } = require('./event-server');
+const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, sendToRenderer } = require('./window-manager');
+const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getProjectsSnapshot, getClaudePidForProject, getTtyForProject, getToolUsageForProject, getToolEventsForProject } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const PetCatalog = require('./pet-catalog');
 const settingsStore = require('./settings-store');
@@ -60,6 +60,8 @@ if (!gotLock) {
     setCatalogFn(() => catalog.list());
     setCatalogObj(catalog);
     setUpdatePetTypeFn(setPetTypeForProject);
+    setToolUsageFn(getToolUsageForProject);
+    setToolEventsFn(getToolEventsForProject);
     setLicenseManagerFn(licenseManager);
     setPremiumStoreFn(premiumStore);
     setMarketplaceCatalogFn(marketplaceCatalog);

@@ -92,13 +92,13 @@ Four semantic events map to four server-side states. Three additional events (`a
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
 | `work_finished` | `idle` | Stop |
 | `action_completed` | *(restores previous)* | PostToolUse (any tool) |
-| `falling_asleep` | *(restores or tracks)* | SessionEnd |
+| `falling_asleep` | *(ignored or removes project)* | SessionEnd |
 
 > `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (20 frames, 4s) and auto-transitions back to idle CSS.
 
 > `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored.
 
-> `falling_asleep` is handled specially by the server: restores from `waiting_for_action` to the previous active state, is suppressed during active work (spurious SessionEnd), or is tracked for shutdown when no active state exists.
+> `falling_asleep` is handled specially by the server: ignored in `waiting_for_action`, removes the project in all other states (idle, working, planning).
 
 ## State Machine & Interaction (pet.js)
 
@@ -117,7 +117,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
 - **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
 - **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
-- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: WaitingForActionState restores to the previous active state if one exists, otherwise removes the project; all other states (idle, working, planning) remove the project.
+- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: WaitingForActionState ignores it; all other states (idle, working, planning) remove the project.
 - **Awaken suppression**: implicit via the whitelist pattern — only IdleState overrides `onAwaken()`. All other states inherit `BaseState.ignore()`, so awaken events during any non-idle state are silently ignored. Prevents spurious `SessionStart` (fired after permission prompts / AskQuestion answers) from interrupting work animations.
 
 ## Key Conventions

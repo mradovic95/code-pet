@@ -21,6 +21,8 @@ let getTtyFn = null;
 let dispatchEventFn = null;
 let catalogFn = null;
 let setPetTypeForProjectFn = null;
+let getToolUsageFn = null;
+let getToolEventsFn = null;
 let currentSettingsProject = null;
 // Marketplace references
 let licenseManagerRef = null;
@@ -85,6 +87,22 @@ ipcMain.on('get-current-pet-type', (event) => {
 
 ipcMain.on('get-settings-project', (event) => {
   event.returnValue = currentSettingsProject;
+});
+
+ipcMain.on('get-tool-usage', (event) => {
+  if (getToolUsageFn && currentSettingsProject) {
+    event.returnValue = getToolUsageFn(currentSettingsProject);
+  } else {
+    event.returnValue = { mcp: {}, skills: {} };
+  }
+});
+
+ipcMain.on('get-tool-events', (event) => {
+  if (getToolEventsFn && currentSettingsProject) {
+    event.returnValue = getToolEventsFn(currentSettingsProject);
+  } else {
+    event.returnValue = [];
+  }
 });
 
 ipcMain.on('get-sound-enabled', (event) => {
@@ -323,6 +341,14 @@ function setUpdatePetTypeFn(fn) {
   setPetTypeForProjectFn = fn;
 }
 
+function setToolUsageFn(fn) {
+  getToolUsageFn = fn;
+}
+
+function setToolEventsFn(fn) {
+  getToolEventsFn = fn;
+}
+
 function setCatalogObj(obj) {
   catalogObjRef = obj;
 }
@@ -417,5 +443,7 @@ module.exports = {
   setPremiumStoreFn,
   setMarketplaceCatalogFn,
   setLicenseApiFn,
+  setToolUsageFn,
+  setToolEventsFn,
   closeSettingsWindow,
 };

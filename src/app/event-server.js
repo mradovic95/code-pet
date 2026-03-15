@@ -120,6 +120,7 @@ function startServer() {
           const pet = registry.getOrCreate(projectPath, projectName);
           pet.updateProcessInfo(body.claudePid, body.tty);
           if (body.permissionMode) pet.permissionMode = body.permissionMode;
+          if (body.toolName) pet.recordToolUsage(body.toolName, body.toolInput);
 
           const result = dispatchEvent(projectPath, projectName, eventName);
 
@@ -184,4 +185,12 @@ module.exports = {
   getProjectsSnapshot: () => registry.getSnapshot(),
   getClaudePidForProject: (p) => registry.getClaudePid(p),
   getTtyForProject: (p) => registry.getTty(p),
+  getToolUsageForProject: (p) => {
+    const pet = registry.get(p);
+    return pet ? pet.getUsageSnapshot() : { mcp: {}, skills: {} };
+  },
+  getToolEventsForProject: (p) => {
+    const pet = registry.get(p);
+    return pet ? pet.getUsageEvents() : [];
+  },
 };

@@ -21,12 +21,6 @@ class WaitingForActionState extends BaseState {
     return this.transitionTo(STATES.PLANNING);
   }
 
-  onWorkFinished() {
-    logger.info(`[${this.context.projectName}] WaitingForActionState.onWorkFinished: clearing lastActiveEvent, transitioning to idle`);
-    this.context.lastActiveEvent = null;
-    return this.transitionTo(STATES.IDLE);
-  }
-
   onActionCompleted() {
     const mode = this.context.permissionMode;
     logger.info(`[${this.context.projectName}] WaitingForActionState.onActionCompleted: permissionMode=${mode}, lastActiveEvent=${this.context.lastActiveEvent}`);
@@ -44,10 +38,6 @@ class WaitingForActionState extends BaseState {
     return this.restore(() => this.ignore());
   }
 
-  onFallingAsleep() {
-    logger.info(`[${this.context.projectName}] WaitingForActionState.onFallingAsleep: attempting restore, fallback to remove`);
-    return this.restore(() => this.removeProject());
-  }
 }
 
 module.exports = WaitingForActionState;
