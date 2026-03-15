@@ -8,6 +8,7 @@ const EVENTS = {
   WORK_FINISHED:     'work_finished',
   ACTION_COMPLETED:  'action_completed',
   FALLING_ASLEEP:    'falling_asleep',
+  DISMISS:           'dismiss',
 };
 
 const { STATES } = require('./states');

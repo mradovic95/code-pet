@@ -33,8 +33,16 @@ working -[#grey,dotted]-> working : SessionStart\n//awaken// (suppressed)
 planning -[#grey,dotted]-> planning : SessionStart\n//awaken// (suppressed)
 waiting_for_action -[#grey,dotted]-> waiting_for_action : SessionStart\n//awaken// (suppressed)
 
-' ── falling_asleep ignored in waiting_for_action ──
+' ── falling_asleep ignored in all non-idle states ──
+working -[#grey,dotted]-> working : SessionEnd\n//falling_asleep// (ignored)
+planning -[#grey,dotted]-> planning : SessionEnd\n//falling_asleep// (ignored)
 waiting_for_action -[#grey,dotted]-> waiting_for_action : SessionEnd\n//falling_asleep// (ignored)
+
+' ── dismiss unconditionally removes project from any state ──
+idle -[#red,bold]-> [*] : UI Dismiss\n//dismiss//
+working -[#red,bold]-> [*] : UI Dismiss\n//dismiss//
+planning -[#red,bold]-> [*] : UI Dismiss\n//dismiss//
+waiting_for_action -[#red,bold]-> [*] : UI Dismiss\n//dismiss//
 
 ' ── action_completed restores previous active state ──
 waiting_for_action -[#purple,dashed]-> working : PostToolUse(any tool)\n//action_completed//\n(restore)
@@ -57,9 +65,11 @@ note right of idle
   **awaken** is ignored in all non-idle
   states via the whitelist pattern (only
   IdleState overrides onAwaken).
-  **falling_asleep** is ignored in
-  waiting_for_action; removes the project
-  in all other states (idle, working, planning).
+  **falling_asleep** removes the project
+  only in idle; ignored in all other states
+  (working, planning, waiting_for_action).
+  **dismiss** unconditionally removes the
+  project from any state (UI-triggered).
   **work_finished** is ignored in
   waiting_for_action; transitions to idle
   from working and planning.
@@ -91,7 +101,7 @@ package "Pet States" {
 }
 
 SS --> [idle] : when zero state\n(plays waking_up animation)
-SE -[#grey,dotted]-> [waiting_for_action] : ignored in\nwaiting_for_action
+SE -[#grey,dotted]-> [idle] : removes project\nonly in idle
 PS --> [working] : normal mode
 PS --> [planning] : plan mode
 NOTIF --> [waiting_for_action] : permission_prompt
@@ -108,9 +118,9 @@ note bottom of SS
 end note
 
 note bottom of SE
-  //falling_asleep// is ignored in
-  waiting_for_action; removes the project
-  in all other states (idle, working, planning).
+  //falling_asleep// removes the project
+  only in idle; ignored in all other states
+  (working, planning, waiting_for_action).
 end note
 
 legend right

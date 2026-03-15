@@ -11,6 +11,7 @@ const EVENT_METHOD_MAP = {
   [EVENTS.WORK_FINISHED]:     'onWorkFinished',
   [EVENTS.ACTION_COMPLETED]:  'onActionCompleted',
   [EVENTS.FALLING_ASLEEP]:    'onFallingAsleep',
+  [EVENTS.DISMISS]:           'onDismiss',
 };
 
 class BaseState {
@@ -35,6 +36,7 @@ class BaseState {
   onWorkFinished()     { return this.ignore(); }
   onActionCompleted()  { return this.ignore(); }
   onFallingAsleep()    { return this.ignore(); }
+  onDismiss()          { return this.removeProject(); }
 
   // --- Helpers ---
 

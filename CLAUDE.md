@@ -82,7 +82,7 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 ## Events and States
 
-Four semantic events map to four server-side states. Three additional events (`awaken`, `falling_asleep`, `action_completed`) are handled specially by the server without a dedicated state.
+Four semantic events map to four server-side states. Four additional events (`awaken`, `falling_asleep`, `action_completed`, `dismiss`) are handled specially by the server without a dedicated state.
 
 | Event (hook sends) | State (pet.js) | Triggered by |
 |---------------------|----------------|--------------|
@@ -93,12 +93,15 @@ Four semantic events map to four server-side states. Three additional events (`a
 | `work_finished` | `idle` | Stop |
 | `action_completed` | *(restores previous)* | PostToolUse (any tool) |
 | `falling_asleep` | *(ignored or removes project)* | SessionEnd |
+| `dismiss` | *(removes project unconditionally)* | UI: Settings → Dismiss Pet |
 
 > `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (20 frames, 4s) and auto-transitions back to idle CSS.
 
 > `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored.
 
-> `falling_asleep` is handled specially by the server: ignored in `waiting_for_action`, removes the project in all other states (idle, working, planning).
+> `falling_asleep` is handled specially by the server: removes the project only in `idle`; ignored in all other states (`working`, `planning`, `waiting_for_action`).
+
+> `dismiss` unconditionally removes the project regardless of current state. It is triggered by the UI Dismiss button (Settings window), not by hooks. `BaseState.onDismiss()` defaults to `removeProject()`, so all states inherit this behavior.
 
 ## State Machine & Interaction (pet.js)
 
@@ -117,7 +120,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
 - **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
 - **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
-- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: WaitingForActionState ignores it; all other states (idle, working, planning) remove the project.
+- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: only IdleState removes the project; all other states (working, planning, waiting_for_action) ignore it via BaseState's default `ignore()` behavior.
 - **Awaken suppression**: implicit via the whitelist pattern — only IdleState overrides `onAwaken()`. All other states inherit `BaseState.ignore()`, so awaken events during any non-idle state are silently ignored. Prevents spurious `SessionStart` (fired after permission prompts / AskQuestion answers) from interrupting work animations.
 
 ## Key Conventions

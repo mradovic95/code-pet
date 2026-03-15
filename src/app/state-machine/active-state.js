@@ -21,11 +21,6 @@ class ActiveState extends BaseState {
     return this.transitionTo(STATES.IDLE);
   }
 
-  onFallingAsleep() {
-    logger.info(`[${this.context.projectName}] ${this.constructor.name}.onFallingAsleep: removing project`);
-    return this.removeProject();
-  }
-
   onActionCompleted() {
     logger.info(`[${this.context.projectName}] ${this.constructor.name}.onActionCompleted: re-affirming state '${this.name}'`);
     this.context.lastEventName = this.selfEvent;

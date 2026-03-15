@@ -68,7 +68,7 @@ ipcMain.on('close-settings', () => {
 ipcMain.on('dismiss-project', () => {
   if (currentSettingsProject && dispatchEventFn) {
     const projectName = path.basename(currentSettingsProject);
-    dispatchEventFn(currentSettingsProject, projectName, 'falling_asleep');
+    dispatchEventFn(currentSettingsProject, projectName, 'dismiss');
     logger.info(`Dismissed pet for project: ${currentSettingsProject}`);
   }
   closeSettingsWindow();
