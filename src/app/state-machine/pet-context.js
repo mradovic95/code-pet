@@ -9,10 +9,13 @@ class PetContext {
     this.lastEventName = null;
     this.lastEventTime = 0;
     this.projectName = projectName || 'unknown';
+    this.displayName = this.projectName;
     this.petType = petType || 'dog';
     this.claudePid = null;
     this.tty = null;
     this.permissionMode = null;
+    this.projectPath = null;
+    this.createdAt = Date.now();
     this.tracker = new UsageTracker();
     this.changeState(STATES.IDLE);
   }
@@ -63,10 +66,12 @@ class PetContext {
       lastEventName: this.lastEventName,
       lastActiveEvent: this.lastActiveEvent,
       lastEventTime: this.lastEventTime,
-      projectName: this.projectName,
+      projectName: this.displayName,
+      projectPath: this.projectPath,
       petType: this.petType,
       claudePid: this.claudePid,
       tty: this.tty,
+      createdAt: this.createdAt,
       usage: this.getUsageSnapshot(),
     };
   }

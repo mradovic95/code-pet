@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld('codePet', {
   onPremiumSprites: (callback) => {
     ipcRenderer.on('premium-sprites', (_event, data) => callback(data));
   },
+  onPetLabelChanged: (callback) => {
+    ipcRenderer.on('pet-label-changed', (_event, data) => callback(data));
+  },
   onSoundSettingChanged: (callback) => {
     ipcRenderer.on('sound-setting-changed', (_event, data) => callback(data));
   },

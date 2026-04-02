@@ -2,8 +2,8 @@
 
 const path = require('path');
 const { app } = require('electron');
-const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, sendToRenderer } = require('./window-manager');
-const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getProjectsSnapshot, getClaudePidForProject, getTtyForProject, getToolUsageForProject, getToolEventsForProject } = require('./event-server');
+const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setSessionsForProjectFn, sendToRenderer } = require('./window-manager');
+const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const PetCatalog = require('./pet-catalog');
 const settingsStore = require('./settings-store');
@@ -54,14 +54,15 @@ if (!gotLock) {
     }
 
     setProjectsSnapshotFn(getProjectsSnapshot);
-    setClaudePidFn(getClaudePidForProject);
-    setTtyFn(getTtyForProject);
+    setClaudePidFn(getClaudePidForSession);
+    setTtyFn(getTtyForSession);
     setDispatchEventFn(dispatchEvent);
     setCatalogFn(() => catalog.list());
     setCatalogObj(catalog);
     setUpdatePetTypeFn(setPetTypeForProject);
-    setToolUsageFn(getToolUsageForProject);
-    setToolEventsFn(getToolEventsForProject);
+    setToolUsageFn(getToolUsageForSession);
+    setToolEventsFn(getToolEventsForSession);
+    setSessionsForProjectFn(getSessionsForProject);
     setLicenseManagerFn(licenseManager);
     setPremiumStoreFn(premiumStore);
     setMarketplaceCatalogFn(marketplaceCatalog);

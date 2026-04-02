@@ -89,6 +89,11 @@ class PetManager {
     entry.stateMachine.changePetType(petType, manifest);
   }
 
+  updateLabel(project, projectName) {
+    const entry = this.pets.get(project);
+    if (entry) entry.labelEl.textContent = projectName;
+  }
+
   removePet(project) {
     const pet = this.pets.get(project);
     if (!pet) return;
