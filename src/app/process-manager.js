@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const os = require('os');
 
 const STATE_DIR = path.join(os.homedir(), '.code-pet');
@@ -35,6 +35,16 @@ function removePid() {
   try {
     fs.unlinkSync(PID_FILE);
   } catch { /* ignore */ }
+}
+
+function killProcess(pid) {
+  if (process.platform === 'win32') {
+    try {
+      execFileSync('taskkill', ['/pid', String(pid), '/t'], { stdio: 'ignore' });
+    } catch { /* ignore */ }
+  } else {
+    process.kill(pid, 'SIGTERM');
+  }
 }
 
 function isPidAlive(pid) {
@@ -148,7 +158,7 @@ function stopApp() {
       const pid = readPid();
       if (pid) {
         try {
-          process.kill(pid, 'SIGTERM');
+          killProcess(pid);
         } catch { /* ignore */ }
       }
       removePid();
@@ -159,7 +169,7 @@ function stopApp() {
       const pid = readPid();
       if (pid) {
         try {
-          process.kill(pid, 'SIGTERM');
+          killProcess(pid);
         } catch { /* ignore */ }
       }
       removePid();

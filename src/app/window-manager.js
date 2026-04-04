@@ -285,6 +285,8 @@ function createOverlayWindow() {
 
   if (process.platform === 'darwin') {
     overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  } else if (process.platform === 'linux') {
+    overlayWindow.setVisibleOnAllWorkspaces(true);
   }
 
   // Keep always on top with highest level

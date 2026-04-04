@@ -11,6 +11,7 @@ const DEBUG_LOG = pathMod.join(os.homedir(), '.code-pet', 'hooks-debug.log');
 const PROJECT_NAME = pathMod.basename(process.cwd()).replace(/[-_]/g, ' ');
 
 function captureTty(pid) {
+  if (process.platform === 'win32') return null;
   try {
     const raw = execFileSync('ps', ['-o', 'tty=', '-p', String(pid)], { timeout: 1000 }).toString().trim();
     if (!raw || raw === '??' || raw === '-') return null;

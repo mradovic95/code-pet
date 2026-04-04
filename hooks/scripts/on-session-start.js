@@ -11,7 +11,12 @@ async function main() {
   const result = bootstrap(PLUGIN_ROOT);
 
   if (!result.ready) {
-    // Dependencies installing in background, pet can't launch yet
+    const { debugLog } = require('./send-event');
+    const msg = result.reason === 'install-started'
+      ? 'Code Pet: Installing Electron (~85MB), pet will appear on next session...'
+      : 'Code Pet: Installation in progress, pet will appear soon...';
+    debugLog(msg);
+    process.stderr.write(msg + '\n');
     process.stdout.write('{}');
     process.exit(0);
   }
