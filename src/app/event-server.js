@@ -6,6 +6,7 @@ const { app } = require('electron');
 const logger = require('./logger');
 const { sendToRenderer, isRendererReady, resizeForPetCount } = require('./window-manager');
 const PetRegistry = require('./pet-registry');
+const { healthCheck, readPid, killProcess, removePid } = require('./process-manager');
 
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 
@@ -43,7 +44,19 @@ registry.onEmpty = () => {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
+    let size = 0;
+    const MAX_BODY = 1024 * 1024; // 1MB
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY) {
+        req.destroy();
+        const err = new Error('Request body too large');
+        err.statusCode = 413;
+        reject(err);
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
       try {
         const body = Buffer.concat(chunks).toString('utf8');
@@ -158,7 +171,8 @@ function startServer() {
         sendJson(res, 404, { error: 'Not found' });
       } catch (err) {
         logger.error(`Server error: ${err.message}`);
-        sendJson(res, 500, { error: 'Internal server error' });
+        const status = err.statusCode || 500;
+        sendJson(res, status, { error: err.message || 'Internal server error' });
       }
     });
 
@@ -169,9 +183,32 @@ function startServer() {
       resolve(server);
     });
 
-    server.on('error', (err) => {
-      logger.error(`Event server error: ${err.message}`);
-      reject(err);
+    server.on('error', async (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.warn(`Port ${PORT} in use, checking for stale process...`);
+        const healthy = await healthCheck();
+        if (healthy) {
+          reject(new Error('Another Code Pet instance is already running'));
+          return;
+        }
+        // Stale server — kill and retry once
+        const pid = readPid();
+        if (pid) killProcess(pid);
+        removePid();
+        setTimeout(() => {
+          server.listen(PORT, '127.0.0.1', () => {
+            logger.info(`Event server listening on 127.0.0.1:${PORT} (after retry)`);
+            resolve(server);
+          });
+          server.once('error', (retryErr) => {
+            logger.error(`Event server retry failed: ${retryErr.message}`);
+            reject(retryErr);
+          });
+        }, 500);
+      } else {
+        logger.error(`Event server error: ${err.message}`);
+        reject(err);
+      }
     });
   });
 }

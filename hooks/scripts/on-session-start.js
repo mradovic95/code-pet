@@ -28,7 +28,7 @@ async function main() {
 
   const running = await pm.isRunning();
   if (!running) {
-    pm.launchApp(PLUGIN_ROOT);
+    await pm.launchApp(PLUGIN_ROOT);
 
     // Wait up to 2s for app to become healthy
     let healthy = false;
@@ -45,7 +45,10 @@ async function main() {
   process.stdout.write('{}');
 }
 
-main().catch(() => {
+main().catch((err) => {
+  const { debugLog } = require('./send-event');
+  debugLog(`on-session-start FAILED: ${err.message || err}`);
+  process.stderr.write(`Code Pet: startup failed — ${err.message || err}\n`);
   process.stdout.write('{}');
   process.exit(0);
 });

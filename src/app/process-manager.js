@@ -103,7 +103,10 @@ function resolveElectronBinary(pluginRoot) {
   return path.join(electronPath, 'electron');
 }
 
-function launchApp(pluginRoot) {
+async function launchApp(pluginRoot) {
+  // Double-check: narrow the race window (single-instance lock is the true guard)
+  if (await isRunning()) return readPid();
+
   const electronBin = resolveElectronBinary(pluginRoot);
 
   if (!fs.existsSync(electronBin)) {
@@ -183,7 +186,9 @@ module.exports = {
   PORT,
   STATE_DIR,
   writePid,
+  readPid,
   removePid,
+  killProcess,
   isRunning,
   healthCheck,
   launchApp,
