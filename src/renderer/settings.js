@@ -1,12 +1,85 @@
 'use strict';
 
-document.getElementById('close-btn').addEventListener('click', () => {
-  window.codePetSettings.close();
-});
+// Feature flags — hardcoded, flip to false to disable
+const FEATURE_FLAGS = {
+  STORE_TAB: true,
+  USAGE_TAB: true,
+};
 
-document.getElementById('dismiss-btn').addEventListener('click', () => {
-  window.codePetSettings.dismissProject();
-});
+// --- Load tab HTML partials ---
+
+async function loadTab(containerId, file) {
+  const res = await fetch(`tabs/${file}`);
+  document.getElementById(containerId).innerHTML = await res.text();
+}
+
+async function init() {
+  // Load all tab partials
+  const tabs = [
+    loadTab('tab-general', 'general.html'),
+  ];
+  if (FEATURE_FLAGS.STORE_TAB) {
+    tabs.push(loadTab('tab-store', 'store.html'));
+  }
+  if (FEATURE_FLAGS.USAGE_TAB) {
+    tabs.push(loadTab('tab-usage', 'usage.html'));
+  }
+  await Promise.all(tabs);
+
+  // --- Close / Dismiss ---
+
+  document.getElementById('close-btn').addEventListener('click', () => {
+    window.codePetSettings.close();
+  });
+
+  document.getElementById('dismiss-btn').addEventListener('click', () => {
+    window.codePetSettings.dismissProject();
+  });
+
+  // --- Sound toggles ---
+
+  const soundSettings = window.codePetSettings.getSoundEnabled();
+  const soundToggleIdle = document.getElementById('sound-toggle-idle');
+  const soundToggleWaiting = document.getElementById('sound-toggle-waiting');
+  soundToggleIdle.checked = !!(soundSettings && soundSettings.idle);
+  soundToggleWaiting.checked = !!(soundSettings && soundSettings.waiting_for_action);
+  soundToggleIdle.addEventListener('change', () => {
+    window.codePetSettings.setSoundEnabledForState('idle', soundToggleIdle.checked);
+  });
+  soundToggleWaiting.addEventListener('change', () => {
+    window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
+  });
+
+  // --- Store tab feature flag ---
+
+  if (FEATURE_FLAGS.STORE_TAB) {
+    document.getElementById('tab-btn-store').style.display = '';
+    initLicenseActivation();
+  }
+
+  if (FEATURE_FLAGS.USAGE_TAB) {
+    document.getElementById('tab-btn-usage').style.display = '';
+  }
+
+  // --- Tabs ---
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.tab;
+      document.getElementById('tab-general').style.display = target === 'general' ? '' : 'none';
+      document.getElementById('tab-store').style.display = target === 'store' ? '' : 'none';
+      document.getElementById('tab-usage').style.display = target === 'usage' ? '' : 'none';
+      if (target === 'usage') renderUsageTab();
+      if (target === 'store') renderMarketplace();
+    });
+  });
+
+  // --- Render initial tab ---
+
+  renderPetSelector();
+}
 
 // --- Pet Selector (free + owned premium) ---
 
@@ -151,63 +224,40 @@ function showLicenseStatus(message, type) {
   el.className = 'license-status ' + (type || '');
 }
 
-document.getElementById('license-btn').addEventListener('click', async () => {
-  const input = document.getElementById('license-input');
-  const key = input.value.trim();
-  if (!key) {
-    showLicenseStatus('Please enter a license key', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('license-btn');
-  btn.disabled = true;
-  btn.textContent = '...';
-
-  try {
-    const result = await window.codePetSettings.activateLicense(key);
-    if (result.success) {
-      showLicenseStatus('Activated! Pets unlocked: ' + result.ownedPets.join(', '), 'success');
-      input.value = '';
-      // Refresh both the pet selector and marketplace
-      renderPetSelector();
-      await renderMarketplace();
-    } else {
-      showLicenseStatus(result.error || 'Activation failed', 'error');
+function initLicenseActivation() {
+  document.getElementById('license-btn').addEventListener('click', async () => {
+    const input = document.getElementById('license-input');
+    const key = input.value.trim();
+    if (!key) {
+      showLicenseStatus('Please enter a license key', 'error');
+      return;
     }
-  } catch {
-    showLicenseStatus('Activation failed', 'error');
-  }
 
-  btn.disabled = false;
-  btn.textContent = 'Activate';
-});
+    const btn = document.getElementById('license-btn');
+    btn.disabled = true;
+    btn.textContent = '...';
 
-// --- Sound toggles ---
+    try {
+      const result = await window.codePetSettings.activateLicense(key);
+      if (result.success) {
+        showLicenseStatus('Activated! Pets unlocked: ' + result.ownedPets.join(', '), 'success');
+        input.value = '';
+        // Refresh both the pet selector and marketplace
+        renderPetSelector();
+        await renderMarketplace();
+      } else {
+        showLicenseStatus(result.error || 'Activation failed', 'error');
+      }
+    } catch {
+      showLicenseStatus('Activation failed', 'error');
+    }
 
-const soundSettings = window.codePetSettings.getSoundEnabled();
-const soundToggleIdle = document.getElementById('sound-toggle-idle');
-const soundToggleWaiting = document.getElementById('sound-toggle-waiting');
-soundToggleIdle.checked = !!(soundSettings && soundSettings.idle);
-soundToggleWaiting.checked = !!(soundSettings && soundSettings.waiting_for_action);
-soundToggleIdle.addEventListener('change', () => {
-  window.codePetSettings.setSoundEnabledForState('idle', soundToggleIdle.checked);
-});
-soundToggleWaiting.addEventListener('change', () => {
-  window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
-});
-
-// --- Tabs ---
-
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const target = tab.dataset.tab;
-    document.getElementById('tab-general').style.display = target === 'general' ? '' : 'none';
-    document.getElementById('tab-usage').style.display = target === 'usage' ? '' : 'none';
-    if (target === 'usage') renderUsageTab();
+    btn.disabled = false;
+    btn.textContent = 'Activate';
   });
-});
+}
+
+// --- Usage Tab ---
 
 function renderUsageTab() {
   const usage = window.codePetSettings.getToolUsage();
@@ -283,8 +333,6 @@ function renderUsageList(containerId, data, emptyMsg) {
   }
 }
 
-// --- Init ---
+// --- Bootstrap ---
 
-renderPetSelector();
-renderMarketplace();
-
+init();
