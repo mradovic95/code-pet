@@ -136,6 +136,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - Renderer uses `contextIsolation: true`, `nodeIntegration: false`
 - Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
+- `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables it. Logging is off by default.
 - Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )
 
 ## Runtime State (all in `~/.code-pet/`)

@@ -6,6 +6,7 @@ const os = require('os');
 const pathMod = require('path');
 const { execFileSync } = require('child_process');
 
+const DEBUG = fs.existsSync(pathMod.join(os.homedir(), '.code-pet', 'debug'));
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 const DEBUG_LOG = pathMod.join(os.homedir(), '.code-pet', 'hooks-debug.log');
 const PROJECT_NAME = pathMod.basename(process.cwd()).replace(/[-_]/g, ' ');
@@ -33,6 +34,7 @@ function getProjectContext() {
 }
 
 function debugLog(msg) {
+  if (!DEBUG) return;
   try {
     const line = `[${new Date().toISOString()}] [${PROJECT_NAME}] ${msg}\n`;
     fs.mkdirSync(pathMod.dirname(DEBUG_LOG), { recursive: true });

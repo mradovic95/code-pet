@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 
 const STATE_DIR = path.join(os.homedir(), '.code-pet');
+const DEBUG = fs.existsSync(path.join(STATE_DIR, 'debug'));
 const LOG_FILE = path.join(STATE_DIR, 'code-pet.log');
 const MAX_SIZE = 1 * 1024 * 1024; // 1MB
 
@@ -24,6 +25,7 @@ function rotateIfNeeded() {
 }
 
 function log(level, message) {
+  if (!DEBUG) return;
   ensureStateDir();
   rotateIfNeeded();
   const timestamp = new Date().toISOString();
