@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "Animated desktop pet companion that reacts to Claude Code activity",
   "main": "src/app/main.js",
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "test:unit": "node --test test/unit/**/*.test.js",
+    "test:integration": "node --test test/integration/**/*.test.js",
+    "test:watch": "node --test --watch test/**/*.test.js"
+  },
   "dependencies": {
     "electron": "^33.0.0"
   },

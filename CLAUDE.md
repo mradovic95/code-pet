@@ -60,6 +60,10 @@ docs/
   state-diagram.puml         # PlantUML state machine and event flow diagrams
 scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
+test/
+  helpers/                   # Mock logger, mock context, test HTTP server
+  unit/                      # State machine, tracking, pet-registry tests
+  integration/               # Hook contract tests (spawn real processes + HTTP)
 test.sh                      # Dev utility: send events to the pet (curl wrapper)
 ```
 
@@ -144,6 +148,58 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `install.log` | npm install output |
 | `installing` | Lock file during npm install (contains PID, stale after 10min) |
 | `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` + full stdin JSON from each hook |
+
+## Testing
+
+**Framework:** Node.js built-in test runner (`node:test`) — zero external dependencies.
+
+```bash
+npm test                    # run all tests
+npm run test:unit           # unit tests only
+npm run test:integration    # integration tests only
+npm run test:watch          # watch mode
+```
+
+### Test Structure
+
+```
+test/
+  helpers/
+    mock-logger.js          # No-op logger replacement
+    mock-modules.js         # Require cache mocking for logger, settings-store
+    mock-context.js         # Mock PetContext for testing states in isolation
+    test-http-server.js     # Records HTTP requests for hook contract tests
+  unit/
+    state-machine/          # One test file per state class
+      idle-state.test.js
+      working-state.test.js
+      planning-state.test.js
+      waiting-for-action-state.test.js
+      active-state.test.js
+      state-factory.test.js
+      pet-context.test.js
+    tracking/
+      usage-event.test.js
+      usage-tracker.test.js
+    pet-registry.test.js
+  integration/
+    hook-prompt-submit.test.js
+    hook-post-tool-use.test.js
+    hook-stop.test.js
+    hook-notification.test.js
+    hook-session-end.test.js
+```
+
+### Test Conventions
+
+- **`sut`** — always name the system under test `sut`
+- **`// GIVEN // WHEN // THEN`** — every test uses these section comments
+- **Test names** — describe behavior: `"transitions to working when working_started received"`
+- **State tests use mock context** — instantiate the state class directly with `createMockContext()`, not through PetContext
+- **`pet-context.test.js`** — tests the full orchestration (PetContext + StateFactory + States together)
+- **Integration tests** — spawn real child processes and HTTP servers, test the stdin → HTTP contract
+- **Mock only external deps** — `logger`, `electron`, `settings-store`. Use real instances of own classes.
+- **No `mock.module()`** — Node 22 doesn't support it; use `require.cache` manipulation via `mock-modules.js`
 
 ## Development Commands
 
