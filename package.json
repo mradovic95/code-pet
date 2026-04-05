@@ -1,18 +1,18 @@
 {
-  "name": "code-pet",
-  "version": "0.1.0",
-  "description": "Animated desktop pet companion that reacts to Claude Code activity",
-  "main": "src/app/main.js",
-  "scripts": {
-    "test": "node --test test/**/*.test.js",
-    "test:unit": "node --test test/unit/**/*.test.js",
-    "test:integration": "node --test test/integration/**/*.test.js",
-    "test:watch": "node --test --watch test/**/*.test.js"
-  },
-  "dependencies": {
-    "electron": "^33.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+	"name": "code-pet",
+	"version": "0.1.0",
+	"description": "Animated desktop pet companion that reacts to Claude Code activity",
+	"main": "src/app/main.js",
+	"scripts": {
+		"test": "node --test $(find test -name '*.test.js')",
+		"test:unit": "node --test $(find test/unit -name '*.test.js')",
+		"test:integration": "node --test $(find test/integration -name '*.test.js')",
+		"test:watch": "node --test --watch $(find test -name '*.test.js')"
+	},
+	"dependencies": {
+		"electron": "^33.0.0"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
 }

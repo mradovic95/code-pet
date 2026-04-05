@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check version sync
+        run: |
+          PKG_VER=$(node -p "require('./package.json').version")
+          PLUGIN_VER=$(node -p "require('./.claude-plugin/plugin.json').version")
+          MARKET_VER=$(node -p "require('./.claude-plugin/marketplace.json').plugins[0].version")
+
+          echo "package.json:     $PKG_VER"
+          echo "plugin.json:      $PLUGIN_VER"
+          echo "marketplace.json: $MARKET_VER"
+
+          if [ "$PKG_VER" != "$PLUGIN_VER" ] || [ "$PKG_VER" != "$MARKET_VER" ]; then
+            echo "::error::Version mismatch! Run: node scripts/bump-version.js $PKG_VER"
+            exit 1
+          fi
