@@ -31,6 +31,10 @@ window.codePet.onPetTypeChanged(({ project, petType }) => {
   petManager.changePetType(project, petType);
 });
 
+window.codePet.onPetLabelChanged(({ project, projectName }) => {
+  petManager.updateLabel(project, projectName);
+});
+
 window.codePet.onPremiumSprites(({ petId, sprites }) => {
   setPremiumSprites(petId, sprites);
 });

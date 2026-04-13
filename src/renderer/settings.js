@@ -1,12 +1,85 @@
 'use strict';
 
-document.getElementById('close-btn').addEventListener('click', () => {
-  window.codePetSettings.close();
-});
+// Feature flags — hardcoded, flip to false to disable
+const FEATURE_FLAGS = {
+  STORE_TAB: true,
+  USAGE_TAB: true,
+};
 
-document.getElementById('dismiss-btn').addEventListener('click', () => {
-  window.codePetSettings.dismissProject();
-});
+// --- Load tab HTML partials ---
+
+async function loadTab(containerId, file) {
+  const res = await fetch(`tabs/${file}`);
+  document.getElementById(containerId).innerHTML = await res.text();
+}
+
+async function init() {
+  // Load all tab partials
+  const tabs = [
+    loadTab('tab-general', 'general.html'),
+  ];
+  if (FEATURE_FLAGS.STORE_TAB) {
+    tabs.push(loadTab('tab-store', 'store.html'));
+  }
+  if (FEATURE_FLAGS.USAGE_TAB) {
+    tabs.push(loadTab('tab-usage', 'usage.html'));
+  }
+  await Promise.all(tabs);
+
+  // --- Close / Dismiss ---
+
+  document.getElementById('close-btn').addEventListener('click', () => {
+    window.codePetSettings.close();
+  });
+
+  document.getElementById('dismiss-btn').addEventListener('click', () => {
+    window.codePetSettings.dismissProject();
+  });
+
+  // --- Sound toggles ---
+
+  const soundSettings = window.codePetSettings.getSoundEnabled();
+  const soundToggleIdle = document.getElementById('sound-toggle-idle');
+  const soundToggleWaiting = document.getElementById('sound-toggle-waiting');
+  soundToggleIdle.checked = !!(soundSettings && soundSettings.idle);
+  soundToggleWaiting.checked = !!(soundSettings && soundSettings.waiting_for_action);
+  soundToggleIdle.addEventListener('change', () => {
+    window.codePetSettings.setSoundEnabledForState('idle', soundToggleIdle.checked);
+  });
+  soundToggleWaiting.addEventListener('change', () => {
+    window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
+  });
+
+  // --- Store tab feature flag ---
+
+  if (FEATURE_FLAGS.STORE_TAB) {
+    document.getElementById('tab-btn-store').style.display = '';
+    initLicenseActivation();
+  }
+
+  if (FEATURE_FLAGS.USAGE_TAB) {
+    document.getElementById('tab-btn-usage').style.display = '';
+  }
+
+  // --- Tabs ---
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.tab;
+      document.getElementById('tab-general').style.display = target === 'general' ? '' : 'none';
+      document.getElementById('tab-store').style.display = target === 'store' ? '' : 'none';
+      document.getElementById('tab-usage').style.display = target === 'usage' ? '' : 'none';
+      if (target === 'usage') renderUsageTab();
+      if (target === 'store') renderMarketplace();
+    });
+  });
+
+  // --- Render initial tab ---
+
+  renderPetSelector();
+}
 
 // --- Pet Selector (free + owned premium) ---
 
@@ -25,11 +98,9 @@ function renderPetSelector() {
 
     const preview = document.createElement('div');
     preview.className = 'pet-card-preview';
-    const idleSprite = pet.sprites.idle;
     const previewSize = 36;
-    preview.style.backgroundImage = `url('../../assets/pets/${pet.id}/${idleSprite.file}')`;
-    preview.style.backgroundSize = `${previewSize * idleSprite.frames}px ${previewSize}px`;
-    preview.style.backgroundPosition = '0 0';
+    preview.style.backgroundImage = `url('../../assets/pets/${pet.id}/${pet.icon || 'icon.png'}')`;
+    preview.style.backgroundSize = `${previewSize}px ${previewSize}px`;
     preview.style.width = `${previewSize}px`;
     preview.style.height = `${previewSize}px`;
 
@@ -119,12 +190,43 @@ async function renderMarketplace() {
       buyBtn.className = 'marketplace-buy-btn';
       buyBtn.textContent = 'Buy';
       buyBtn.addEventListener('click', async () => {
+        // If waiting for payment completion, check status
+        if (buyBtn._pendingPayment && buyBtn._paymentToken) {
+          buyBtn.disabled = true;
+          buyBtn.textContent = '...';
+          try {
+            const payResult = await window.codePetSettings.pollPaymentStatus(buyBtn._paymentToken);
+            if (payResult.completed && payResult.licenseKey) {
+              document.getElementById('license-input').value = payResult.licenseKey;
+              showLicenseStatus('Payment complete! Click Activate to enable.', 'success');
+              buyBtn._pendingPayment = false;
+              buyBtn.textContent = 'Buy';
+            } else {
+              showLicenseStatus('Payment not yet completed. Try again in a moment.', 'info');
+            }
+          } catch {
+            showLicenseStatus('Failed to check payment status.', 'error');
+          }
+          buyBtn.disabled = false;
+          if (buyBtn._pendingPayment) buyBtn.textContent = 'Check Payment';
+          return;
+        }
+
         buyBtn.disabled = true;
         buyBtn.textContent = '...';
         try {
           const result = await window.codePetSettings.purchasePet(pet.id);
-          if (result.success) {
-            // Show the generated license key
+          if (result.paymentPending) {
+            // Paid pet: PayPal opened in browser
+            showLicenseStatus('Payment opened in browser. Complete payment, then click Check Payment.', 'info');
+            buyBtn.textContent = 'Check Payment';
+            buyBtn._paymentToken = result.paymentToken;
+            buyBtn._pendingPayment = true;
+            buyBtn.disabled = false;
+            return;
+          }
+          if (result.success && result.licenseKey) {
+            // Free pet or mock: license key returned directly
             document.getElementById('license-input').value = result.licenseKey;
             showLicenseStatus('Key generated! Click Activate to enable.', 'info');
           } else {
@@ -151,59 +253,115 @@ function showLicenseStatus(message, type) {
   el.className = 'license-status ' + (type || '');
 }
 
-document.getElementById('license-btn').addEventListener('click', async () => {
-  const input = document.getElementById('license-input');
-  const key = input.value.trim();
-  if (!key) {
-    showLicenseStatus('Please enter a license key', 'error');
+function initLicenseActivation() {
+  document.getElementById('license-btn').addEventListener('click', async () => {
+    const input = document.getElementById('license-input');
+    const key = input.value.trim();
+    if (!key) {
+      showLicenseStatus('Please enter a license key', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('license-btn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      const result = await window.codePetSettings.activateLicense(key);
+      if (result.success) {
+        showLicenseStatus('Activated! Pets unlocked: ' + result.ownedPets.join(', '), 'success');
+        input.value = '';
+        // Refresh both the pet selector and marketplace
+        renderPetSelector();
+        await renderMarketplace();
+      } else {
+        showLicenseStatus(result.error || 'Activation failed', 'error');
+      }
+    } catch {
+      showLicenseStatus('Activation failed', 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Activate';
+  });
+}
+
+// --- Usage Tab ---
+
+function renderUsageTab() {
+  const usage = window.codePetSettings.getToolUsage();
+  renderUsageList('mcp-usage-list', usage.mcp, 'No MCP tool usage yet');
+  renderUsageList('skill-usage-list', usage.skills, 'No skill usage yet');
+  renderEventLog();
+}
+
+function renderEventLog() {
+  const container = document.getElementById('event-log');
+  const events = window.codePetSettings.getToolEvents();
+
+  if (!events || events.length === 0) {
+    container.innerHTML = '<div class="usage-empty">No events yet</div>';
     return;
   }
 
-  const btn = document.getElementById('license-btn');
-  btn.disabled = true;
-  btn.textContent = '...';
+  container.innerHTML = '';
+  // Newest first
+  const sorted = events.slice().sort((a, b) => b.timestamp - a.timestamp);
 
-  try {
-    const result = await window.codePetSettings.activateLicense(key);
-    if (result.success) {
-      showLicenseStatus('Activated! Pets unlocked: ' + result.ownedPets.join(', '), 'success');
-      input.value = '';
-      // Refresh both the pet selector and marketplace
-      renderPetSelector();
-      await renderMarketplace();
-    } else {
-      showLicenseStatus(result.error || 'Activation failed', 'error');
-    }
-  } catch {
-    showLicenseStatus('Activation failed', 'error');
+  for (const evt of sorted) {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'event-timestamp';
+    const d = new Date(evt.timestamp);
+    timeEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const badge = document.createElement('span');
+    badge.className = 'event-type-badge ' + (evt.type === 'mcp_tool' ? 'badge-mcp' : 'badge-skill');
+    badge.textContent = evt.type === 'mcp_tool' ? 'MCP' : 'Skill';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'event-name';
+    nameEl.textContent = evt.name;
+    nameEl.title = evt.name;
+
+    row.appendChild(timeEl);
+    row.appendChild(badge);
+    row.appendChild(nameEl);
+    container.appendChild(row);
+  }
+}
+
+function renderUsageList(containerId, data, emptyMsg) {
+  const container = document.getElementById(containerId);
+  const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    container.innerHTML = `<div class="usage-empty">${emptyMsg}</div>`;
+    return;
   }
 
-  btn.disabled = false;
-  btn.textContent = 'Activate';
-});
+  container.innerHTML = '';
+  for (const [name, count] of entries) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
 
-// --- Sound toggles ---
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name';
+    nameEl.textContent = name;
+    nameEl.title = name;
 
-const soundSettings = window.codePetSettings.getSoundEnabled();
-const soundToggleIdle = document.getElementById('sound-toggle-idle');
-const soundToggleWaiting = document.getElementById('sound-toggle-waiting');
-soundToggleIdle.checked = !!(soundSettings && soundSettings.idle);
-soundToggleWaiting.checked = !!(soundSettings && soundSettings.waiting_for_action);
-soundToggleIdle.addEventListener('change', () => {
-  window.codePetSettings.setSoundEnabledForState('idle', soundToggleIdle.checked);
-});
-soundToggleWaiting.addEventListener('change', () => {
-  window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
-});
+    const countEl = document.createElement('span');
+    countEl.className = 'usage-count';
+    countEl.textContent = count;
 
-// --- Init ---
-
-renderPetSelector();
-renderMarketplace();
-
-// Display project name
-const projectPath = window.codePetSettings.getProjectPath();
-if (projectPath) {
-  const dirName = projectPath.replace(/[/\\]$/, '').split(/[/\\]/).pop();
-  document.getElementById('project-label').textContent = dirName;
+    row.appendChild(nameEl);
+    row.appendChild(countEl);
+    container.appendChild(row);
+  }
 }
+
+// --- Bootstrap ---
+
+init();

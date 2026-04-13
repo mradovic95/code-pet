@@ -11,7 +11,12 @@ async function main() {
   const result = bootstrap(PLUGIN_ROOT);
 
   if (!result.ready) {
-    // Dependencies installing in background, pet can't launch yet
+    const { debugLog } = require('./send-event');
+    const msg = result.reason === 'install-started'
+      ? 'Code Pet: Installing Electron (~85MB), pet will appear on next session...'
+      : 'Code Pet: Installation in progress, pet will appear soon...';
+    debugLog(msg);
+    process.stderr.write(msg + '\n');
     process.stdout.write('{}');
     process.exit(0);
   }
@@ -23,7 +28,7 @@ async function main() {
 
   const running = await pm.isRunning();
   if (!running) {
-    pm.launchApp(PLUGIN_ROOT);
+    await pm.launchApp(PLUGIN_ROOT);
 
     // Wait up to 2s for app to become healthy
     let healthy = false;
@@ -40,7 +45,10 @@ async function main() {
   process.stdout.write('{}');
 }
 
-main().catch(() => {
+main().catch((err) => {
+  const { debugLog } = require('./send-event');
+  debugLog(`on-session-start FAILED: ${err.message || err}`);
+  process.stderr.write(`Code Pet: startup failed — ${err.message || err}\n`);
   process.stdout.write('{}');
   process.exit(0);
 });

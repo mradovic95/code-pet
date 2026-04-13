@@ -2,8 +2,8 @@
 
 const path = require('path');
 const { app } = require('electron');
-const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, sendToRenderer } = require('./window-manager');
-const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getProjectsSnapshot, getClaudePidForProject, getTtyForProject } = require('./event-server');
+const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setSessionsForProjectFn, sendToRenderer } = require('./window-manager');
+const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const PetCatalog = require('./pet-catalog');
 const settingsStore = require('./settings-store');
@@ -11,6 +11,8 @@ const LicenseManager = require('./license-manager');
 const PremiumStore = require('./premium-store');
 const MarketplaceCatalog = require('./marketplace-catalog');
 const { MockLicenseAPI } = require('./license-api');
+const { MarketplaceAPI } = require('./marketplace-api');
+const marketplaceConfig = require('./marketplace-config');
 const logger = require('./logger');
 
 // Linux transparency support
@@ -30,8 +32,12 @@ if (!gotLock) {
 
     settingsStore.load();
 
-    // Initialize license system
-    const licenseApi = new MockLicenseAPI();
+    // Initialize license system — use real API if configured, else mock
+    const mpConfig = marketplaceConfig.load();
+    const licenseApi = marketplaceConfig.isConfigured()
+      ? new MarketplaceAPI(mpConfig)
+      : new MockLicenseAPI();
+    logger.info(`License API: ${marketplaceConfig.isConfigured() ? 'MarketplaceAPI' : 'MockLicenseAPI'}`);
     const licenseManager = new LicenseManager(licenseApi);
     licenseManager.load();
     const premiumStore = new PremiumStore();
@@ -54,17 +60,27 @@ if (!gotLock) {
     }
 
     setProjectsSnapshotFn(getProjectsSnapshot);
-    setClaudePidFn(getClaudePidForProject);
-    setTtyFn(getTtyForProject);
+    setClaudePidFn(getClaudePidForSession);
+    setTtyFn(getTtyForSession);
     setDispatchEventFn(dispatchEvent);
     setCatalogFn(() => catalog.list());
     setCatalogObj(catalog);
     setUpdatePetTypeFn(setPetTypeForProject);
+    setToolUsageFn(getToolUsageForSession);
+    setToolEventsFn(getToolEventsForSession);
+    setSessionsForProjectFn(getSessionsForProject);
     setLicenseManagerFn(licenseManager);
     setPremiumStoreFn(premiumStore);
     setMarketplaceCatalogFn(marketplaceCatalog);
     setLicenseApiFn(licenseApi);
     createOverlayWindow();
+
+    // Prime product catalog if using real API (populates productId <-> petId map)
+    if (marketplaceConfig.isConfigured()) {
+      licenseApi.getCatalog().catch(err => {
+        logger.warn(`Failed to prime marketplace catalog: ${err.message}`);
+      });
+    }
 
     // Validate license if stale
     if (licenseManager.needsRevalidation()) {

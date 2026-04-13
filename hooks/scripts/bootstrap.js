@@ -17,7 +17,10 @@ function ensureStateDir() {
 function isElectronInstalled(pluginRoot) {
   try {
     const electronPkg = path.join(pluginRoot, 'node_modules', 'electron', 'package.json');
-    return fs.existsSync(electronPkg);
+    if (!fs.existsSync(electronPkg)) return false;
+    // Verify the actual binary exists (electron module exports the binary path)
+    const electronPath = require(path.join(pluginRoot, 'node_modules', 'electron'));
+    return fs.existsSync(electronPath);
   } catch {
     return false;
   }
@@ -41,7 +44,12 @@ function isInstalling() {
 
 function startInstall(pluginRoot) {
   ensureStateDir();
-  fs.writeFileSync(LOCK_FILE, String(process.pid));
+  try {
+    fs.writeFileSync(LOCK_FILE, String(process.pid), { flag: 'wx' });
+  } catch {
+    // Lock file already exists — another process is installing
+    return;
+  }
 
   const logFile = path.join(STATE_DIR, 'install.log');
   const logFd = fs.openSync(logFile, 'a');

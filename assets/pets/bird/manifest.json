@@ -3,6 +3,7 @@
   "name": "Bird",
   "description": "A swift coding bird",
   "tier": "free",
+  "icon": "icon.png",
   "sprites": {
     "idle": {
       "file": "idle.png",

@@ -2,6 +2,7 @@
 
 const ActiveState = require('./active-state');
 const { EVENTS, STATES } = require('./events');
+const logger = require('../logger');
 
 class PlanningState extends ActiveState {
   constructor(context) {
@@ -9,6 +10,7 @@ class PlanningState extends ActiveState {
   }
 
   onWorkingStarted() {
+    logger.info(`[${this.context.projectName}] PlanningState.onWorkingStarted: switching from planning to working`);
     this.context.lastActiveEvent = this.eventName;
     return this.transitionTo(STATES.WORKING);
   }

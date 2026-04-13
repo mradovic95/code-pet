@@ -30,10 +30,13 @@ src/
     event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
     pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
     process-manager.js       # PID file, app launch/stop, health checks
-    window-manager.js        # Transparent click-through BrowserWindow
+    window-manager.js        # Transparent click-through BrowserWindow + marketplace IPC handlers
     logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
     preload.js               # Context bridge: window.codePet.onPetEvent()
-    settings-preload.js      # Context bridge for settings window
+    settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
+    http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
+    marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
+    marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
     state-machine/             # Server-side state machine (whitelist pattern)
       states.js                # STATES enum
       events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
@@ -60,6 +63,10 @@ docs/
   state-diagram.puml         # PlantUML state machine and event flow diagrams
 scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
+test/
+  helpers/                   # Mock logger, mock context, test HTTP server
+  unit/                      # State machine, tracking, pet-registry, marketplace tests
+  integration/               # Hook contract tests (spawn real processes + HTTP)
 test.sh                      # Dev utility: send events to the pet (curl wrapper)
 ```
 
@@ -80,9 +87,46 @@ Claude Code hooks (stdin JSON)
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
 
+## Marketplace Integration
+
+Premium pets are purchased and downloaded from a real marketplace backend. The system supports two modes:
+
+- **Mock mode** (default): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Active when no API key is configured.
+- **Real mode**: `MarketplaceAPI` calls the marketplace REST API. Active when `~/.code-pet/marketplace.json` has an `apiKey`.
+
+```
+Settings UI (Buy button)
+  → IPC: purchase-pet
+    → MarketplaceAPI.purchase(petId)
+      → POST /api/v1/products/{productId}/purchases
+        → FREE: license key returned immediately
+        → PREMIUM: PayPal URL returned → shell.openExternal() → user pays
+          → IPC: poll-payment-status → GET /purchases/payment-success?token=...
+            → license key returned
+  → IPC: activate-license
+    → LicenseManager.activate(key) → POST /api/v1/licenses/{key}/activations
+    → PremiumStore.download(petId, key, api, productId)
+      → GET /api/v1/products/{productId}/assets/{filename} (per sprite file)
+      → XOR-encrypt + write to ~/.code-pet/premium-pets/{petId}/
+    → IPC: premium-sprites → renderer injects data: URIs into CSS
+```
+
+**Configuration** (`~/.code-pet/marketplace.json`):
+```json
+{
+  "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
+  "apiKey": "your-api-key",
+  "marketplaceId": 1
+}
+```
+
+Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_API_KEY`, `MARKETPLACE_ID`.
+
+**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response (product name lowercased) and cached to `~/.code-pet/product-map.json`.
+
 ## Events and States
 
-Four semantic events map to four server-side states. Three additional events (`awaken`, `falling_asleep`, `action_completed`) are handled specially by the server without a dedicated state.
+Four semantic events map to four server-side states. Four additional events (`awaken`, `falling_asleep`, `action_completed`, `dismiss`) are handled specially by the server without a dedicated state.
 
 | Event (hook sends) | State (pet.js) | Triggered by |
 |---------------------|----------------|--------------|
@@ -92,13 +136,16 @@ Four semantic events map to four server-side states. Three additional events (`a
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
 | `work_finished` | `idle` | Stop |
 | `action_completed` | *(restores previous)* | PostToolUse (any tool) |
-| `falling_asleep` | *(restores or tracks)* | SessionEnd |
+| `falling_asleep` | *(ignored or removes project)* | SessionEnd |
+| `dismiss` | *(removes project unconditionally)* | UI: Settings → Dismiss Pet |
 
 > `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (20 frames, 4s) and auto-transitions back to idle CSS.
 
 > `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored.
 
-> `falling_asleep` is handled specially by the server: restores from `waiting_for_action` to the previous active state, is suppressed during active work (spurious SessionEnd), or is tracked for shutdown when no active state exists.
+> `falling_asleep` is handled specially by the server: removes the project only in `idle`; ignored in all other states (`working`, `planning`, `waiting_for_action`).
+
+> `dismiss` unconditionally removes the project regardless of current state. It is triggered by the UI Dismiss button (Settings window), not by hooks. `BaseState.onDismiss()` defaults to `removeProject()`, so all states inherit this behavior.
 
 ## State Machine & Interaction (pet.js)
 
@@ -117,7 +164,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
 - **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
 - **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
-- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: WaitingForActionState restores to the previous active state if one exists, otherwise removes the project; all other states (idle, working, planning) remove the project.
+- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: only IdleState removes the project; all other states (working, planning, waiting_for_action) ignore it via BaseState's default `ignore()` behavior.
 - **Awaken suppression**: implicit via the whitelist pattern — only IdleState overrides `onAwaken()`. All other states inherit `BaseState.ignore()`, so awaken events during any non-idle state are silently ignored. Prevents spurious `SessionStart` (fired after permission prompts / AskQuestion answers) from interrupting work animations.
 
 ## Key Conventions
@@ -129,6 +176,8 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - Renderer uses `contextIsolation: true`, `nodeIntegration: false`
 - Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
+- `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables it. Logging is off by default.
+- Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )
 
 ## Runtime State (all in `~/.code-pet/`)
 
@@ -139,7 +188,66 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `app.log` | Electron stdout/stderr |
 | `install.log` | npm install output |
 | `installing` | Lock file during npm install (contains PID, stale after 10min) |
-| `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` |
+| `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` + full stdin JSON from each hook |
+| `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId) |
+| `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
+| `license.json` | Activated license key, owned pets, validation timestamp |
+| `premium-pets/` | Downloaded premium pet assets (XOR-encrypted sprites + manifest) |
+
+## Testing
+
+**Framework:** Node.js built-in test runner (`node:test`) — zero external dependencies.
+
+```bash
+npm test                    # run all tests
+npm run test:unit           # unit tests only
+npm run test:integration    # integration tests only
+npm run test:watch          # watch mode
+```
+
+### Test Structure
+
+```
+test/
+  helpers/
+    mock-logger.js          # No-op logger replacement
+    mock-modules.js         # Require cache mocking for logger, settings-store
+    mock-context.js         # Mock PetContext for testing states in isolation
+    test-http-server.js     # Records HTTP requests for hook contract tests
+  unit/
+    state-machine/          # One test file per state class
+      idle-state.test.js
+      working-state.test.js
+      planning-state.test.js
+      waiting-for-action-state.test.js
+      active-state.test.js
+      state-factory.test.js
+      pet-context.test.js
+    tracking/
+      usage-event.test.js
+      usage-tracker.test.js
+    pet-registry.test.js
+    http-client.test.js
+    marketplace-api.test.js
+    marketplace-config.test.js
+  integration/
+    hook-prompt-submit.test.js
+    hook-post-tool-use.test.js
+    hook-stop.test.js
+    hook-notification.test.js
+    hook-session-end.test.js
+```
+
+### Test Conventions
+
+- **`sut`** — always name the system under test `sut`
+- **`// GIVEN // WHEN // THEN`** — every test uses these section comments
+- **Test names** — describe behavior: `"transitions to working when working_started received"`
+- **State tests use mock context** — instantiate the state class directly with `createMockContext()`, not through PetContext
+- **`pet-context.test.js`** — tests the full orchestration (PetContext + StateFactory + States together)
+- **Integration tests** — spawn real child processes and HTTP servers, test the stdin → HTTP contract
+- **Mock only external deps** — `logger`, `electron`, `settings-store`. Use real instances of own classes.
+- **No `mock.module()`** — Node 22 doesn't support it; use `require.cache` manipulation via `mock-modules.js`
 
 ## Development Commands
 
@@ -160,4 +268,6 @@ npx electron src/app/main.js
 
 ## Sprite Format
 
-Each sprite is a horizontal SVG strip of 64×64px frames with transparent background. Frame counts must match the `SPRITES` config in `src/renderer/pet.js`. CSS in `styles.css` uses `background-position` with `steps(N)` to animate.
+Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's `manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
+
+Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Free pets are in `assets/pets/{id}/`, premium pets in `assets/pets-dev/{id}/` (downloaded to `~/.code-pet/premium-pets/{id}/` after purchase).

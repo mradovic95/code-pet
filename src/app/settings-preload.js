@@ -12,9 +12,13 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   // Sound
   getSoundEnabled: () => ipcRenderer.sendSync('get-sound-enabled'),
   setSoundEnabledForState: (state, enabled) => ipcRenderer.send('set-sound-enabled-for-state', { state, enabled }),
+  // Usage
+  getToolUsage: () => ipcRenderer.sendSync('get-tool-usage'),
+  getToolEvents: () => ipcRenderer.sendSync('get-tool-events'),
   // Marketplace
   activateLicense: (key) => ipcRenderer.invoke('activate-license', key),
   getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
   getMarketplaceCatalog: () => ipcRenderer.invoke('get-marketplace-catalog'),
   purchasePet: (petId) => ipcRenderer.invoke('purchase-pet', petId),
+  pollPaymentStatus: (token) => ipcRenderer.invoke('poll-payment-status', token),
 });

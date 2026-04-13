@@ -6,6 +6,7 @@ const { app } = require('electron');
 const logger = require('./logger');
 const { sendToRenderer, isRendererReady, resizeForPetCount } = require('./window-manager');
 const PetRegistry = require('./pet-registry');
+const { healthCheck, readPid, killProcess, removePid } = require('./process-manager');
 
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 
@@ -14,15 +15,19 @@ let shutdownTimer = null;
 
 const registry = new PetRegistry();
 
-registry.onProjectAdded = (projectPath, pet) => {
-  logger.info(`New project registered: ${projectPath} (${pet.projectName})`);
+registry.onProjectAdded = (sessionKey, pet) => {
+  logger.info(`New session registered: ${sessionKey} (${pet.displayName})`);
   resizeForPetCount(registry.size);
 };
 
-registry.onProjectRemoved = (projectPath, count) => {
-  logger.info(`Project removed: ${projectPath} (${count} remaining)`);
-  sendToRenderer('pet-remove', { project: projectPath });
+registry.onProjectRemoved = (sessionKey, count) => {
+  logger.info(`Session removed: ${sessionKey} (${count} remaining)`);
+  sendToRenderer('pet-remove', { project: sessionKey });
   resizeForPetCount(registry.size);
+};
+
+registry.onLabelChanged = (sessionKey, newLabel) => {
+  sendToRenderer('pet-label-changed', { project: sessionKey, projectName: newLabel });
 };
 
 registry.onEmpty = () => {
@@ -39,7 +44,19 @@ registry.onEmpty = () => {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
+    let size = 0;
+    const MAX_BODY = 1024 * 1024; // 1MB
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY) {
+        req.destroy();
+        const err = new Error('Request body too large');
+        err.statusCode = 413;
+        reject(err);
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
       try {
         const body = Buffer.concat(chunks).toString('utf8');
@@ -57,24 +74,29 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-function dispatchEvent(projectPath, projectName, eventName) {
+function dispatchEvent(sessionKey, projectPath, projectName, eventName) {
   if (shutdownTimer) {
     clearTimeout(shutdownTimer);
     shutdownTimer = null;
     logger.info('Cancelled shutdown timer — event arrived');
   }
 
-  const pet = registry.getOrCreate(projectPath, projectName);
+  const pet = registry.getOrCreate(sessionKey, projectPath, projectName);
   const result = pet.handleEvent(eventName);
 
-  logger.info(`[${projectName}] ${eventName} → ${JSON.stringify(result.response)}`);
+  logger.info(`[${pet.displayName}] ${eventName} → ${JSON.stringify(result.response)}`);
 
   if (result.rendererState) {
-    sendToRenderer('pet-event', { project: projectPath, state: result.rendererState, projectName, petType: pet.petType });
+    sendToRenderer('pet-event', {
+      project: sessionKey,
+      state: result.rendererState,
+      projectName: pet.displayName,
+      petType: pet.petType,
+    });
   }
 
   if (result.action === 'remove_project') {
-    registry.remove(projectPath);
+    registry.remove(sessionKey);
   }
 
   return result;
@@ -95,15 +117,25 @@ function startServer() {
 
         if (req.method === 'GET' && req.url.startsWith('/last-event')) {
           const parsed = url.parse(req.url, true);
+          const sessionParam = parsed.query.session;
           const projectParam = parsed.query.project;
-          if (projectParam && registry.has(projectParam)) {
-            const pet = registry.get(projectParam);
+          if (sessionParam && registry.has(sessionParam)) {
+            const pet = registry.get(sessionParam);
             const snap = pet.getSnapshot();
             sendJson(res, 200, {
               event: snap.lastEventName,
               timestamp: snap.lastEventTime,
               activeEvent: snap.lastActiveEvent,
             });
+          } else if (projectParam) {
+            // Return all sessions for a project
+            const sessions = registry.getSessionsForProject(projectParam);
+            const result = {};
+            for (const sk of sessions) {
+              const pet = registry.get(sk);
+              if (pet) result[sk] = pet.getSnapshot();
+            }
+            sendJson(res, 200, { sessions: result });
           } else {
             // Return all projects state for debugging
             sendJson(res, 200, { projects: registry.getSnapshot() });
@@ -116,11 +148,14 @@ function startServer() {
           const eventName = body.event;
           const projectPath = body.project || 'unknown';
           const projectName = body.projectName || 'unknown';
+          const sessionKey = PetRegistry.makeSessionKey(projectPath, body.claudePid);
 
-          const pet = registry.getOrCreate(projectPath, projectName);
+          const pet = registry.getOrCreate(sessionKey, projectPath, projectName);
           pet.updateProcessInfo(body.claudePid, body.tty);
+          if (body.permissionMode) pet.permissionMode = body.permissionMode;
+          if (body.toolName) pet.recordToolUsage(body.toolName, body.toolInput);
 
-          const result = dispatchEvent(projectPath, projectName, eventName);
+          const result = dispatchEvent(sessionKey, projectPath, projectName, eventName);
 
           sendJson(res, result.statusCode, result.response);
           return;
@@ -136,7 +171,8 @@ function startServer() {
         sendJson(res, 404, { error: 'Not found' });
       } catch (err) {
         logger.error(`Server error: ${err.message}`);
-        sendJson(res, 500, { error: 'Internal server error' });
+        const status = err.statusCode || 500;
+        sendJson(res, status, { error: err.message || 'Internal server error' });
       }
     });
 
@@ -147,9 +183,32 @@ function startServer() {
       resolve(server);
     });
 
-    server.on('error', (err) => {
-      logger.error(`Event server error: ${err.message}`);
-      reject(err);
+    server.on('error', async (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.warn(`Port ${PORT} in use, checking for stale process...`);
+        const healthy = await healthCheck();
+        if (healthy) {
+          reject(new Error('Another Code Pet instance is already running'));
+          return;
+        }
+        // Stale server — kill and retry once
+        const pid = readPid();
+        if (pid) killProcess(pid);
+        removePid();
+        setTimeout(() => {
+          server.listen(PORT, '127.0.0.1', () => {
+            logger.info(`Event server listening on 127.0.0.1:${PORT} (after retry)`);
+            resolve(server);
+          });
+          server.once('error', (retryErr) => {
+            logger.error(`Event server retry failed: ${retryErr.message}`);
+            reject(retryErr);
+          });
+        }, 500);
+      } else {
+        logger.error(`Event server error: ${err.message}`);
+        reject(err);
+      }
     });
   });
 }
@@ -169,10 +228,15 @@ function stopServer() {
 }
 
 function setPetTypeForProject(projectPath, petType) {
-  const pet = registry.get(projectPath);
-  if (pet) {
-    pet.petType = petType;
+  const sessions = registry.getSessionsForProject(projectPath);
+  for (const sessionKey of sessions) {
+    const pet = registry.get(sessionKey);
+    if (pet) pet.petType = petType;
   }
+}
+
+function getSessionsForProject(projectPath) {
+  return registry.getSessionsForProject(projectPath);
 }
 
 module.exports = {
@@ -180,7 +244,16 @@ module.exports = {
   stopServer,
   dispatchEvent,
   setPetTypeForProject,
+  getSessionsForProject,
   getProjectsSnapshot: () => registry.getSnapshot(),
-  getClaudePidForProject: (p) => registry.getClaudePid(p),
-  getTtyForProject: (p) => registry.getTty(p),
+  getClaudePidForSession: (sk) => registry.getClaudePid(sk),
+  getTtyForSession: (sk) => registry.getTty(sk),
+  getToolUsageForSession: (sk) => {
+    const pet = registry.get(sk);
+    return pet ? pet.getUsageSnapshot() : { mcp: {}, skills: {} };
+  },
+  getToolEventsForSession: (sk) => {
+    const pet = registry.get(sk);
+    return pet ? pet.getUsageEvents() : [];
+  },
 };

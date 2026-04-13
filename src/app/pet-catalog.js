@@ -95,6 +95,7 @@ class PetCatalog {
       name: m.name,
       description: m.description,
       tier: m.tier || 'free',
+      icon: m.icon || 'icon.png',
       sprites: m.sprites,
       autoTransitions: m.autoTransitions || {},
       sounds: m.sounds || {},

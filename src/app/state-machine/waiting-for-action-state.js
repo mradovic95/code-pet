@@ -1,7 +1,8 @@
 'use strict';
 
 const BaseState = require('./base-state');
-const { STATES } = require('./events');
+const { EVENTS, STATES } = require('./events');
+const logger = require('../logger');
 
 class WaitingForActionState extends BaseState {
   constructor(context) {
@@ -9,27 +10,34 @@ class WaitingForActionState extends BaseState {
   }
 
   onWorkingStarted() {
+    logger.info(`[${this.context.projectName}] WaitingForActionState.onWorkingStarted: transitioning to working`);
     this.context.lastActiveEvent = this.eventName;
     return this.transitionTo(STATES.WORKING);
   }
 
   onPlanningStarted() {
+    logger.info(`[${this.context.projectName}] WaitingForActionState.onPlanningStarted: transitioning to planning`);
     this.context.lastActiveEvent = this.eventName;
     return this.transitionTo(STATES.PLANNING);
   }
 
-  onWorkFinished() {
-    this.context.lastActiveEvent = null;
-    return this.transitionTo(STATES.IDLE);
-  }
-
   onActionCompleted() {
+    const mode = this.context.permissionMode;
+    logger.info(`[${this.context.projectName}] WaitingForActionState.onActionCompleted: permissionMode=${mode}, lastActiveEvent=${this.context.lastActiveEvent}`);
+    if (mode === 'plan') {
+      logger.info(`[${this.context.projectName}] WaitingForActionState.onActionCompleted: transitioning to planning (plan mode)`);
+      this.context.lastActiveEvent = EVENTS.PLANNING_STARTED;
+      return this.transitionTo(STATES.PLANNING);
+    }
+    if (mode) {
+      logger.info(`[${this.context.projectName}] WaitingForActionState.onActionCompleted: transitioning to working (mode=${mode})`);
+      this.context.lastActiveEvent = EVENTS.WORKING_STARTED;
+      return this.transitionTo(STATES.WORKING);
+    }
+    logger.info(`[${this.context.projectName}] WaitingForActionState.onActionCompleted: no permissionMode, falling back to restore`);
     return this.restore(() => this.ignore());
   }
 
-  onFallingAsleep() {
-    return this.restore(() => this.removeProject());
-  }
 }
 
 module.exports = WaitingForActionState;

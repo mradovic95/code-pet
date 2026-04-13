@@ -21,7 +21,11 @@ let getTtyFn = null;
 let dispatchEventFn = null;
 let catalogFn = null;
 let setPetTypeForProjectFn = null;
-let currentSettingsProject = null;
+let getToolUsageFn = null;
+let getToolEventsFn = null;
+let getSessionsForProjectFn = null;
+let currentSettingsSessionKey = null;
+let currentSettingsProjectPath = null;
 // Marketplace references
 let licenseManagerRef = null;
 let premiumStoreRef = null;
@@ -39,23 +43,31 @@ ipcMain.on('set-ignore-mouse-events', (_event, ignore) => {
   }
 });
 
-ipcMain.on('open-settings', (_event, project) => {
-  currentSettingsProject = project || null;
+ipcMain.on('open-settings', (_event, sessionKey) => {
+  currentSettingsSessionKey = sessionKey || null;
+  if (sessionKey) {
+    const PetRegistry = require('./pet-registry');
+    currentSettingsProjectPath = PetRegistry.parseSessionKey(sessionKey).projectPath;
+  } else {
+    currentSettingsProjectPath = null;
+  }
   createSettingsWindow();
 });
 
-ipcMain.on('focus-terminal', (_event, project) => {
+ipcMain.on('focus-terminal', (_event, sessionKey) => {
   if (!getClaudePidFn) {
     logger.warn('focus-terminal: no PID lookup function set');
     return;
   }
-  const pid = getClaudePidFn(project);
+  const pid = getClaudePidFn(sessionKey);
   if (pid) {
-    const projectDirName = project ? path.basename(project) : null;
-    const storedTty = getTtyFn ? getTtyFn(project) : null;
-    focusTerminal(pid, projectDirName, project, storedTty);
+    const PetRegistry = require('./pet-registry');
+    const { projectPath } = PetRegistry.parseSessionKey(sessionKey);
+    const projectDirName = projectPath ? path.basename(projectPath) : null;
+    const storedTty = getTtyFn ? getTtyFn(sessionKey) : null;
+    focusTerminal(pid, projectDirName, projectPath, storedTty);
   } else {
-    logger.info(`focus-terminal: no claudePid for project ${project}`);
+    logger.info(`focus-terminal: no claudePid for session ${sessionKey}`);
   }
 });
 
@@ -64,10 +76,10 @@ ipcMain.on('close-settings', () => {
 });
 
 ipcMain.on('dismiss-project', () => {
-  if (currentSettingsProject && dispatchEventFn) {
-    const projectName = path.basename(currentSettingsProject);
-    dispatchEventFn(currentSettingsProject, projectName, 'falling_asleep');
-    logger.info(`Dismissed pet for project: ${currentSettingsProject}`);
+  if (currentSettingsSessionKey && dispatchEventFn) {
+    const projectName = currentSettingsProjectPath ? path.basename(currentSettingsProjectPath) : 'unknown';
+    dispatchEventFn(currentSettingsSessionKey, currentSettingsProjectPath, projectName, 'dismiss');
+    logger.info(`Dismissed pet for session: ${currentSettingsSessionKey}`);
   }
   closeSettingsWindow();
 });
@@ -78,13 +90,29 @@ ipcMain.on('get-pet-catalog', (event) => {
 
 ipcMain.on('get-current-pet-type', (event) => {
   const settingsStore = require('./settings-store');
-  event.returnValue = currentSettingsProject
-    ? settingsStore.getPetTypeForProject(currentSettingsProject)
+  event.returnValue = currentSettingsProjectPath
+    ? settingsStore.getPetTypeForProject(currentSettingsProjectPath)
     : settingsStore.getDefaultPetType();
 });
 
 ipcMain.on('get-settings-project', (event) => {
-  event.returnValue = currentSettingsProject;
+  event.returnValue = currentSettingsSessionKey;
+});
+
+ipcMain.on('get-tool-usage', (event) => {
+  if (getToolUsageFn && currentSettingsSessionKey) {
+    event.returnValue = getToolUsageFn(currentSettingsSessionKey);
+  } else {
+    event.returnValue = { mcp: {}, skills: {} };
+  }
+});
+
+ipcMain.on('get-tool-events', (event) => {
+  if (getToolEventsFn && currentSettingsSessionKey) {
+    event.returnValue = getToolEventsFn(currentSettingsSessionKey);
+  } else {
+    event.returnValue = [];
+  }
 });
 
 ipcMain.on('get-sound-enabled', (event) => {
@@ -101,16 +129,24 @@ ipcMain.on('set-sound-enabled-for-state', (_event, { state, enabled }) => {
 
 ipcMain.on('set-pet-type', (_event, petType) => {
   const settingsStore = require('./settings-store');
-  if (currentSettingsProject) {
-    settingsStore.setPetTypeForProject(currentSettingsProject, petType);
+  if (currentSettingsProjectPath) {
+    settingsStore.setPetTypeForProject(currentSettingsProjectPath, petType);
     if (setPetTypeForProjectFn) {
-      setPetTypeForProjectFn(currentSettingsProject, petType);
+      setPetTypeForProjectFn(currentSettingsProjectPath, petType);
     }
-    sendToRenderer('pet-type-changed', { project: currentSettingsProject, petType });
+    // Send pet-type-changed to ALL sessions for this project
+    if (getSessionsForProjectFn) {
+      const sessions = getSessionsForProjectFn(currentSettingsProjectPath);
+      for (const sk of sessions) {
+        sendToRenderer('pet-type-changed', { project: sk, petType });
+      }
+    } else {
+      sendToRenderer('pet-type-changed', { project: currentSettingsSessionKey, petType });
+    }
   } else {
     settingsStore.setDefaultPetType(petType);
   }
-  logger.info(`Pet type changed to "${petType}" for ${currentSettingsProject || 'default'}`);
+  logger.info(`Pet type changed to "${petType}" for ${currentSettingsProjectPath || 'default'}`);
 });
 
 // --- Marketplace IPC handlers ---
@@ -143,7 +179,8 @@ ipcMain.handle('activate-license', async (_event, key) => {
   for (const petId of result.ownedPets) {
     if (!premiumStoreRef.isDownloaded(petId)) {
       try {
-        await premiumStoreRef.download(petId, key);
+        const productId = licenseApiRef.getProductIdForPet ? licenseApiRef.getProductIdForPet(petId) : null;
+        await premiumStoreRef.download(petId, key, licenseApiRef, productId);
         logger.info(`Downloaded premium pet "${petId}" after activation`);
       } catch (err) {
         logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
@@ -176,12 +213,35 @@ ipcMain.handle('purchase-pet', async (_event, petId) => {
 
   try {
     const result = await licenseApiRef.purchase(petId);
-    logger.info(`Mock purchase completed for "${petId}": key=${result.licenseKey}`);
+
+    if (result.paymentUrl) {
+      // Paid pet: open PayPal in browser
+      const { shell } = require('electron');
+      shell.openExternal(result.paymentUrl);
+      logger.info(`Opened payment URL for "${petId}"`);
+      return {
+        success: true,
+        paymentPending: true,
+        paymentToken: result.paymentToken,
+        purchaseId: result.purchaseId,
+        licenseKey: null,
+      };
+    }
+
+    // Free pet or mock: license key returned directly
+    logger.info(`Purchase completed for "${petId}": key=${result.licenseKey}`);
     return result;
   } catch (err) {
     logger.warn(`Purchase failed for "${petId}": ${err.message}`);
     return { success: false, error: err.message };
   }
+});
+
+ipcMain.handle('poll-payment-status', async (_event, token) => {
+  if (!licenseApiRef || !licenseApiRef.checkPaymentStatus) {
+    return { completed: false, error: 'Not supported' };
+  }
+  return licenseApiRef.checkPaymentStatus(token);
 });
 
 ipcMain.handle('get-premium-sprites', async (_event, petId) => {
@@ -249,6 +309,8 @@ function createOverlayWindow() {
 
   if (process.platform === 'darwin') {
     overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  } else if (process.platform === 'linux') {
+    overlayWindow.setVisibleOnAllWorkspaces(true);
   }
 
   // Keep always on top with highest level
@@ -321,6 +383,18 @@ function setCatalogFn(fn) {
 
 function setUpdatePetTypeFn(fn) {
   setPetTypeForProjectFn = fn;
+}
+
+function setToolUsageFn(fn) {
+  getToolUsageFn = fn;
+}
+
+function setToolEventsFn(fn) {
+  getToolEventsFn = fn;
+}
+
+function setSessionsForProjectFn(fn) {
+  getSessionsForProjectFn = fn;
 }
 
 function setCatalogObj(obj) {
@@ -417,5 +491,8 @@ module.exports = {
   setPremiumStoreFn,
   setMarketplaceCatalogFn,
   setLicenseApiFn,
+  setToolUsageFn,
+  setToolEventsFn,
+  setSessionsForProjectFn,
   closeSettingsWindow,
 };

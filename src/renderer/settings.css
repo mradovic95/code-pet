@@ -51,10 +51,39 @@ body {
   color: #f38ba8;
 }
 
+.tab-bar {
+  display: flex;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  padding: 0 12px;
+  gap: 2px;
+}
+
+.tab {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #6c7086;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: #cdd6f4;
+}
+
+.tab.active {
+  color: #89b4fa;
+  border-bottom-color: #89b4fa;
+}
+
 .content {
   padding: 16px;
   overflow-y: auto;
-  height: calc(100% - 36px);
+  height: calc(100% - 36px - 34px);
 }
 
 .section {
@@ -143,15 +172,6 @@ body {
 
 .pet-card-desc {
   display: none;
-}
-
-.project-label {
-  font-size: 12px;
-  color: #a6adc8;
-  margin-bottom: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* --- Marketplace --- */
@@ -330,4 +350,108 @@ body {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+/* --- Usage tab --- */
+
+.usage-list {
+  background: #313244;
+  border-radius: 8px;
+  padding: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.event-log {
+  background: #313244;
+  border-radius: 8px;
+  padding: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.event-row:hover {
+  background: #45475a;
+}
+
+.event-timestamp {
+  font-size: 11px;
+  color: #6c7086;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.event-type-badge.badge-mcp {
+  background: rgba(137, 180, 250, 0.2);
+  color: #89b4fa;
+}
+
+.event-type-badge.badge-skill {
+  background: rgba(166, 227, 161, 0.2);
+  color: #a6e3a1;
+}
+
+.event-name {
+  font-size: 12px;
+  color: #cdd6f4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.usage-empty {
+  color: #6c7086;
+  font-size: 12px;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.usage-row:hover {
+  background: #45475a;
+}
+
+.usage-name {
+  font-size: 12px;
+  color: #cdd6f4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.usage-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #89b4fa;
+  margin-left: 12px;
+  flex-shrink: 0;
 }

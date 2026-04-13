@@ -96,7 +96,7 @@ class LicenseManager {
     }
 
     this._license.key = key;
-    this._license.activationId = result.activationId;
+    this._license.activationId = result.activationId || key.slice(0, 16);
     this._license.validatedAt = Date.now();
     this._license.machineId = machineId;
     this._license.ownedPets = Array.from(existing);

@@ -11,38 +11,15 @@
     <span class="titlebar-title">Code Pet Settings</span>
     <button id="close-btn" class="titlebar-close">&times;</button>
   </div>
+  <div class="tab-bar">
+    <button class="tab active" data-tab="general">General</button>
+    <button class="tab" data-tab="store" id="tab-btn-store" style="display:none;">Store</button>
+    <button class="tab" data-tab="usage" id="tab-btn-usage" style="display:none;">Usage</button>
+  </div>
   <div class="content">
-    <div id="project-label" class="project-label"></div>
-    <div class="section">
-      <div class="section-title">Your Pets</div>
-      <div id="pet-selector"></div>
-    </div>
-    <div class="section" id="marketplace-section" style="display:none;">
-      <div class="section-title">Get More Pets</div>
-      <div id="marketplace-grid"></div>
-    </div>
-    <div class="section" id="license-section">
-      <div class="license-row">
-        <input type="text" id="license-input" class="license-input" placeholder="Enter license key">
-        <button id="license-btn" class="license-btn">Activate</button>
-      </div>
-      <div id="license-status" class="license-status"></div>
-    </div>
-    <div class="section">
-      <div class="section-title">Sound</div>
-      <label class="toggle-row">
-        <input type="checkbox" id="sound-toggle-idle">
-        <span>Play sound on task completion</span>
-      </label>
-      <label class="toggle-row" style="margin-top: 6px;">
-        <input type="checkbox" id="sound-toggle-waiting">
-        <span>Play sound on permission prompt</span>
-      </label>
-    </div>
-    <div class="section">
-      <div class="section-title">Actions</div>
-      <button id="dismiss-btn" class="btn-dismiss">Dismiss Pet</button>
-    </div>
+    <div id="tab-general"></div>
+    <div id="tab-store" style="display:none;"></div>
+    <div id="tab-usage" style="display:none;"></div>
   </div>
   <script src="settings.js"></script>
 </body>

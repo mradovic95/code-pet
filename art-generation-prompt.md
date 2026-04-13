@@ -85,11 +85,12 @@ Prompts tailored for free text-to-sprite-sheet tools like SEELE AI, CGDream, Byl
 1. Ensure all frames are exactly 64×64px
 2. Verify transparent backgrounds (no white/colored fills)
 3. Check strip dimensions: 256×64 for 4-frame, 1280×64 for 20-frame
-4. Export as SVG (preferred) or PNG
-5. If PNG: convert to SVG by wrapping with `<image>` element
-6. Name files exactly: `idle.svg`, `working.svg`, `planning.svg`, `waiting_for_action.svg`, `waking_up.svg`
-7. Place free pets in `assets/pets/{id}/`, premium pets in `assets/pets-dev/{id}/`
-8. Test with `npx electron src/app/main.js` and send events with `./test.sh`
+4. Export as PNG (preferred for free pets) or SVG (premium pets)
+5. Name files exactly: `idle.png`, `working.png`, `planning.png`, `waiting_for_action.png`, `waking_up.png`
+6. Create `icon.png` by cropping the first frame (0,0,64,64) from `idle.png`
+7. Create `manifest.json` with sprite metadata (id, name, frames, duration, tier)
+8. Place free pets in `assets/pets/{id}/`, premium pets in `assets/pets-dev/{id}/`
+9. Test with `npx electron src/app/main.js` and send events with `./test.sh`
 
 ## Style Consistency Tips
 

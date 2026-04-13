@@ -96,7 +96,7 @@ return "not_found"`;
 
 function activateApp(appName) {
   return new Promise((resolve) => {
-    execFile('osascript', ['-e', `tell application "${appName}" to activate`], (err) => {
+    execFile('osascript', ['-e', `tell application "${escapeAppleScriptString(appName)}" to activate`], { timeout: 3000 }, (err) => {
       if (err) {
         logger.warn(`Failed to activate "${appName}": ${err.message}`);
         resolve(false);
