@@ -3,6 +3,7 @@
   "name": "Panda",
   "description": "A chill coding panda",
   "tier": "free",
+  "icon": "icon.png",
   "sprites": {
     "idle": {
       "file": "idle.png",

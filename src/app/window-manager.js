@@ -179,7 +179,8 @@ ipcMain.handle('activate-license', async (_event, key) => {
   for (const petId of result.ownedPets) {
     if (!premiumStoreRef.isDownloaded(petId)) {
       try {
-        await premiumStoreRef.download(petId, key);
+        const productId = licenseApiRef.getProductIdForPet ? licenseApiRef.getProductIdForPet(petId) : null;
+        await premiumStoreRef.download(petId, key, licenseApiRef, productId);
         logger.info(`Downloaded premium pet "${petId}" after activation`);
       } catch (err) {
         logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
@@ -212,12 +213,35 @@ ipcMain.handle('purchase-pet', async (_event, petId) => {
 
   try {
     const result = await licenseApiRef.purchase(petId);
-    logger.info(`Mock purchase completed for "${petId}": key=${result.licenseKey}`);
+
+    if (result.paymentUrl) {
+      // Paid pet: open PayPal in browser
+      const { shell } = require('electron');
+      shell.openExternal(result.paymentUrl);
+      logger.info(`Opened payment URL for "${petId}"`);
+      return {
+        success: true,
+        paymentPending: true,
+        paymentToken: result.paymentToken,
+        purchaseId: result.purchaseId,
+        licenseKey: null,
+      };
+    }
+
+    // Free pet or mock: license key returned directly
+    logger.info(`Purchase completed for "${petId}": key=${result.licenseKey}`);
     return result;
   } catch (err) {
     logger.warn(`Purchase failed for "${petId}": ${err.message}`);
     return { success: false, error: err.message };
   }
+});
+
+ipcMain.handle('poll-payment-status', async (_event, token) => {
+  if (!licenseApiRef || !licenseApiRef.checkPaymentStatus) {
+    return { completed: false, error: 'Not supported' };
+  }
+  return licenseApiRef.checkPaymentStatus(token);
 });
 
 ipcMain.handle('get-premium-sprites', async (_event, petId) => {

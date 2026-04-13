@@ -37,23 +37,62 @@ class PremiumStore {
   }
 
   /**
-   * Download (mock: copy) premium pet sprites and obfuscate to disk.
-   * Mock flow: copies from assets/pets-dev/{petId}/ to ~/.code-pet/premium-pets/{petId}/
-   * SVG files are XOR-encrypted; manifest.json stored in plaintext.
+   * Download premium pet sprites and obfuscate to disk.
+   *
+   * Remote flow (api + productId provided): fetch from marketplace API.
+   * Dev flow (no api): copy from local assets/pets-dev/{petId}/.
+   *
+   * Binary asset files (SVG, PNG) are XOR-encrypted; manifest.json stored in plaintext.
    */
-  async download(petId, licenseKey) {
-    const sourceDir = path.join(DEV_ASSETS_DIR, petId);
+  async download(petId, licenseKey, api, productId) {
     const destDir = path.join(PREMIUM_DIR, petId);
-
-    if (!fs.existsSync(sourceDir)) {
-      throw new Error(`Dev assets not found for pet "${petId}"`);
-    }
 
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
     }
 
     const key = deriveKey(licenseKey, petId);
+
+    if (api && productId) {
+      // Remote: fetch from marketplace API
+      await this._downloadRemote(petId, licenseKey, api, productId, destDir, key);
+    } else {
+      // Dev fallback: copy from local assets
+      this._downloadLocal(petId, destDir, key);
+    }
+
+    logger.info(`Downloaded premium pet "${petId}" to ${destDir}`);
+  }
+
+  async _downloadRemote(petId, licenseKey, api, productId, destDir, key) {
+    // Fetch manifest first to discover sprite files
+    const manifestBuf = await api.downloadAsset(productId, 'manifest.json', licenseKey);
+    const manifestPath = path.join(destDir, 'manifest.json');
+    fs.writeFileSync(manifestPath, manifestBuf);
+
+    const manifest = JSON.parse(manifestBuf.toString('utf8'));
+
+    // Download each sprite file
+    for (const [, sprite] of Object.entries(manifest.sprites || {})) {
+      const filename = sprite.file;
+      const data = await api.downloadAsset(productId, filename, licenseKey);
+      const destPath = path.join(destDir, filename);
+
+      if (this._shouldEncrypt(filename)) {
+        fs.writeFileSync(destPath, xorBuffer(data, key));
+      } else {
+        fs.writeFileSync(destPath, data);
+      }
+    }
+  }
+
+  _downloadLocal(petId, destDir, key) {
+    const sourceDir = path.join(DEV_ASSETS_DIR, petId);
+
+    if (!fs.existsSync(sourceDir)) {
+      throw new Error(`Dev assets not found for pet "${petId}"`);
+    }
+
     const files = fs.readdirSync(sourceDir);
 
     for (const file of files) {
@@ -61,19 +100,19 @@ class PremiumStore {
       const destPath = path.join(destDir, file);
 
       if (file === 'manifest.json') {
-        // Manifest stored in plaintext
         fs.copyFileSync(srcPath, destPath);
-      } else if (file.endsWith('.svg')) {
-        // XOR-encrypt SVG files
+      } else if (this._shouldEncrypt(file)) {
         const data = fs.readFileSync(srcPath);
-        const encrypted = xorBuffer(data, key);
-        fs.writeFileSync(destPath, encrypted);
+        fs.writeFileSync(destPath, xorBuffer(data, key));
       } else {
         fs.copyFileSync(srcPath, destPath);
       }
     }
+  }
 
-    logger.info(`Downloaded premium pet "${petId}" to ${destDir}`);
+  _shouldEncrypt(filename) {
+    const ext = path.extname(filename).toLowerCase();
+    return ['.svg', '.png', '.jpg', '.jpeg', '.gif', '.wav', '.mp3', '.ogg'].includes(ext);
   }
 
   /**
@@ -102,10 +141,23 @@ class PremiumStore {
       const encrypted = fs.readFileSync(filePath);
       const decrypted = xorBuffer(encrypted, key);
       const base64 = decrypted.toString('base64');
-      sprites[state] = `data:image/svg+xml;base64,${base64}`;
+      const mime = this._mimeForFile(sprite.file);
+      sprites[state] = `data:${mime};base64,${base64}`;
     }
 
     return sprites;
+  }
+
+  _mimeForFile(filename) {
+    const ext = path.extname(filename).toLowerCase();
+    const mimes = {
+      '.svg': 'image/svg+xml',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+    };
+    return mimes[ext] || 'application/octet-stream';
   }
 
   isDownloaded(petId) {

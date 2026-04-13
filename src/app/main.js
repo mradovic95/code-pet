@@ -11,6 +11,8 @@ const LicenseManager = require('./license-manager');
 const PremiumStore = require('./premium-store');
 const MarketplaceCatalog = require('./marketplace-catalog');
 const { MockLicenseAPI } = require('./license-api');
+const { MarketplaceAPI } = require('./marketplace-api');
+const marketplaceConfig = require('./marketplace-config');
 const logger = require('./logger');
 
 // Linux transparency support
@@ -30,8 +32,12 @@ if (!gotLock) {
 
     settingsStore.load();
 
-    // Initialize license system
-    const licenseApi = new MockLicenseAPI();
+    // Initialize license system — use real API if configured, else mock
+    const mpConfig = marketplaceConfig.load();
+    const licenseApi = marketplaceConfig.isConfigured()
+      ? new MarketplaceAPI(mpConfig)
+      : new MockLicenseAPI();
+    logger.info(`License API: ${marketplaceConfig.isConfigured() ? 'MarketplaceAPI' : 'MockLicenseAPI'}`);
     const licenseManager = new LicenseManager(licenseApi);
     licenseManager.load();
     const premiumStore = new PremiumStore();
@@ -68,6 +74,13 @@ if (!gotLock) {
     setMarketplaceCatalogFn(marketplaceCatalog);
     setLicenseApiFn(licenseApi);
     createOverlayWindow();
+
+    // Prime product catalog if using real API (populates productId <-> petId map)
+    if (marketplaceConfig.isConfigured()) {
+      licenseApi.getCatalog().catch(err => {
+        logger.warn(`Failed to prime marketplace catalog: ${err.message}`);
+      });
+    }
 
     // Validate license if stale
     if (licenseManager.needsRevalidation()) {

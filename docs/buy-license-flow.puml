@@ -1,0 +1,78 @@
+@startuml buy-license-flow
+title Code Pet — Buy License Flow
+
+skinparam sequence {
+  ArrowColor #555555
+  LifeLineBorderColor #888888
+  ParticipantBackgroundColor #FAFAFA
+  ParticipantBorderColor #555555
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #CCCC88
+}
+
+actor User as user
+participant "Settings UI\n(renderer)" as ui #FFCCBC
+participant "Window Manager\n(main process)" as wm #FFE0B2
+participant "MarketplaceAPI\n(http-client)" as api #D4E6F1
+participant "Marketplace\nAPI Gateway" as gw #E8EAF6
+participant PayPal as paypal #FFF3E0
+
+== 1. Browse Catalog ==
+
+user -> ui : Opens Store tab
+ui -> wm : IPC: get-marketplace-catalog
+wm -> api : getCatalog()
+api -> gw : GET /api/v1/products?status=ACTIVE
+gw --> api : [{id, name, tier, priceCents, ...}]
+api --> wm : [{id:"dragon", price:"$2.99", tier:"premium", productId:10}]
+note right of api : Builds productId↔petId map\nCached to ~/.code-pet/product-map.json
+wm --> ui : catalog array
+ui --> user : Shows pet cards with prices
+
+== 2a. Purchase — Free Pet ==
+
+user -> ui : Clicks "Buy" (free pet)
+ui -> wm : IPC: purchase-pet("cat")
+wm -> api : purchase("cat")
+api -> gw : POST /api/v1/products/20/purchases
+gw --> api : {licenseKey: "ABCD-EFGH-IJKL-MNOP"}
+api --> wm : {success, licenseKey}
+wm --> ui : {success, licenseKey}
+ui --> user : "Key generated! Click Activate"
+
+== 2b. Purchase — Premium Pet (PayPal) ==
+
+user -> ui : Clicks "Buy" (premium pet)
+ui -> wm : IPC: purchase-pet("dragon")
+wm -> api : purchase("dragon")
+api -> gw : POST /api/v1/products/10/purchases
+gw --> api : {paymentUrl: "https://paypal.com?token=XYZ"}
+api --> wm : {paymentUrl, paymentToken: "XYZ"}
+wm -> paypal : shell.openExternal(paymentUrl)
+wm --> ui : {paymentPending, paymentToken}
+ui --> user : "Payment opened. Click Check Payment when done"
+
+user -> paypal : Completes payment
+paypal --> user : "Payment successful"
+
+user -> ui : Clicks "Check Payment"
+ui -> wm : IPC: poll-payment-status("XYZ")
+wm -> api : checkPaymentStatus("XYZ")
+api -> gw : GET /purchases/payment-success?token=XYZ
+gw --> api : {licenseKey: "WXYZ-1234", productId: 10}
+api --> wm : {completed, licenseKey}
+wm --> ui : {completed, licenseKey}
+ui --> user : "Payment complete! Click Activate"
+
+note over gw
+  **Stage URL:**
+  https://2vyd33gumd.execute-api
+  .us-east-2.amazonaws.com/stage
+
+  Configured in:
+  **~/.code-pet/marketplace.json**
+end note
+
+@enduml

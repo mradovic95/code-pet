@@ -30,10 +30,13 @@ src/
     event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
     pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
     process-manager.js       # PID file, app launch/stop, health checks
-    window-manager.js        # Transparent click-through BrowserWindow
+    window-manager.js        # Transparent click-through BrowserWindow + marketplace IPC handlers
     logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
     preload.js               # Context bridge: window.codePet.onPetEvent()
-    settings-preload.js      # Context bridge for settings window
+    settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
+    http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
+    marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
+    marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
     state-machine/             # Server-side state machine (whitelist pattern)
       states.js                # STATES enum
       events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
@@ -62,7 +65,7 @@ scripts/
   generate-placeholders.js   # Dev utility: regenerate SVG placeholder sprites
 test/
   helpers/                   # Mock logger, mock context, test HTTP server
-  unit/                      # State machine, tracking, pet-registry tests
+  unit/                      # State machine, tracking, pet-registry, marketplace tests
   integration/               # Hook contract tests (spawn real processes + HTTP)
 test.sh                      # Dev utility: send events to the pet (curl wrapper)
 ```
@@ -83,6 +86,43 @@ Claude Code hooks (stdin JSON)
 ```
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
+
+## Marketplace Integration
+
+Premium pets are purchased and downloaded from a real marketplace backend. The system supports two modes:
+
+- **Mock mode** (default): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Active when no API key is configured.
+- **Real mode**: `MarketplaceAPI` calls the marketplace REST API. Active when `~/.code-pet/marketplace.json` has an `apiKey`.
+
+```
+Settings UI (Buy button)
+  → IPC: purchase-pet
+    → MarketplaceAPI.purchase(petId)
+      → POST /api/v1/products/{productId}/purchases
+        → FREE: license key returned immediately
+        → PREMIUM: PayPal URL returned → shell.openExternal() → user pays
+          → IPC: poll-payment-status → GET /purchases/payment-success?token=...
+            → license key returned
+  → IPC: activate-license
+    → LicenseManager.activate(key) → POST /api/v1/licenses/{key}/activations
+    → PremiumStore.download(petId, key, api, productId)
+      → GET /api/v1/products/{productId}/assets/{filename} (per sprite file)
+      → XOR-encrypt + write to ~/.code-pet/premium-pets/{petId}/
+    → IPC: premium-sprites → renderer injects data: URIs into CSS
+```
+
+**Configuration** (`~/.code-pet/marketplace.json`):
+```json
+{
+  "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
+  "apiKey": "your-api-key",
+  "marketplaceId": 1
+}
+```
+
+Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_API_KEY`, `MARKETPLACE_ID`.
+
+**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response (product name lowercased) and cached to `~/.code-pet/product-map.json`.
 
 ## Events and States
 
@@ -149,6 +189,10 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `install.log` | npm install output |
 | `installing` | Lock file during npm install (contains PID, stale after 10min) |
 | `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` + full stdin JSON from each hook |
+| `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId) |
+| `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
+| `license.json` | Activated license key, owned pets, validation timestamp |
+| `premium-pets/` | Downloaded premium pet assets (XOR-encrypted sprites + manifest) |
 
 ## Testing
 
@@ -183,6 +227,9 @@ test/
       usage-event.test.js
       usage-tracker.test.js
     pet-registry.test.js
+    http-client.test.js
+    marketplace-api.test.js
+    marketplace-config.test.js
   integration/
     hook-prompt-submit.test.js
     hook-post-tool-use.test.js
@@ -221,4 +268,6 @@ npx electron src/app/main.js
 
 ## Sprite Format
 
-Each sprite is a horizontal SVG strip of 64×64px frames with transparent background. Frame counts must match the `SPRITES` config in `src/renderer/pet.js`. CSS in `styles.css` uses `background-position` with `steps(N)` to animate.
+Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's `manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
+
+Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Free pets are in `assets/pets/{id}/`, premium pets in `assets/pets-dev/{id}/` (downloaded to `~/.code-pet/premium-pets/{id}/` after purchase).

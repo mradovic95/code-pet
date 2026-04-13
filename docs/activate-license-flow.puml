@@ -1,0 +1,79 @@
+@startuml activate-license-flow
+title Code Pet — Activate License Flow
+
+skinparam sequence {
+  ArrowColor #555555
+  LifeLineBorderColor #888888
+  ParticipantBackgroundColor #FAFAFA
+  ParticipantBorderColor #555555
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #CCCC88
+}
+
+actor User as user
+participant "Settings UI\n(renderer)" as ui #FFCCBC
+participant "Window Manager\n(main process)" as wm #FFE0B2
+participant "LicenseManager" as lm #FFE0B2
+participant "MarketplaceAPI\n(http-client)" as api #D4E6F1
+participant "PremiumStore" as store #D4E6F1
+participant "Marketplace\nAPI Gateway" as gw #E8EAF6
+participant "S3 Bucket" as s3 #E8F5E9
+
+== 1. Activate License ==
+
+user -> ui : Enters license key, clicks "Activate"
+ui -> wm : IPC: activate-license("WXYZ-1234")
+wm -> lm : activate("WXYZ-1234")
+lm -> api : activate("WXYZ-1234", machineId)
+api -> gw : POST /api/v1/licenses/WXYZ-1234/activations\n{machineId: "sha256..."}
+gw --> api : {success, ownedProductIds: [10]}
+api --> lm : {success, ownedPets: ["dragon"]}
+
+note over lm : Merges new pets with existing ownedPets\nSaves to ~/.code-pet/license.json\n{key, ownedPets, validatedAt, machineId}
+
+lm --> wm : {success, ownedPets: ["dragon"]}
+
+== 2. Download Assets ==
+
+loop for each newly owned pet
+  wm -> store : download("dragon", key, api, productId=10)
+  store -> api : downloadAsset(10, "manifest.json", key)
+  api -> gw : GET /products/10/assets/manifest.json\nX-License-Key: WXYZ-1234
+  gw --> api : manifest.json bytes
+  api --> store : Buffer
+
+  note right of store : Parse manifest to discover sprite files
+
+  loop for each sprite in manifest
+    store -> api : downloadAsset(10, "idle.png", key)
+    api -> gw : GET /products/10/assets/idle.png\nX-License-Key: WXYZ-1234
+    gw -> s3 : Presigned URL (or stream)
+    s3 --> gw : Binary PNG data
+    gw --> api : Binary data
+    api --> store : Buffer
+    note right of store : XOR-encrypt with SHA-256(key+petId)\nWrite to ~/.code-pet/premium-pets/dragon/
+  end
+end
+
+note right of store
+  Assets stored at:
+  **~/.code-pet/premium-pets/{petId}/**
+  * manifest.json — plaintext
+  * *.png / *.svg — XOR-encrypted
+    with SHA-256(licenseKey + petId)
+end note
+
+== 3. Load Sprites to Renderer ==
+
+wm -> store : loadSprites("dragon", key)
+note right of store : Read encrypted files from disk\nXOR-decrypt with same derived key\nConvert to base64 data: URIs
+store --> wm : {idle: "data:image/png;base64,...", working: "data:...", ...}
+wm -> ui : IPC: premium-sprites {petId, sprites}
+note right of ui : injectPetStyles() uses data: URIs\nin CSS background-image
+ui --> user : Dragon pet available & animated!
+
+wm -> ui : IPC: pet-catalog (updated catalog with new pet)
+
+@enduml

@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
   getMarketplaceCatalog: () => ipcRenderer.invoke('get-marketplace-catalog'),
   purchasePet: (petId) => ipcRenderer.invoke('purchase-pet', petId),
+  pollPaymentStatus: (token) => ipcRenderer.invoke('poll-payment-status', token),
 });

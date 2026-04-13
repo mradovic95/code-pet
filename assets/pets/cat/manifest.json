@@ -3,6 +3,7 @@
   "name": "Cat",
   "description": "A curious coding cat",
   "tier": "free",
+  "icon": "icon.png",
   "sprites": {
     "idle": {
       "file": "idle.png",

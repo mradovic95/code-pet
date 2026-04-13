@@ -3,6 +3,7 @@
   "name": "Dog",
   "description": "A loyal coding companion",
   "tier": "free",
+  "icon": "icon.png",
   "sprites": {
     "idle": {
       "file": "idle.png",

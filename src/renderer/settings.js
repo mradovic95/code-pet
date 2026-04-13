@@ -98,11 +98,9 @@ function renderPetSelector() {
 
     const preview = document.createElement('div');
     preview.className = 'pet-card-preview';
-    const idleSprite = pet.sprites.idle;
     const previewSize = 36;
-    preview.style.backgroundImage = `url('../../assets/pets/${pet.id}/${idleSprite.file}')`;
-    preview.style.backgroundSize = `${previewSize * idleSprite.frames}px ${previewSize}px`;
-    preview.style.backgroundPosition = '0 0';
+    preview.style.backgroundImage = `url('../../assets/pets/${pet.id}/${pet.icon || 'icon.png'}')`;
+    preview.style.backgroundSize = `${previewSize}px ${previewSize}px`;
     preview.style.width = `${previewSize}px`;
     preview.style.height = `${previewSize}px`;
 
@@ -192,12 +190,43 @@ async function renderMarketplace() {
       buyBtn.className = 'marketplace-buy-btn';
       buyBtn.textContent = 'Buy';
       buyBtn.addEventListener('click', async () => {
+        // If waiting for payment completion, check status
+        if (buyBtn._pendingPayment && buyBtn._paymentToken) {
+          buyBtn.disabled = true;
+          buyBtn.textContent = '...';
+          try {
+            const payResult = await window.codePetSettings.pollPaymentStatus(buyBtn._paymentToken);
+            if (payResult.completed && payResult.licenseKey) {
+              document.getElementById('license-input').value = payResult.licenseKey;
+              showLicenseStatus('Payment complete! Click Activate to enable.', 'success');
+              buyBtn._pendingPayment = false;
+              buyBtn.textContent = 'Buy';
+            } else {
+              showLicenseStatus('Payment not yet completed. Try again in a moment.', 'info');
+            }
+          } catch {
+            showLicenseStatus('Failed to check payment status.', 'error');
+          }
+          buyBtn.disabled = false;
+          if (buyBtn._pendingPayment) buyBtn.textContent = 'Check Payment';
+          return;
+        }
+
         buyBtn.disabled = true;
         buyBtn.textContent = '...';
         try {
           const result = await window.codePetSettings.purchasePet(pet.id);
-          if (result.success) {
-            // Show the generated license key
+          if (result.paymentPending) {
+            // Paid pet: PayPal opened in browser
+            showLicenseStatus('Payment opened in browser. Complete payment, then click Check Payment.', 'info');
+            buyBtn.textContent = 'Check Payment';
+            buyBtn._paymentToken = result.paymentToken;
+            buyBtn._pendingPayment = true;
+            buyBtn.disabled = false;
+            return;
+          }
+          if (result.success && result.licenseKey) {
+            // Free pet or mock: license key returned directly
             document.getElementById('license-input').value = result.licenseKey;
             showLicenseStatus('Key generated! Click Activate to enable.', 'info');
           } else {

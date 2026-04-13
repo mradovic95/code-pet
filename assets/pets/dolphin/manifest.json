@@ -3,6 +3,7 @@
   "name": "Dolphin",
   "description": "A playful coding dolphin",
   "tier": "free",
+  "icon": "icon.png",
   "sprites": {
     "idle": {
       "file": "idle.png",

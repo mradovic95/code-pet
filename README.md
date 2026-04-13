@@ -64,26 +64,40 @@ Valid events: `awaken`, `falling_asleep`, `working_started`, `planning_started`,
 
 ## Custom Sprites
 
-Replace the placeholder sprite sheets in `assets/sprites/` with your own artwork:
+Each pet has its own directory in `assets/pets/{id}/` with a `manifest.json` and sprite sheets:
 
-- Each file is a horizontal strip SVG
+- Each sprite is a horizontal strip (PNG or SVG)
 - Each frame is exactly 64x64px
 - Transparent background
-- Frame counts are configured in `src/renderer/pet.js` (`SPRITES` object)
+- All strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256x64 for 4 frames)
+- Frame counts are defined in each pet's `manifest.json`
 
 | File                     | Frames | Description                         |
 |--------------------------|--------|-------------------------------------|
-| `idle.svg`               | 4      | Default resting animation (loops)   |
-| `waking_up.svg`          | 20     | Session start greeting (plays once) |
-| `working.svg`            | 4      | Processing/working (loops)          |
-| `planning.svg`           | 4      | Planning mode (loops)               |
-| `waiting_for_action.svg` | 4      | Waiting for user action (loops)     |
+| `idle.png`               | 4      | Default resting animation (loops)   |
+| `waking_up.png`          | 4+     | Session start greeting (plays once) |
+| `working.png`            | 4      | Processing/working (loops)          |
+| `planning.png`           | 4      | Planning mode (loops)               |
+| `waiting_for_action.png` | 4      | Waiting for user action (loops)     |
+| `icon.png`               | 1      | 64x64 icon (first frame of idle)    |
 
-To regenerate the placeholder sprites:
+## Premium Pets (Marketplace)
 
-```bash
-node scripts/generate-placeholders.js
-```
+Premium pets are purchased from the marketplace and downloaded via license key. To configure:
+
+1. Create `~/.code-pet/marketplace.json`:
+   ```json
+   {
+     "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
+     "apiKey": "your-api-key",
+     "marketplaceId": 1
+   }
+   ```
+2. Open the pet settings (double-click the pet) and use the Store tab
+3. Buy a pet (free or via PayPal for premium)
+4. Activate the license key
+
+Without a `marketplace.json`, the app runs in mock mode with dev assets.
 
 ## Project Structure
 
@@ -94,9 +108,11 @@ code-pet/
 │   ├── hooks.json                # Hook event → script mapping
 │   └── scripts/                  # Hook handler scripts
 ├── src/
-│   ├── app/                      # Electron main process
-│   └── renderer/                 # Overlay UI + sprite animation
-├── assets/sprites/               # Sprite sheet SVGs
+│   ├── app/                      # Electron main process + marketplace integration
+│   └── renderer/                 # Overlay UI + sprite animation + settings/store
+├── assets/pets/                  # Free pet sprite sheets (PNG, 64×64 frames)
+├── assets/pets-dev/              # Premium pet dev assets (copied in mock mode)
+├── test/                         # Unit + integration tests (node:test)
 └── scripts/                      # Development utilities
 ```
 
