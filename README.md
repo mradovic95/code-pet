@@ -7,13 +7,9 @@
 [![license](https://img.shields.io/github/license/mradovic95/code-pet?color=blue)](#license)
 [![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#requirements)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://docs.claude.com/en/docs/claude-code)
+[![CI](https://github.com/mradovic95/code-pet/actions/workflows/ci.yml/badge.svg)](https://github.com/mradovic95/code-pet/actions/workflows/ci.yml)
 [![stars](https://img.shields.io/github/stars/mradovic95/code-pet?style=social)](https://github.com/mradovic95/code-pet)
 
-<!--
-  HERO VIDEO — to be added. See assets/docs/README.md for what to produce.
-  Once recorded, replace this block with:
-  <video src="<uploaded-url>.mp4" autoplay loop muted playsinline width="720"></video>
--->
 <img src="./assets/docs/pets/dog/idle.gif" width="128" alt="Code Pet">
 &nbsp;&nbsp;
 <img src="./assets/docs/pets/dog/working.gif" width="128" alt="Code Pet working">
@@ -97,14 +93,15 @@ Node.js ≥ 18 · macOS / Linux / Windows · Claude Code with plugin support
 
 ## Contributing
 
-Built with Electron on top of Claude Code's plugin API. PRs welcome — open
-an [issue](https://github.com/mradovic95/code-pet/issues) first for anything
-larger than a small fix. Questions, bug reports, and pet requests also go in
-issues.
+Bug reports and small fixes welcome — open an
+[issue](https://github.com/mradovic95/code-pet/issues) first for anything
+larger than a small fix. Pet content (new characters, sprites) is managed by
+the maintainer. See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup.
 
 ## License
 
-MIT
+Source code is [MIT](LICENSE). Art assets (sprites, sounds, animations) are
+[proprietary](assets/LICENSE).
 
 ---
 
