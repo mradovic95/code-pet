@@ -147,7 +147,7 @@ class PetRegistry {
     this._cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [sessionKey, pet] of this._projects) {
-        if (now - pet.lastEventTime > 30 * 60 * 1000) {
+        if (now - pet.lastEventTime > 3 * 60 * 60 * 1000) {
           this.remove(sessionKey);
         }
       }
