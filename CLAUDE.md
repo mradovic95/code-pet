@@ -59,7 +59,7 @@ src/
     settings.css             # Settings window styling
   tracking/                  # Skill / MCP tool usage tracking (self-contained)
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore
-    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId)
+    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath)
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/

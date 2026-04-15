@@ -24,7 +24,7 @@ other env vars catalogued in [`feature-flags.md`](feature-flags.md)).
 
 ## Event shape
 
-Each line is a JSON object with exactly four fields. Defined in
+Each line is a JSON object. Defined in
 [`src/tracking/usage-event.js`](../src/tracking/usage-event.js):
 
 | Field | Type | Meaning |
@@ -33,11 +33,12 @@ Each line is a JSON object with exactly four fields. Defined in
 | `name` | string | Skill name (e.g. `"commit"`) or full MCP tool name (e.g. `"mcp__database__query"`) |
 | `timestamp` | number | `Date.now()` at record time, UTC milliseconds |
 | `sessionId` | string (UUID) | Identifies one `PetContext` lifetime — usually one Claude Code session |
+| `projectPath` | string \| null | Absolute path of the project the event originated from. `null` when the project context was not yet bound (e.g. older lines written before this field existed). |
 
 Example line:
 
 ```json
-{"type":"skill","name":"commit","timestamp":1744723200000,"sessionId":"7c2f1d40-1f8e-4d62-9b3a-1c8c1f3e9b2c"}
+{"type":"skill","name":"commit","timestamp":1744723200000,"sessionId":"7c2f1d40-1f8e-4d62-9b3a-1c8c1f3e9b2c","projectPath":"/Users/me/repos/foo"}
 ```
 
 ## Why no rotation, no size cap

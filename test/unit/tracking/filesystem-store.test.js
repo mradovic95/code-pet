@@ -29,7 +29,7 @@ describe('FilesystemStore', () => {
 
   it('appends a single event as one NDJSON line', async () => {
     // GIVEN
-    const event = new UsageEvent('skill', 'commit', 'session-1');
+    const event = new UsageEvent('skill', 'commit', 'session-1', '/home/user/proj');
 
     // WHEN
     await sut.append(event);
@@ -43,6 +43,7 @@ describe('FilesystemStore', () => {
     assert.equal(parsed.type, 'skill');
     assert.equal(parsed.name, 'commit');
     assert.equal(parsed.sessionId, 'session-1');
+    assert.equal(parsed.projectPath, '/home/user/proj');
   });
 
   it('appends plain object events (no toJSON)', async () => {

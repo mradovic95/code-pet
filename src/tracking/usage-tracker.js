@@ -8,15 +8,16 @@ const DEFAULT_MAX_EVENTS = 2000;
 const EVICTION_FRACTION = 0.25;
 
 class UsageTracker {
-  constructor({ maxEvents = DEFAULT_MAX_EVENTS, sessionId, store } = {}) {
+  constructor({ maxEvents = DEFAULT_MAX_EVENTS, sessionId, store, projectPath } = {}) {
     this.maxEvents = maxEvents;
     this.sessionId = sessionId || randomUUID();
     this.store = store || new MemoryStore();
+    this.projectPath = projectPath == null ? null : projectPath;
     this._events = [];
   }
 
   record(type, name) {
-    const event = new UsageEvent(type, name, this.sessionId);
+    const event = new UsageEvent(type, name, this.sessionId, this.projectPath);
     this._events.push(event);
     if (this._events.length > this.maxEvents) {
       const drop = Math.floor(this.maxEvents * EVICTION_FRACTION);

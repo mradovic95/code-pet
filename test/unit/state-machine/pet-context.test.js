@@ -151,6 +151,21 @@ describe('PetContext', () => {
     assert.equal(seen[1].name, 'mcp__db__query');
   });
 
+  it('stamps projectPath on recorded events', () => {
+    // GIVEN
+    const seen = [];
+    const fakeStore = { append: (e) => { seen.push(e); } };
+    const ctx = new PetContext('proj', 'dog', { store: fakeStore, projectPath: '/home/user/proj' });
+
+    // WHEN
+    ctx.recordToolUsage('Skill', { skill: 'commit' });
+
+    // THEN
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].projectPath, '/home/user/proj');
+    assert.equal(ctx.getUsageEvents()[0].projectPath, '/home/user/proj');
+  });
+
   it('returns snapshot with expected shape', () => {
     // GIVEN
     sut.handleEvent('working_started');
