@@ -141,4 +141,33 @@ describe('UsageTracker', () => {
     assert.ok(tracker.sessionId);
     assert.ok(tracker.sessionId.length > 0);
   });
+
+  it('forwards each recorded event to the injected store', () => {
+    // GIVEN
+    const seen = [];
+    const fakeStore = { append: (e) => { seen.push(e); } };
+    const tracker = new UsageTracker({ sessionId: 'ts', store: fakeStore });
+
+    // WHEN
+    tracker.record('skill', 'commit');
+    tracker.record('mcp_tool', 'mcp__db__query');
+
+    // THEN
+    assert.equal(seen.length, 2);
+    assert.equal(seen[0].name, 'commit');
+    assert.equal(seen[1].name, 'mcp__db__query');
+    assert.equal(seen[0].sessionId, 'ts');
+  });
+
+  it('uses a no-op MemoryStore when no store is provided', () => {
+    // GIVEN
+    const tracker = new UsageTracker({ sessionId: 'ts' });
+
+    // WHEN — should not throw and should not require an explicit store
+    tracker.record('skill', 'commit');
+
+    // THEN
+    assert.equal(tracker.size, 1);
+    assert.ok(tracker.store, 'tracker should always have a store');
+  });
 });

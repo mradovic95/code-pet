@@ -355,6 +355,37 @@ describe('PetRegistry', () => {
     });
   });
 
+  describe('store wiring', () => {
+    it('forwards events recorded on a child PetContext to the registry store', () => {
+      // GIVEN
+      const seen = [];
+      const fakeStore = { append: (e) => { seen.push(e); } };
+      const reg = new PetRegistry({ store: fakeStore });
+
+      // WHEN
+      const pet = reg.getOrCreate('proj::1', 'proj', 'Project');
+      pet.recordToolUsage('Skill', { skill: 'commit' });
+
+      // THEN
+      assert.equal(seen.length, 1);
+      assert.equal(seen[0].name, 'commit');
+    });
+
+    it('setStore swaps the store for newly-created contexts', () => {
+      // GIVEN
+      const reg = new PetRegistry();
+      const seen = [];
+      reg.setStore({ append: (e) => { seen.push(e); } });
+
+      // WHEN
+      const pet = reg.getOrCreate('proj::1', 'proj', 'Project');
+      pet.recordToolUsage('Skill', { skill: 'commit' });
+
+      // THEN
+      assert.equal(seen.length, 1);
+    });
+  });
+
   describe('getSnapshot', () => {
     it('returns snapshot for all projects', () => {
       // GIVEN

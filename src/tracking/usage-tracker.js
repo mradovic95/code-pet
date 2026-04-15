@@ -2,14 +2,16 @@
 
 const { randomUUID } = require('crypto');
 const UsageEvent = require('./usage-event');
+const MemoryStore = require('./stores/memory-store');
 
 const DEFAULT_MAX_EVENTS = 2000;
 const EVICTION_FRACTION = 0.25;
 
 class UsageTracker {
-  constructor({ maxEvents = DEFAULT_MAX_EVENTS, sessionId } = {}) {
+  constructor({ maxEvents = DEFAULT_MAX_EVENTS, sessionId, store } = {}) {
     this.maxEvents = maxEvents;
     this.sessionId = sessionId || randomUUID();
+    this.store = store || new MemoryStore();
     this._events = [];
   }
 
@@ -20,6 +22,8 @@ class UsageTracker {
       const drop = Math.floor(this.maxEvents * EVICTION_FRACTION);
       this._events = this._events.slice(drop);
     }
+    // Fire-and-forget: store handles its own errors per the UsageStore contract.
+    this.store.append(event);
     return event;
   }
 

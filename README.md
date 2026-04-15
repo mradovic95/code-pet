@@ -87,6 +87,24 @@ never steals focus. Plan mode is auto-detected, and the pet stays put if a
 session ends while Claude is still working — it only tucks in when you're
 truly idle.
 
+## See what you actually use
+
+Code Pet keeps a private, local log of every skill and MCP tool you call,
+visible in **Settings → Usage** (double-click the pet). Find out:
+
+- which skills you reach for most often
+- which MCP servers you actually depend on (and which you forgot you installed)
+- a chronological log of every tool call this session
+
+<div align="center">
+<img src="./assets/docs/settings-usage.png" width="480" alt="Settings — Usage tab">
+</div>
+
+The data lives at `~/.code-pet/usage.log` (NDJSON, append-only) and never
+leaves your machine. Disable with `USAGE_STORE_TYPE=memory`. See
+[docs/usage-tracking.md](docs/usage-tracking.md) for the data format and
+a few `jq` recipes to query it.
+
 ## Requirements
 
 Node.js ≥ 18 · macOS / Linux / Windows · Claude Code with plugin support

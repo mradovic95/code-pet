@@ -133,6 +133,24 @@ describe('PetContext', () => {
     assert.equal(snap.skills['commit'], 1);
   });
 
+  it('forwards tool usage to the injected store', () => {
+    // GIVEN
+    const seen = [];
+    const fakeStore = { append: (e) => { seen.push(e); } };
+    const ctx = new PetContext('proj', 'dog', { store: fakeStore });
+
+    // WHEN
+    ctx.recordToolUsage('Skill', { skill: 'commit' });
+    ctx.recordToolUsage('mcp__db__query', {});
+
+    // THEN
+    assert.equal(seen.length, 2);
+    assert.equal(seen[0].type, 'skill');
+    assert.equal(seen[0].name, 'commit');
+    assert.equal(seen[1].type, 'mcp_tool');
+    assert.equal(seen[1].name, 'mcp__db__query');
+  });
+
   it('returns snapshot with expected shape', () => {
     // GIVEN
     sut.handleEvent('working_started');

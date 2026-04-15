@@ -227,6 +227,10 @@ function stopServer() {
   });
 }
 
+function setUsageStore(store) {
+  registry.setStore(store);
+}
+
 function setPetTypeForProject(projectPath, petType) {
   const sessions = registry.getSessionsForProject(projectPath);
   for (const sessionKey of sessions) {
@@ -243,6 +247,7 @@ module.exports = {
   startServer,
   stopServer,
   dispatchEvent,
+  setUsageStore,
   setPetTypeForProject,
   getSessionsForProject,
   getProjectsSnapshot: () => registry.getSnapshot(),

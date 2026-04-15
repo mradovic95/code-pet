@@ -57,6 +57,14 @@ src/
     settings.html            # Settings window UI (opened on double-click)
     settings.js              # Settings window logic
     settings.css             # Settings window styling
+  tracking/                  # Skill / MCP tool usage tracking (self-contained)
+    index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore
+    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId)
+    usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
+    usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
+    stores/
+      memory-store.js        # No-op store (default; used in tests)
+      filesystem-store.js    # NDJSON append-only at ~/.code-pet/usage.log (single-flight write queue)
 assets/sprites/              # Horizontal sprite strips (64×64px per frame)
 docs/
   hook-table.md              # Complete hook event → pet event → state matrix
@@ -86,6 +94,8 @@ Claude Code hooks (stdin JSON)
 ```
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
+
+**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill` and `mcp_tool` events. The tracker holds a ring buffer in memory *and* writes each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`), constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code changes. See `docs/usage-tracking.md` for the data format and operator reference.
 
 ## Marketplace Integration
 
@@ -176,8 +186,10 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - Renderer uses `contextIsolation: true`, `nodeIntegration: false`
 - Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
+- `USAGE_STORE_TYPE` env var selects the persistence backend (`filesystem` default, `memory` to disable). Skill / MCP events are appended to `~/.code-pet/usage.log` by default.
 - `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables it. Logging is off by default.
 - Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )
+- All runtime flags (sentinel files, env vars, config fields, tunable constants) are catalogued in `docs/feature-flags.md`
 
 ## Runtime State (all in `~/.code-pet/`)
 
@@ -193,6 +205,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
 | `license.json` | Activated license key, owned pets, validation timestamp |
 | `premium-pets/` | Downloaded premium pet assets (XOR-encrypted sprites + manifest) |
+| `usage.log` | Append-only NDJSON log of skill / MCP tool events. One JSON object per line. Grows unbounded by design (cross-session analytics). Disable with `USAGE_STORE_TYPE=memory`. |
 
 ## Testing
 
@@ -226,6 +239,9 @@ test/
     tracking/
       usage-event.test.js
       usage-tracker.test.js
+      usage-store.test.js
+      memory-store.test.js
+      filesystem-store.test.js
     pet-registry.test.js
     http-client.test.js
     marketplace-api.test.js

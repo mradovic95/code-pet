@@ -3,7 +3,7 @@
 const path = require('path');
 const { app } = require('electron');
 const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setSessionsForProjectFn, sendToRenderer } = require('./window-manager');
-const { startServer, stopServer, dispatchEvent, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession } = require('./event-server');
+const { startServer, stopServer, dispatchEvent, setUsageStore, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const PetCatalog = require('./pet-catalog');
 const settingsStore = require('./settings-store');
@@ -13,7 +13,11 @@ const MarketplaceCatalog = require('./marketplace-catalog');
 const { MockLicenseAPI } = require('./license-api');
 const { MarketplaceAPI } = require('./marketplace-api');
 const marketplaceConfig = require('./marketplace-config');
+const { createStore } = require('../tracking');
 const logger = require('./logger');
+
+// Persistent usage store — `USAGE_STORE_TYPE=memory` disables persistence.
+const usageStore = createStore({ type: process.env.USAGE_STORE_TYPE || 'filesystem' });
 
 // Linux transparency support
 if (process.platform === 'linux') {
@@ -31,6 +35,7 @@ if (!gotLock) {
     logger.info('App ready, starting up...');
 
     settingsStore.load();
+    setUsageStore(usageStore);
 
     // Initialize license system — use real API if configured, else mock
     const mpConfig = marketplaceConfig.load();
@@ -117,6 +122,12 @@ if (!gotLock) {
     logger.info('Shutting down...');
     closeSettingsWindow();
     await stopServer();
+    try {
+      await usageStore.flush();
+      await usageStore.close();
+    } catch (err) {
+      logger.warn(`Usage store shutdown failed: ${err.message}`);
+    }
     removePid();
   });
 }

@@ -4,16 +4,21 @@ const PetContext = require('./state-machine/pet-context');
 const settingsStore = require('./settings-store');
 
 class PetRegistry {
-  constructor() {
+  constructor({ store } = {}) {
     this._projects = new Map();          // Map<sessionKey, PetContext>
     this._projectSessions = new Map();   // Map<projectPath, Set<sessionKey>>
     this._cleanupTimer = null;
+    this._store = store || null;         // UsageStore — passed to each new PetContext
 
     // Callback hooks — wired by event-server.js
     this.onProjectAdded = null;   // (sessionKey, pet, count) => void
     this.onProjectRemoved = null; // (sessionKey, count) => void
     this.onLabelChanged = null;   // (sessionKey, newLabel) => void
     this.onEmpty = null;          // () => void
+  }
+
+  setStore(store) {
+    this._store = store;
   }
 
   static makeSessionKey(projectPath, claudePid) {
@@ -36,7 +41,7 @@ class PetRegistry {
       return pet;
     }
     const petType = settingsStore.getPetTypeForProject(projectPath);
-    const pet = new PetContext(projectName, petType);
+    const pet = new PetContext(projectName, petType, { store: this._store });
     pet.projectPath = projectPath;
     this._projects.set(sessionKey, pet);
 
