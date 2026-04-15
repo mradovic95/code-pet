@@ -3,6 +3,25 @@
 	"version": "0.1.0",
 	"description": "Animated desktop pet companion that reacts to Claude Code activity",
 	"main": "src/app/main.js",
+	"author": "mradovic95",
+	"license": "SEE LICENSE IN LICENSE",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/mradovic95/code-pet.git"
+	},
+	"homepage": "https://github.com/mradovic95/code-pet",
+	"bugs": {
+		"url": "https://github.com/mradovic95/code-pet/issues"
+	},
+	"keywords": [
+		"claude-code",
+		"plugin",
+		"desktop-pet",
+		"electron",
+		"animation",
+		"overlay",
+		"companion"
+	],
 	"scripts": {
 		"test": "node --test $(find test -name '*.test.js')",
 		"test:unit": "node --test $(find test/unit -name '*.test.js')",

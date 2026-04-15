@@ -2,6 +2,11 @@ node_modules/
 .code-pet/
 *.log
 
+# Art source files
+*.xcf
+*.psd
+*.aseprite
+
 # IDE
 .idea/
 .vscode/
