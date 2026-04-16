@@ -261,4 +261,14 @@ module.exports = {
     const pet = registry.get(sk);
     return pet ? pet.getUsageEvents() : [];
   },
+  getAllPersistedEvents: async () => {
+    const store = registry._store;
+    if (!store || typeof store.readAll !== 'function') return [];
+    try {
+      return await store.readAll();
+    } catch (err) {
+      logger.warn(`getAllPersistedEvents failed: ${err.message}`);
+      return [];
+    }
+  },
 };

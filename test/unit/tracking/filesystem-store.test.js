@@ -74,6 +74,23 @@ describe('FilesystemStore', () => {
     assert.equal(events[1].name, 'b');
   });
 
+  it('readAll preserves all UsageEvent fields (contract for settings UI)', async () => {
+    // GIVEN — an event with every field populated
+    const event = new UsageEvent('mcp_tool', 'mcp__db__query', 'abc-123', '/home/user/proj');
+    await sut.append(event);
+    await sut.flush();
+
+    // WHEN
+    const [read] = await sut.readAll();
+
+    // THEN — all 5 fields survive the NDJSON round-trip
+    assert.equal(read.type, 'mcp_tool');
+    assert.equal(read.name, 'mcp__db__query');
+    assert.equal(read.sessionId, 'abc-123');
+    assert.equal(read.projectPath, '/home/user/proj');
+    assert.equal(typeof read.timestamp, 'number');
+  });
+
   it('readAll filters by type', async () => {
     // GIVEN
     await sut.append(new UsageEvent('skill', 'a', 's'));

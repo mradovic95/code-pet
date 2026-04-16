@@ -288,19 +288,149 @@ function initLicenseActivation() {
 
 // --- Usage Tab ---
 
-function renderUsageTab() {
-  const usage = window.codePetSettings.getToolUsage();
-  renderUsageList('mcp-usage-list', usage.mcp, 'No MCP tool usage yet');
-  renderUsageList('skill-usage-list', usage.skills, 'No skill usage yet');
-  renderEventLog();
+let _allEvents = [];              // full event list read from usage.log
+let _filtersWired = false;        // event listeners attached once
+let _lastProjectFilter = '';      // track project changes to reset session dropdown
+
+function basename(p) {
+  if (!p) return '(unknown)';
+  const idx = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+  return idx >= 0 ? p.slice(idx + 1) : p;
 }
 
-function renderEventLog() {
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+async function renderUsageTab() {
+  try {
+    _allEvents = await window.codePetSettings.getAllUsageEvents();
+  } catch {
+    _allEvents = [];
+  }
+  if (!Array.isArray(_allEvents)) _allEvents = [];
+
+  populateProjectOptions();
+  populateSessionOptions('');
+  _lastProjectFilter = '';
+
+  if (!_filtersWired) {
+    document.getElementById('filter-project').addEventListener('change', applyFilters);
+    document.getElementById('filter-session').addEventListener('change', applyFilters);
+    _filtersWired = true;
+  }
+
+  applyFilters();
+}
+
+function populateProjectOptions() {
+  const select = document.getElementById('filter-project');
+  // Keep "All projects" (first option); rebuild the rest.
+  const seen = new Set();
+  const entries = [];
+  for (const evt of _allEvents) {
+    const p = evt.projectPath || '';
+    if (!p || seen.has(p)) continue;
+    seen.add(p);
+    entries.push({ path: p, label: basename(p) });
+  }
+  entries.sort((a, b) => a.label.localeCompare(b.label));
+
+  // Preserve current selection if still present after rebuild.
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">All projects</option>';
+  for (const e of entries) {
+    const opt = document.createElement('option');
+    opt.value = e.path;
+    opt.textContent = e.label;
+    select.appendChild(opt);
+  }
+  if (currentVal && entries.some(e => e.path === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+function populateSessionOptions(projectFilter) {
+  const select = document.getElementById('filter-session');
+  // Deduplicate sessions; compute earliest timestamp per session.
+  const sessionMap = new Map();
+  for (const evt of _allEvents) {
+    if (!evt.sessionId) continue;
+    if (projectFilter && evt.projectPath !== projectFilter) continue;
+    const existing = sessionMap.get(evt.sessionId);
+    if (!existing) {
+      sessionMap.set(evt.sessionId, {
+        sessionId: evt.sessionId,
+        projectPath: evt.projectPath || '',
+        firstTs: evt.timestamp,
+      });
+    } else if (evt.timestamp < existing.firstTs) {
+      existing.firstTs = evt.timestamp;
+    }
+  }
+
+  const sessions = [...sessionMap.values()].sort((a, b) => b.firstTs - a.firstTs);
+
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">All sessions</option>';
+  for (const s of sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.sessionId;
+    opt.textContent = `${basename(s.projectPath)} — ${formatTime(s.firstTs)}`;
+    select.appendChild(opt);
+  }
+  // Only keep prior session selection if it still exists under the new project filter.
+  if (currentVal && sessions.some(s => s.sessionId === currentVal)) {
+    select.value = currentVal;
+  } else {
+    select.value = '';
+  }
+}
+
+function applyFilters() {
+  const projectVal = document.getElementById('filter-project').value;
+  const sessionVal = document.getElementById('filter-session').value;
+
+  // If project changed, rebuild session dropdown (narrowed to that project).
+  if (projectVal !== _lastProjectFilter) {
+    populateSessionOptions(projectVal);
+    _lastProjectFilter = projectVal;
+  }
+
+  const sessionAfter = document.getElementById('filter-session').value;
+
+  const filtered = _allEvents.filter((e) => {
+    if (projectVal && e.projectPath !== projectVal) return false;
+    if (sessionAfter && e.sessionId !== sessionAfter) return false;
+    return true;
+  });
+
+  const mcpCounts = {};
+  const skillCounts = {};
+  for (const e of filtered) {
+    if (e.type === 'mcp_tool') {
+      mcpCounts[e.name] = (mcpCounts[e.name] || 0) + 1;
+    } else if (e.type === 'skill') {
+      skillCounts[e.name] = (skillCounts[e.name] || 0) + 1;
+    }
+  }
+
+  const hasAnyFilter = Boolean(projectVal || sessionAfter);
+  const emptyEventsMsg = hasAnyFilter ? 'No events match current filters' : 'No events yet';
+  const emptyMcpMsg = hasAnyFilter ? 'No MCP tool usage for this filter' : 'No MCP tool usage yet';
+  const emptySkillsMsg = hasAnyFilter ? 'No skill usage for this filter' : 'No skill usage yet';
+
+  renderEventLog(filtered, emptyEventsMsg);
+  renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
+  renderUsageList('skill-usage-list', skillCounts, emptySkillsMsg);
+}
+
+function renderEventLog(events, emptyMsg) {
   const container = document.getElementById('event-log');
-  const events = window.codePetSettings.getToolEvents();
 
   if (!events || events.length === 0) {
-    container.innerHTML = '<div class="usage-empty">No events yet</div>';
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No events yet'}</div>`;
     return;
   }
 

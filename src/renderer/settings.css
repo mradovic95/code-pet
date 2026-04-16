@@ -455,3 +455,40 @@ body {
   margin-left: 12px;
   flex-shrink: 0;
 }
+
+/* --- Usage filters --- */
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: #a6adc8;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.filter-select {
+  flex: 1;
+  padding: 5px 8px;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 6px;
+  color: #cdd6f4;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  border-color: #89b4fa;
+}

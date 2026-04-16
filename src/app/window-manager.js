@@ -23,6 +23,7 @@ let catalogFn = null;
 let setPetTypeForProjectFn = null;
 let getToolUsageFn = null;
 let getToolEventsFn = null;
+let getAllUsageEventsFn = null;
 let getSessionsForProjectFn = null;
 let currentSettingsSessionKey = null;
 let currentSettingsProjectPath = null;
@@ -112,6 +113,16 @@ ipcMain.on('get-tool-events', (event) => {
     event.returnValue = getToolEventsFn(currentSettingsSessionKey);
   } else {
     event.returnValue = [];
+  }
+});
+
+ipcMain.handle('get-all-usage-events', async () => {
+  if (!getAllUsageEventsFn) return [];
+  try {
+    return await getAllUsageEventsFn();
+  } catch (err) {
+    logger.warn(`get-all-usage-events handler failed: ${err.message}`);
+    return [];
   }
 });
 
@@ -393,6 +404,10 @@ function setToolEventsFn(fn) {
   getToolEventsFn = fn;
 }
 
+function setAllUsageEventsFn(fn) {
+  getAllUsageEventsFn = fn;
+}
+
 function setSessionsForProjectFn(fn) {
   getSessionsForProjectFn = fn;
 }
@@ -493,6 +508,7 @@ module.exports = {
   setLicenseApiFn,
   setToolUsageFn,
   setToolEventsFn,
+  setAllUsageEventsFn,
   setSessionsForProjectFn,
   closeSettingsWindow,
 };
