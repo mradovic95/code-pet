@@ -138,6 +138,18 @@ ipcMain.on('set-sound-enabled-for-state', (_event, { state, enabled }) => {
   logger.info(`Sound for ${state}: ${enabled ? 'enabled' : 'disabled'}`);
 });
 
+ipcMain.on('get-version', (event) => {
+  const pkg = require('../../package.json');
+  event.returnValue = pkg.version;
+});
+
+ipcMain.on('open-external', (_event, url) => {
+  if (typeof url === 'string' && url.startsWith('https://')) {
+    const { shell } = require('electron');
+    shell.openExternal(url);
+  }
+});
+
 ipcMain.on('set-pet-type', (_event, petType) => {
   const settingsStore = require('./settings-store');
   if (currentSettingsProjectPath) {
@@ -439,8 +451,8 @@ function createSettingsWindow() {
   }
 
   const overlayBounds = overlayWindow ? overlayWindow.getBounds() : null;
-  const settingsWidth = 320;
-  const settingsHeight = 620;
+  const settingsWidth = 480;
+  const settingsHeight = 680;
 
   let x, y;
   if (overlayBounds) {

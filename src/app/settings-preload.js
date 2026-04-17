@@ -22,4 +22,7 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   getMarketplaceCatalog: () => ipcRenderer.invoke('get-marketplace-catalog'),
   purchasePet: (petId) => ipcRenderer.invoke('purchase-pet', petId),
   pollPaymentStatus: (token) => ipcRenderer.invoke('poll-payment-status', token),
+  // About
+  getVersion: () => ipcRenderer.sendSync('get-version'),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
 });

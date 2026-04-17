@@ -32,8 +32,18 @@ async function init() {
     window.codePetSettings.close();
   });
 
-  document.getElementById('dismiss-btn').addEventListener('click', () => {
+  const dismissBtn = document.getElementById('dismiss-btn');
+  const dismissConfirm = document.getElementById('dismiss-confirm');
+  dismissBtn.addEventListener('click', () => {
+    dismissBtn.style.display = 'none';
+    dismissConfirm.style.display = '';
+  });
+  document.getElementById('dismiss-yes').addEventListener('click', () => {
     window.codePetSettings.dismissProject();
+  });
+  document.getElementById('dismiss-no').addEventListener('click', () => {
+    dismissConfirm.style.display = 'none';
+    dismissBtn.style.display = '';
   });
 
   // --- Sound toggles ---
@@ -50,6 +60,11 @@ async function init() {
     window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
   });
 
+  // --- Sound preview buttons ---
+
+  wireSoundPreview('preview-idle', 'idle');
+  wireSoundPreview('preview-waiting', 'waiting_for_action');
+
   // --- Store tab feature flag ---
 
   if (FEATURE_FLAGS.STORE_TAB) {
@@ -61,24 +76,76 @@ async function init() {
     document.getElementById('tab-btn-usage').style.display = '';
   }
 
-  // --- Tabs ---
+  // --- Tabs (with fade transition) ---
+
+  const TAB_IDS = ['tab-general', 'tab-store', 'tab-usage'];
+  let _activeTabId = 'tab-general';
+  let _tabTransitioning = false;
 
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
+      const target = 'tab-' + tab.dataset.tab;
+      if (target === _activeTabId || _tabTransitioning) return;
+      _tabTransitioning = true;
+
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      const target = tab.dataset.tab;
-      document.getElementById('tab-general').style.display = target === 'general' ? '' : 'none';
-      document.getElementById('tab-store').style.display = target === 'store' ? '' : 'none';
-      document.getElementById('tab-usage').style.display = target === 'usage' ? '' : 'none';
-      if (target === 'usage') renderUsageTab();
-      if (target === 'store') renderMarketplace();
+
+      const oldEl = document.getElementById(_activeTabId);
+      const newEl = document.getElementById(target);
+
+      // Fade out current tab
+      oldEl.classList.add('fading');
+      setTimeout(() => {
+        oldEl.style.display = 'none';
+        oldEl.classList.remove('fading');
+
+        // Show new tab (start invisible, then fade in)
+        newEl.style.display = '';
+        newEl.classList.add('fading');
+        _activeTabId = target;
+
+        // Trigger lazy loads before fade-in
+        if (tab.dataset.tab === 'usage') renderUsageTab();
+        if (tab.dataset.tab === 'store') renderMarketplace();
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            newEl.classList.remove('fading');
+            _tabTransitioning = false;
+          });
+        });
+      }, 120);
     });
+  });
+
+  // --- Footer ---
+
+  document.getElementById('version-text').textContent = `v${window.codePetSettings.getVersion()}`;
+  document.getElementById('github-link').addEventListener('click', () => {
+    window.codePetSettings.openExternal('https://github.com/mradovic95/code-pet');
   });
 
   // --- Render initial tab ---
 
   renderPetSelector();
+}
+
+// --- Sound Preview ---
+
+function wireSoundPreview(buttonId, soundState) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const petType = window.codePetSettings.getCurrentPetType();
+    const catalog = window.codePetSettings.getPetCatalog();
+    const pet = catalog.find(p => p.id === petType);
+    if (!pet || !pet.sounds || !pet.sounds[soundState]) return;
+    const audio = new Audio(`../../assets/pets/${petType}/${pet.sounds[soundState]}`);
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  });
 }
 
 // --- Pet Selector (free + owned premium) ---
@@ -122,8 +189,11 @@ function renderPetSelector() {
 
     card.addEventListener('click', () => {
       window.codePetSettings.setPetType(pet.id);
-      container.querySelectorAll('.pet-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
+      container.querySelectorAll('.pet-card').forEach(c => {
+        c.classList.remove('selected', 'just-selected');
+      });
+      card.classList.add('selected', 'just-selected');
+      setTimeout(() => card.classList.remove('just-selected'), 400);
     });
 
     container.appendChild(card);
@@ -289,8 +359,11 @@ function initLicenseActivation() {
 // --- Usage Tab ---
 
 let _allEvents = [];              // full event list read from usage.log
+let _filteredEvents = [];         // last filtered result (for CSV export)
 let _filtersWired = false;        // event listeners attached once
 let _lastProjectFilter = '';      // track project changes to reset session dropdown
+let _eventPage = 0;               // current page in event log
+const EVENT_PAGE_SIZE = 50;
 
 function basename(p) {
   if (!p) return '(unknown)';
@@ -316,8 +389,17 @@ async function renderUsageTab() {
   _lastProjectFilter = '';
 
   if (!_filtersWired) {
+    document.getElementById('filter-date-range').addEventListener('change', applyFilters);
     document.getElementById('filter-project').addEventListener('change', applyFilters);
     document.getElementById('filter-session').addEventListener('change', applyFilters);
+    document.getElementById('export-csv-btn').addEventListener('click', exportCsv);
+    document.getElementById('page-prev').addEventListener('click', () => {
+      if (_eventPage > 0) { _eventPage--; renderEventLog(_filteredEvents); }
+    });
+    document.getElementById('page-next').addEventListener('click', () => {
+      _eventPage++;
+      renderEventLog(_filteredEvents);
+    });
     _filtersWired = true;
   }
 
@@ -388,7 +470,39 @@ function populateSessionOptions(projectFilter) {
   }
 }
 
+function getMinTimestamp(rangeValue) {
+  if (!rangeValue) return 0;
+  if (rangeValue === 'today') return new Date().setHours(0, 0, 0, 0);
+  if (rangeValue === '7d') return Date.now() - 7 * 86400000;
+  if (rangeValue === '30d') return Date.now() - 30 * 86400000;
+  return 0;
+}
+
+function exportCsv() {
+  const rows = [['timestamp', 'type', 'name', 'project', 'session']];
+  const sorted = _filteredEvents.slice().sort((a, b) => b.timestamp - a.timestamp);
+  for (const e of sorted) {
+    rows.push([
+      new Date(e.timestamp).toISOString(),
+      e.type || '',
+      e.name || '',
+      basename(e.projectPath),
+      e.sessionId || '',
+    ]);
+  }
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const btn = document.getElementById('export-csv-btn');
+  navigator.clipboard.writeText(csv).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy CSV'; }, 1500);
+  }).catch(() => {
+    btn.textContent = 'Failed';
+    setTimeout(() => { btn.textContent = 'Copy CSV'; }, 1500);
+  });
+}
+
 function applyFilters() {
+  const dateRangeVal = document.getElementById('filter-date-range').value;
   const projectVal = document.getElementById('filter-project').value;
   const sessionVal = document.getElementById('filter-session').value;
 
@@ -399,8 +513,10 @@ function applyFilters() {
   }
 
   const sessionAfter = document.getElementById('filter-session').value;
+  const minTs = getMinTimestamp(dateRangeVal);
 
   const filtered = _allEvents.filter((e) => {
+    if (minTs && e.timestamp < minTs) return false;
     if (projectVal && e.projectPath !== projectVal) return false;
     if (sessionAfter && e.sessionId !== sessionAfter) return false;
     return true;
@@ -416,10 +532,13 @@ function applyFilters() {
     }
   }
 
-  const hasAnyFilter = Boolean(projectVal || sessionAfter);
+  const hasAnyFilter = Boolean(dateRangeVal || projectVal || sessionAfter);
   const emptyEventsMsg = hasAnyFilter ? 'No events match current filters' : 'No events yet';
   const emptyMcpMsg = hasAnyFilter ? 'No MCP tool usage for this filter' : 'No MCP tool usage yet';
   const emptySkillsMsg = hasAnyFilter ? 'No skill usage for this filter' : 'No skill usage yet';
+
+  _filteredEvents = filtered;
+  _eventPage = 0;
 
   renderEventLog(filtered, emptyEventsMsg);
   renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
@@ -428,24 +547,34 @@ function applyFilters() {
 
 function renderEventLog(events, emptyMsg) {
   const container = document.getElementById('event-log');
+  const paginationEl = document.getElementById('event-pagination');
 
   if (!events || events.length === 0) {
     container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No events yet'}</div>`;
+    if (paginationEl) paginationEl.style.display = 'none';
     return;
   }
 
-  container.innerHTML = '';
   // Newest first
   const sorted = events.slice().sort((a, b) => b.timestamp - a.timestamp);
+  const totalPages = Math.ceil(sorted.length / EVENT_PAGE_SIZE);
+  if (_eventPage >= totalPages) _eventPage = totalPages - 1;
+  const start = _eventPage * EVENT_PAGE_SIZE;
+  const page = sorted.slice(start, start + EVENT_PAGE_SIZE);
 
-  for (const evt of sorted) {
+  container.innerHTML = '';
+  for (const evt of page) {
     const row = document.createElement('div');
     row.className = 'event-row';
 
     const timeEl = document.createElement('span');
     timeEl.className = 'event-timestamp';
     const d = new Date(evt.timestamp);
-    timeEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(2);
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    timeEl.textContent = `${dd}.${mm}.${yy} ${time}`;
 
     const badge = document.createElement('span');
     badge.className = 'event-type-badge ' + (evt.type === 'mcp_tool' ? 'badge-mcp' : 'badge-skill');
@@ -460,6 +589,18 @@ function renderEventLog(events, emptyMsg) {
     row.appendChild(badge);
     row.appendChild(nameEl);
     container.appendChild(row);
+  }
+
+  // Pagination controls
+  if (paginationEl) {
+    if (totalPages <= 1) {
+      paginationEl.style.display = 'none';
+    } else {
+      paginationEl.style.display = '';
+      document.getElementById('page-prev').disabled = _eventPage === 0;
+      document.getElementById('page-next').disabled = _eventPage >= totalPages - 1;
+      document.getElementById('page-info').textContent = `${_eventPage + 1} / ${totalPages}`;
+    }
   }
 }
 
