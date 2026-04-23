@@ -38,19 +38,18 @@ describe('MarketplaceAPI', () => {
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     port = server.address().port;
 
-    // Preserve existing product map
     productMapExisted = fs.existsSync(PRODUCT_MAP_FILE);
     if (productMapExisted) {
       originalProductMap = fs.readFileSync(PRODUCT_MAP_FILE, 'utf8');
+    } else if (fs.existsSync(PRODUCT_MAP_FILE)) {
+      fs.unlinkSync(PRODUCT_MAP_FILE);
     }
 
-    // Clear require cache
     delete require.cache[require.resolve('../../src/app/marketplace-api')];
   });
 
   afterEach(async () => {
     await new Promise((resolve) => server.close(resolve));
-    // Restore product map
     if (productMapExisted) {
       fs.writeFileSync(PRODUCT_MAP_FILE, originalProductMap);
     } else if (fs.existsSync(PRODUCT_MAP_FILE)) {
@@ -62,7 +61,6 @@ describe('MarketplaceAPI', () => {
     const { MarketplaceAPI } = require('../../src/app/marketplace-api');
     return new MarketplaceAPI({
       baseUrl: `http://127.0.0.1:${port}`,
-      apiKey: 'test-api-key',
       marketplaceId: 1,
     });
   }
@@ -92,6 +90,64 @@ describe('MarketplaceAPI', () => {
       assert.equal(catalog[1].id, 'cat');
       assert.equal(catalog[1].price, 'Free');
       assert.equal(catalog[1].tier, 'free');
+    });
+
+    it('resolves relative thumbnailUrl and previewUrl against baseUrl', async () => {
+      // GIVEN
+      routes['GET /api/v1/products'] = (_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([
+          {
+            id: 10, name: 'Dragon', description: '', tier: 'PREMIUM', priceCents: 299,
+            thumbnailUrl: '/api/v1/products/10/thumbnail',
+            previewUrl: 'https://cdn.example.com/preview.gif',
+          },
+        ]));
+      };
+      const sut = createSut();
+
+      // WHEN
+      const catalog = await sut.getCatalog();
+
+      // THEN
+      assert.equal(catalog[0].thumbnailUrl, `http://127.0.0.1:${port}/api/v1/products/10/thumbnail`);
+      assert.equal(catalog[0].previewUrl, 'https://cdn.example.com/preview.gif');
+    });
+
+    it('leaves thumbnailUrl null when absent', async () => {
+      // GIVEN
+      routes['GET /api/v1/products'] = (_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([
+          { id: 10, name: 'Dragon', description: '', tier: 'PREMIUM', priceCents: 299 },
+        ]));
+      };
+      const sut = createSut();
+
+      // WHEN
+      const catalog = await sut.getCatalog();
+
+      // THEN
+      assert.equal(catalog[0].thumbnailUrl, null);
+      assert.equal(catalog[0].previewUrl, null);
+    });
+
+    it('passes marketplaceId as query param', async () => {
+      // GIVEN
+      let receivedUrl;
+      routes['GET /api/v1/products'] = (req, res) => {
+        receivedUrl = req.url;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('[]');
+      };
+      const sut = createSut();
+
+      // WHEN
+      await sut.getCatalog();
+
+      // THEN
+      assert.ok(receivedUrl.includes('marketplaceId=1'), `Expected marketplaceId=1 in ${receivedUrl}`);
+      assert.ok(receivedUrl.includes('status=ACTIVE'));
     });
 
     it('builds product ID to pet ID map', async () => {
@@ -164,7 +220,7 @@ describe('MarketplaceAPI', () => {
   });
 
   describe('purchase', () => {
-    it('returns license key for free product', async () => {
+    it('returns license key for free product and sends buyerEmail', async () => {
       // GIVEN
       routes['GET /api/v1/products'] = (_req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -172,7 +228,9 @@ describe('MarketplaceAPI', () => {
           { id: 20, name: 'Cat', description: '', tier: 'FREE', priceCents: 0 },
         ]));
       };
-      routes['POST /api/v1/products/20/purchases'] = (_req, res) => {
+      let purchaseBody;
+      routes['POST /api/v1/products/20/purchases'] = (_req, res, body) => {
+        purchaseBody = JSON.parse(body);
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ purchaseId: 1, licenseKey: 'ABCD-EFGH-IJKL-MNOP', paymentUrl: null }));
       };
@@ -180,11 +238,62 @@ describe('MarketplaceAPI', () => {
       await sut.getCatalog();
 
       // WHEN
-      const result = await sut.purchase('cat');
+      const result = await sut.purchase('cat', 'buyer@example.com');
 
       // THEN
       assert.equal(result.success, true);
       assert.equal(result.licenseKey, 'ABCD-EFGH-IJKL-MNOP');
+      assert.deepEqual(purchaseBody, { buyerEmail: 'buyer@example.com' });
+    });
+
+    it('trims whitespace from buyerEmail', async () => {
+      // GIVEN
+      routes['GET /api/v1/products'] = (_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([
+          { id: 20, name: 'Cat', description: '', tier: 'FREE', priceCents: 0 },
+        ]));
+      };
+      let purchaseBody;
+      routes['POST /api/v1/products/20/purchases'] = (_req, res, body) => {
+        purchaseBody = JSON.parse(body);
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ purchaseId: 1, licenseKey: 'KEY-123' }));
+      };
+      const sut = createSut();
+      await sut.getCatalog();
+
+      // WHEN
+      await sut.purchase('cat', '  buyer@example.com  ');
+
+      // THEN
+      assert.deepEqual(purchaseBody, { buyerEmail: 'buyer@example.com' });
+    });
+
+    it('returns error and skips HTTP when buyerEmail missing', async () => {
+      // GIVEN
+      routes['GET /api/v1/products'] = (_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([
+          { id: 20, name: 'Cat', description: '', tier: 'FREE', priceCents: 0 },
+        ]));
+      };
+      let purchaseCalled = false;
+      routes['POST /api/v1/products/20/purchases'] = (_req, res) => {
+        purchaseCalled = true;
+        res.writeHead(201);
+        res.end('{}');
+      };
+      const sut = createSut();
+      await sut.getCatalog();
+
+      // WHEN
+      const result = await sut.purchase('cat', '');
+
+      // THEN
+      assert.equal(result.success, false);
+      assert.match(result.error, /buyerEmail/);
+      assert.equal(purchaseCalled, false);
     });
 
     it('returns payment URL for premium product', async () => {
@@ -207,12 +316,11 @@ describe('MarketplaceAPI', () => {
       await sut.getCatalog();
 
       // WHEN
-      const result = await sut.purchase('dragon');
+      const result = await sut.purchase('dragon', 'buyer@example.com');
 
       // THEN
       assert.equal(result.success, true);
       assert.equal(result.licenseKey, null);
-      assert.equal(result.paymentPending, undefined); // that's added by window-manager
       assert.equal(result.paymentToken, 'PAY-TOKEN-123');
       assert.ok(result.paymentUrl.includes('paypal.com'));
     });
@@ -252,6 +360,23 @@ describe('MarketplaceAPI', () => {
       // THEN
       assert.ok(Buffer.isBuffer(result));
       assert.deepEqual(result, pngData);
+    });
+
+    it('sends X-License-Key header', async () => {
+      // GIVEN
+      let receivedHeader;
+      routes['GET /api/v1/products/10/assets/idle.png'] = (req, res) => {
+        receivedHeader = req.headers['x-license-key'];
+        res.writeHead(200, { 'Content-Type': 'image/png' });
+        res.end(Buffer.from([0x01]));
+      };
+      const sut = createSut();
+
+      // WHEN
+      await sut.downloadAsset(10, 'idle.png', 'LICENSE-ABC-123');
+
+      // THEN
+      assert.equal(receivedHeader, 'LICENSE-ABC-123');
     });
   });
 });

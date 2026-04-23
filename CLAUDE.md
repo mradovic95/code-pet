@@ -99,40 +99,48 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 ## Marketplace Integration
 
-Premium pets are purchased and downloaded from a real marketplace backend. The system supports two modes:
+Premium pets are purchased and downloaded from the deployed marketplace module (Spring Boot API backed by AWS API Gateway + EC2). Defaults live in `src/app/marketplace-constants.js` — `DEFAULT_BASE_URL` and `DEFAULT_MARKETPLACE_ID = 1`.
 
-- **Mock mode** (default): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Active when no API key is configured.
-- **Real mode**: `MarketplaceAPI` calls the marketplace REST API. Active when `~/.code-pet/marketplace.json` has an `apiKey`.
+- **Real mode** (default): `MarketplaceAPI` calls the deployed REST API. No configuration required out of the box.
+- **Mock mode** (dev only): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Activate by setting `MARKETPLACE_MOCK=true`.
 
 ```
 Settings UI (Buy button)
-  → IPC: purchase-pet
-    → MarketplaceAPI.purchase(petId)
-      → POST /api/v1/products/{productId}/purchases
-        → FREE: license key returned immediately
+  → buyer email collected (stored in settings.json under "buyerEmail")
+  → IPC: purchase-pet { petId, buyerEmail }
+    → MarketplaceAPI.purchase(petId, buyerEmail)
+      → POST /api/v1/products/{productId}/purchases { buyerEmail }
+        → FREE: license key returned immediately (also emailed to buyer)
         → PREMIUM: PayPal URL returned → shell.openExternal() → user pays
           → IPC: poll-payment-status → GET /purchases/payment-success?token=...
             → license key returned
   → IPC: activate-license
-    → LicenseManager.activate(key) → POST /api/v1/licenses/{key}/activations
+    → LicenseManager.activate(key) → POST /api/v1/licenses/{key}/activations { machineId }
     → PremiumStore.download(petId, key, api, productId)
-      → GET /api/v1/products/{productId}/assets/{filename} (per sprite file)
+      → GET /api/v1/products/{productId}/assets/manifest.json (header: X-License-Key)
+      → GET /api/v1/products/{productId}/assets/{filename} (header: X-License-Key)
       → XOR-encrypt + write to ~/.code-pet/premium-pets/{petId}/
     → IPC: premium-sprites → renderer injects data: URIs into CSS
 ```
 
-**Configuration** (`~/.code-pet/marketplace.json`):
+**Configuration** (all optional, overrides the defaults in `marketplace-constants.js`):
+
+`~/.code-pet/marketplace.json`:
 ```json
 {
   "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
-  "apiKey": "your-api-key",
-  "marketplaceId": 1
+  "marketplaceId": 1,
+  "jwtToken": null
 }
 ```
 
-Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_API_KEY`, `MARKETPLACE_ID`.
+Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_ID`, `MARKETPLACE_MOCK`.
 
-**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response (product name lowercased) and cached to `~/.code-pet/product-map.json`.
+**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response — `petId = product.name.toLowerCase().replace(/\s+/g, '-')` — and cached to `~/.code-pet/product-map.json`. **Sellers must name products predictably** for this to round-trip.
+
+**Asset manifest convention**: Each product has a `manifest.json` asset listing sprite filenames. The client fetches `manifest.json` first, then each referenced sprite. Sellers are responsible for uploading both. Asset downloads are gated by `X-License-Key` (not `Authorization: Bearer`).
+
+**Stale mock key recovery**: if `~/.code-pet/license.json` contains a key starting with `MOCK-` while running in real mode, the file is cleared on startup (logged as a warning). Prevents confusion when a dev toggles off mock mode.
 
 ## Events and States
 

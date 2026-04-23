@@ -202,6 +202,117 @@ function renderPetSelector() {
 
 // --- Marketplace ---
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function renderEmailBanner(section) {
+  let banner = section.querySelector('.buyer-email-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.className = 'buyer-email-banner';
+    const title = section.querySelector('.section-title');
+    if (title && title.nextSibling) {
+      section.insertBefore(banner, title.nextSibling);
+    } else {
+      section.insertBefore(banner, section.firstChild);
+    }
+  }
+  const email = window.codePetSettings.getBuyerEmail();
+  banner.innerHTML = '';
+  const label = document.createElement('span');
+  label.className = 'buyer-email-label';
+  label.textContent = email
+    ? `License key will be emailed to ${email}`
+    : 'We will email the license key — click to set address.';
+  const link = document.createElement('a');
+  link.href = '#';
+  link.className = 'buyer-email-change';
+  link.textContent = email ? 'Change' : 'Set email';
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    promptForBannerEmail(banner, email);
+  });
+  banner.appendChild(label);
+  banner.appendChild(link);
+}
+
+function promptForBannerEmail(banner, currentEmail) {
+  banner.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'email';
+  input.className = 'buyer-email-input';
+  input.placeholder = 'you@example.com';
+  input.value = currentEmail || '';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'buyer-email-save';
+  saveBtn.textContent = 'Save';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'buyer-email-cancel';
+  cancelBtn.textContent = 'Cancel';
+  const finish = () => {
+    const section = banner.parentElement;
+    if (section) renderEmailBanner(section);
+  };
+  saveBtn.addEventListener('click', async () => {
+    const value = input.value.trim();
+    if (!EMAIL_REGEX.test(value)) {
+      input.classList.add('invalid');
+      return;
+    }
+    await window.codePetSettings.setBuyerEmail(value);
+    finish();
+  });
+  cancelBtn.addEventListener('click', finish);
+  banner.appendChild(input);
+  banner.appendChild(saveBtn);
+  banner.appendChild(cancelBtn);
+  input.focus();
+}
+
+async function ensureBuyerEmail(buyBtn) {
+  const existing = window.codePetSettings.getBuyerEmail();
+  if (existing && EMAIL_REGEX.test(existing)) return existing;
+
+  return new Promise((resolve) => {
+    const actionsEl = buyBtn.parentElement;
+    const card = actionsEl.closest('.marketplace-card') || actionsEl;
+    buyBtn.style.display = 'none';
+    const row = document.createElement('div');
+    row.className = 'buyer-email-inline';
+    const input = document.createElement('input');
+    input.type = 'email';
+    input.className = 'buyer-email-input';
+    input.placeholder = 'email for license';
+    const confirm = document.createElement('button');
+    confirm.className = 'buyer-email-save';
+    confirm.textContent = 'OK';
+    const cancel = document.createElement('button');
+    cancel.className = 'buyer-email-cancel';
+    cancel.textContent = 'x';
+    const cleanup = (email) => {
+      row.remove();
+      buyBtn.style.display = '';
+      resolve(email);
+    };
+    confirm.addEventListener('click', async () => {
+      const value = input.value.trim();
+      if (!EMAIL_REGEX.test(value)) {
+        input.classList.add('invalid');
+        return;
+      }
+      await window.codePetSettings.setBuyerEmail(value);
+      const section = document.getElementById('marketplace-section');
+      if (section) renderEmailBanner(section);
+      cleanup(value);
+    });
+    cancel.addEventListener('click', () => cleanup(null));
+    row.appendChild(input);
+    row.appendChild(confirm);
+    row.appendChild(cancel);
+    card.appendChild(row);
+    input.focus();
+  });
+}
+
 async function renderMarketplace() {
   const section = document.getElementById('marketplace-section');
   const grid = document.getElementById('marketplace-grid');
@@ -218,47 +329,68 @@ async function renderMarketplace() {
 
   const ownedPets = new Set(licenseStatus.ownedPets || []);
 
-  // Filter to only show premium pets not yet owned
-  const available = catalog.filter(p => p.tier === 'premium' && !ownedPets.has(p.id));
+  const available = catalog.filter(p => !ownedPets.has(p.id));
 
   if (available.length === 0 && ownedPets.size === 0) {
-    // No premium pets at all — hide section
     section.style.display = 'none';
     return;
   }
 
   section.style.display = '';
+  renderEmailBanner(section);
   grid.innerHTML = '';
 
-  for (const pet of catalog.filter(p => p.tier === 'premium')) {
+  for (const pet of catalog) {
+    const buyLabel = pet.tier === 'free' ? 'Claim' : 'Buy';
     const owned = ownedPets.has(pet.id);
     const card = document.createElement('div');
     card.className = 'marketplace-card' + (owned ? ' owned' : '');
 
     const preview = document.createElement('div');
     preview.className = 'marketplace-preview';
+    if (pet.thumbnailUrl) {
+      const img = document.createElement('img');
+      img.className = 'marketplace-thumb';
+      img.alt = pet.name;
+      img.src = pet.thumbnailUrl;
+      img.addEventListener('error', () => img.remove());
+      preview.appendChild(img);
+    }
 
     const lockBadge = document.createElement('div');
     lockBadge.className = owned ? 'badge-owned' : 'badge-locked';
     lockBadge.textContent = owned ? '\u2713' : '\uD83D\uDD12';
 
+    const body = document.createElement('div');
+    body.className = 'marketplace-body';
+
     const nameEl = document.createElement('div');
     nameEl.className = 'marketplace-name';
     nameEl.textContent = pet.name;
+    body.appendChild(nameEl);
+
+    if (pet.description) {
+      const descEl = document.createElement('div');
+      descEl.className = 'marketplace-description';
+      descEl.textContent = pet.description;
+      body.appendChild(descEl);
+    }
 
     const priceEl = document.createElement('div');
     priceEl.className = 'marketplace-price';
-    priceEl.textContent = owned ? 'Owned' : pet.price;
+    priceEl.textContent = owned ? 'Owned' : (pet.tier === 'free' ? 'Free' : pet.price);
+    body.appendChild(priceEl);
 
     card.appendChild(preview);
     card.appendChild(lockBadge);
-    card.appendChild(nameEl);
-    card.appendChild(priceEl);
+    card.appendChild(body);
 
     if (!owned) {
+      const actions = document.createElement('div');
+      actions.className = 'marketplace-actions';
       const buyBtn = document.createElement('button');
       buyBtn.className = 'marketplace-buy-btn';
-      buyBtn.textContent = 'Buy';
+      buyBtn.textContent = buyLabel;
       buyBtn.addEventListener('click', async () => {
         // If waiting for payment completion, check status
         if (buyBtn._pendingPayment && buyBtn._paymentToken) {
@@ -270,7 +402,7 @@ async function renderMarketplace() {
               document.getElementById('license-input').value = payResult.licenseKey;
               showLicenseStatus('Payment complete! Click Activate to enable.', 'success');
               buyBtn._pendingPayment = false;
-              buyBtn.textContent = 'Buy';
+              buyBtn.textContent = buyLabel;
             } else {
               showLicenseStatus('Payment not yet completed. Try again in a moment.', 'info');
             }
@@ -282,12 +414,14 @@ async function renderMarketplace() {
           return;
         }
 
+        const email = await ensureBuyerEmail(buyBtn);
+        if (!email) return;
+
         buyBtn.disabled = true;
         buyBtn.textContent = '...';
         try {
-          const result = await window.codePetSettings.purchasePet(pet.id);
+          const result = await window.codePetSettings.purchasePet(pet.id, email);
           if (result.paymentPending) {
-            // Paid pet: PayPal opened in browser
             showLicenseStatus('Payment opened in browser. Complete payment, then click Check Payment.', 'info');
             buyBtn.textContent = 'Check Payment';
             buyBtn._paymentToken = result.paymentToken;
@@ -296,9 +430,8 @@ async function renderMarketplace() {
             return;
           }
           if (result.success && result.licenseKey) {
-            // Free pet or mock: license key returned directly
             document.getElementById('license-input').value = result.licenseKey;
-            showLicenseStatus('Key generated! Click Activate to enable.', 'info');
+            showLicenseStatus(`License key ready (also emailed to ${email}). Click Activate.`, 'info');
           } else {
             showLicenseStatus(result.error || 'Purchase failed', 'error');
           }
@@ -306,9 +439,10 @@ async function renderMarketplace() {
           showLicenseStatus('Purchase failed', 'error');
         }
         buyBtn.disabled = false;
-        buyBtn.textContent = 'Buy';
+        buyBtn.textContent = buyLabel;
       });
-      card.appendChild(buyBtn);
+      actions.appendChild(buyBtn);
+      card.appendChild(actions);
     }
 
     grid.appendChild(card);

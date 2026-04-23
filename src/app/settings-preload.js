@@ -20,8 +20,10 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   activateLicense: (key) => ipcRenderer.invoke('activate-license', key),
   getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
   getMarketplaceCatalog: () => ipcRenderer.invoke('get-marketplace-catalog'),
-  purchasePet: (petId) => ipcRenderer.invoke('purchase-pet', petId),
+  purchasePet: (petId, buyerEmail) => ipcRenderer.invoke('purchase-pet', { petId, buyerEmail }),
   pollPaymentStatus: (token) => ipcRenderer.invoke('poll-payment-status', token),
+  getBuyerEmail: () => ipcRenderer.sendSync('get-buyer-email'),
+  setBuyerEmail: (email) => ipcRenderer.invoke('set-buyer-email', email),
   // About
   getVersion: () => ipcRenderer.sendSync('get-version'),
   openExternal: (url) => ipcRenderer.send('open-external', url),

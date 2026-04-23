@@ -37,14 +37,21 @@ if (!gotLock) {
     settingsStore.load();
     setUsageStore(usageStore);
 
-    // Initialize license system — use real API if configured, else mock
+    // Initialize license system — real API by default, mock via MARKETPLACE_MOCK=true
     const mpConfig = marketplaceConfig.load();
-    const licenseApi = marketplaceConfig.isConfigured()
-      ? new MarketplaceAPI(mpConfig)
-      : new MockLicenseAPI();
-    logger.info(`License API: ${marketplaceConfig.isConfigured() ? 'MarketplaceAPI' : 'MockLicenseAPI'}`);
+    const mockMode = marketplaceConfig.isMockMode();
+    const licenseApi = mockMode
+      ? new MockLicenseAPI()
+      : new MarketplaceAPI(mpConfig);
+    logger.info(`License API: ${mockMode ? 'MockLicenseAPI (MARKETPLACE_MOCK=true)' : 'MarketplaceAPI'}`);
     const licenseManager = new LicenseManager(licenseApi);
     licenseManager.load();
+
+    // Clear stale mock license keys left over from prior dev runs
+    if (!mockMode && licenseManager.getLicenseKey() && licenseManager.getLicenseKey().startsWith('MOCK-')) {
+      logger.warn(`Clearing stale mock license key from ~/.code-pet/license.json`);
+      licenseManager.clear();
+    }
     const premiumStore = new PremiumStore();
     const marketplaceCatalog = new MarketplaceCatalog(licenseApi);
 
@@ -82,7 +89,7 @@ if (!gotLock) {
     createOverlayWindow();
 
     // Prime product catalog if using real API (populates productId <-> petId map)
-    if (marketplaceConfig.isConfigured()) {
+    if (!mockMode) {
       licenseApi.getCatalog().catch(err => {
         logger.warn(`Failed to prime marketplace catalog: ${err.message}`);
       });

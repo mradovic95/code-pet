@@ -16,7 +16,10 @@ const DEFAULT_SETTINGS = {
   licenseKey: null,
   activationId: null,
   soundEnabled: { ...DEFAULT_SOUND_SETTINGS },
+  buyerEmail: null,
 };
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let settings = { ...DEFAULT_SETTINGS };
 
@@ -100,6 +103,19 @@ function setSoundEnabledForState(stateName, enabled) {
   save();
 }
 
+function getBuyerEmail() {
+  return settings.buyerEmail || null;
+}
+
+function setBuyerEmail(email) {
+  if (typeof email !== 'string') return false;
+  const trimmed = email.trim();
+  if (trimmed === '' || !EMAIL_REGEX.test(trimmed)) return false;
+  settings.buyerEmail = trimmed;
+  save();
+  return true;
+}
+
 module.exports = {
   load,
   save,
@@ -113,4 +129,6 @@ module.exports = {
   setActivationId,
   getSoundEnabled,
   setSoundEnabledForState,
+  getBuyerEmail,
+  setBuyerEmail,
 };

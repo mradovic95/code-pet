@@ -229,13 +229,15 @@ ipcMain.handle('activate-license', async (_event, key) => {
   return result;
 });
 
-ipcMain.handle('purchase-pet', async (_event, petId) => {
+ipcMain.handle('purchase-pet', async (_event, arg) => {
   if (!licenseApiRef) {
     return { success: false, error: 'License system not initialized' };
   }
 
+  const { petId, buyerEmail } = typeof arg === 'object' && arg !== null ? arg : { petId: arg };
+
   try {
-    const result = await licenseApiRef.purchase(petId);
+    const result = await licenseApiRef.purchase(petId, buyerEmail);
 
     if (result.paymentUrl) {
       // Paid pet: open PayPal in browser
@@ -265,6 +267,16 @@ ipcMain.handle('poll-payment-status', async (_event, token) => {
     return { completed: false, error: 'Not supported' };
   }
   return licenseApiRef.checkPaymentStatus(token);
+});
+
+ipcMain.on('get-buyer-email', (event) => {
+  const settingsStore = require('./settings-store');
+  event.returnValue = settingsStore.getBuyerEmail();
+});
+
+ipcMain.handle('set-buyer-email', async (_event, email) => {
+  const settingsStore = require('./settings-store');
+  return settingsStore.setBuyerEmail(email);
 });
 
 ipcMain.handle('get-premium-sprites', async (_event, petId) => {

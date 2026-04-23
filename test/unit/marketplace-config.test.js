@@ -16,26 +16,22 @@ describe('marketplace-config', () => {
   let configExisted;
 
   beforeEach(() => {
-    // Preserve existing config
     configExisted = fs.existsSync(configFile);
     if (configExisted) {
       originalContent = fs.readFileSync(configFile, 'utf8');
     }
-    // Clear require cache so each test gets a fresh module
     delete require.cache[require.resolve('../../src/app/marketplace-config')];
   });
 
   afterEach(() => {
-    // Restore original config
     if (configExisted) {
       fs.writeFileSync(configFile, originalContent);
     } else if (fs.existsSync(configFile)) {
       fs.unlinkSync(configFile);
     }
-    // Clean env vars
     delete process.env.MARKETPLACE_URL;
-    delete process.env.MARKETPLACE_API_KEY;
     delete process.env.MARKETPLACE_ID;
+    delete process.env.MARKETPLACE_MOCK;
   });
 
   it('returns defaults when no config file exists', () => {
@@ -48,16 +44,17 @@ describe('marketplace-config', () => {
 
     // THEN
     assert.equal(sut.getBaseUrl(), 'https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage');
-    assert.equal(sut.getApiKey(), null);
-    assert.equal(sut.isConfigured(), false);
+    assert.equal(sut.getMarketplaceId(), 1);
+    assert.equal(sut.getJwtToken(), null);
+    assert.equal(sut.isMockMode(), false);
   });
 
   it('reads config from file', () => {
     // GIVEN
     fs.writeFileSync(configFile, JSON.stringify({
       baseUrl: 'https://custom.api.com',
-      apiKey: 'test-key-123',
       marketplaceId: 42,
+      jwtToken: 'jwt-xyz',
     }));
     const sut = require('../../src/app/marketplace-config');
 
@@ -66,19 +63,17 @@ describe('marketplace-config', () => {
 
     // THEN
     assert.equal(sut.getBaseUrl(), 'https://custom.api.com');
-    assert.equal(sut.getApiKey(), 'test-key-123');
     assert.equal(sut.getMarketplaceId(), 42);
-    assert.equal(sut.isConfigured(), true);
+    assert.equal(sut.getJwtToken(), 'jwt-xyz');
   });
 
   it('env vars override file values', () => {
     // GIVEN
     fs.writeFileSync(configFile, JSON.stringify({
       baseUrl: 'https://from-file.com',
-      apiKey: 'file-key',
+      marketplaceId: 7,
     }));
     process.env.MARKETPLACE_URL = 'https://from-env.com';
-    process.env.MARKETPLACE_API_KEY = 'env-key';
     process.env.MARKETPLACE_ID = '99';
     const sut = require('../../src/app/marketplace-config');
 
@@ -87,7 +82,30 @@ describe('marketplace-config', () => {
 
     // THEN
     assert.equal(sut.getBaseUrl(), 'https://from-env.com');
-    assert.equal(sut.getApiKey(), 'env-key');
     assert.equal(sut.getMarketplaceId(), 99);
+  });
+
+  it('isMockMode returns true when MARKETPLACE_MOCK=true', () => {
+    // GIVEN
+    process.env.MARKETPLACE_MOCK = 'true';
+    const sut = require('../../src/app/marketplace-config');
+
+    // WHEN
+    sut.load();
+
+    // THEN
+    assert.equal(sut.isMockMode(), true);
+  });
+
+  it('isMockMode returns false for other MARKETPLACE_MOCK values', () => {
+    // GIVEN
+    process.env.MARKETPLACE_MOCK = 'yes';
+    const sut = require('../../src/app/marketplace-config');
+
+    // WHEN
+    sut.load();
+
+    // THEN
+    assert.equal(sut.isMockMode(), false);
   });
 });
