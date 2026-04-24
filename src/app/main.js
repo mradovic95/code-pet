@@ -69,22 +69,26 @@ if (!gotLock) {
       return;
     }
 
-    // Prime product catalog so recovery redownloads can resolve productIds
-    if (!mockMode) {
-      try {
-        await licenseApi.getCatalog();
-      } catch (err) {
-        logger.warn(`Failed to prime marketplace catalog: ${err.message}`);
-      }
-    }
-
-    // Recovery: re-download any owned pet missing from disk (e.g. after plugin reinstall)
+    // Recovery: re-download any owned pet missing from disk (e.g. after plugin reinstall).
+    // Product map is loaded from ~/.code-pet/product-map.json in the MarketplaceAPI
+    // constructor; if a petId doesn't resolve (fresh machine with restored license.json
+    // but no cached map), lazy-prime via getCatalog() on first miss.
     const ownedPets = licenseManager.getOwnedPets();
     const licenseKey = licenseManager.getLicenseKey();
     if (ownedPets.length > 0 && licenseKey) {
+      let mapPrimed = false;
       for (const petId of ownedPets) {
         if (premiumStore.isDownloaded(petId)) continue;
-        const productId = licenseApi.getProductIdForPet ? licenseApi.getProductIdForPet(petId) : null;
+        let productId = licenseApi.getProductIdForPet ? licenseApi.getProductIdForPet(petId) : null;
+        if (!productId && !mapPrimed && !mockMode) {
+          try {
+            await licenseApi.getCatalog();
+            mapPrimed = true;
+            productId = licenseApi.getProductIdForPet(petId);
+          } catch (err) {
+            logger.warn(`Recovery: failed to prime catalog: ${err.message}`);
+          }
+        }
         if (!productId) {
           logger.warn(`Recovery: no productId for owned pet "${petId}" — skipping`);
           continue;

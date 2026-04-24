@@ -65,13 +65,15 @@ Single decision point in `src/app/main.js`, gated by `marketplaceConfig.isMockMo
 
 **Stale mock key guard**: on startup in real mode, if `~/.code-pet/license.json` holds a key starting with `MOCK-`, the file is cleared (with a warning log) to prevent mixed-state crashes for devs toggling between modes.
 
+**Lazy catalog fetch**: `MarketplaceAPI.getCatalog()` is never called at app startup. The productId↔petId map is loaded from `~/.code-pet/product-map.json` in the `MarketplaceAPI` constructor, and refreshed on demand by `activate()`, `validate()`, and the Store tab (`getMarketplaceCatalog` IPC). The recovery loop in `src/app/main.js` lazy-primes via `getCatalog()` only on a first cache miss. Net effect: a fresh install with no owned pets produces **zero** marketplace HTTP until the user opens the Store tab.
+
 ## 6. Settings-window tab flags
 
-Hardcoded in `src/renderer/settings.js:3-7` as `FEATURE_FLAGS`. Renderer-only, compile-time toggles — flip the literal to `false` and reload the settings window. Backing IPC handlers in `src/app/window-manager.js` stay wired either way; hiding a tab just removes the UI entry point.
+Hardcoded in `src/renderer/settings.js:3-7` as `FEATURE_FLAGS`. Renderer-only, compile-time toggles — flip the literal to `false` and reload the settings window. Backing IPC handlers in `src/app/window-manager.js` stay wired either way; hiding a tab just removes the UI entry point. No marketplace HTTP fires while a tab is hidden (see section 5 — all marketplace calls are lazy / user-initiated).
 
 | Flag | Default | Hides when `false` | Wired at |
 |------|---------|-------------------|----------|
-| `STORE_TAB` | `true` | **Store** tab — marketplace grid, Buy buttons, license activation form | `src/renderer/settings.js:21-23, 55-58` |
+| `STORE_TAB` | `false` | **Store** tab — marketplace grid, Buy buttons, license activation form. Default is `false` for v1 until the marketplace ships publicly. | `src/renderer/settings.js:21-23, 55-58` |
 | `USAGE_TAB` | `true` | **Usage** tab — MCP/skill usage counters, event log | `src/renderer/settings.js:24-26, 60-62` |
 
 The **General** tab (pet selector, sound toggles, Dismiss) is always shown.

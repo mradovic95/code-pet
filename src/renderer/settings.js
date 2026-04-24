@@ -2,7 +2,7 @@
 
 // Feature flags — hardcoded, flip to false to disable
 const FEATURE_FLAGS = {
-  STORE_TAB: true,
+  STORE_TAB: false,   // v1: hidden until marketplace ships publicly
   USAGE_TAB: true,
 };
 
