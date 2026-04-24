@@ -24,21 +24,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `productId`. The filesystem-based dev fallback was removed; mock mode
   (`MARKETPLACE_MOCK=true`) can still test license activation but no longer
   renders purchased pets.
-- Premium pets now download into `assets/pets/{id}/` alongside the free
-  starter pets. The split into `~/.code-pet/premium-pets/` is gone, along
-  with the parallel data-URI plumbing between main process and renderer.
-- `PremiumStore` takes a base directory via constructor: `new PremiumStore(petsDir)`.
-- Added startup recovery: any owned pet missing from `assets/pets/` (e.g.
-  after plugin reinstall) is redownloaded from the marketplace using the
-  persisted license key. The marketplace catalog is primed synchronously
-  before recovery so productIds resolve.
+- Marketplace pets now download into `~/.code-pet/pets/{id}/` — a user-data
+  directory that survives `claude plugin upgrade` and reinstall. Shipped
+  starter pets still live under the plugin's `assets/pets/`. `PetCatalog`
+  scans both roots; renderer uses each manifest's pre-built `_dirUrl` (a
+  `file://` URL computed in main via `pathToFileURL` for cross-platform
+  correctness), so shipped vs downloaded is transparent to rendering. The
+  parallel data-URI plumbing between main process and renderer is gone.
+- `PremiumStore` takes a base directory via constructor:
+  `new PremiumStore('~/.code-pet/pets')`.
+- `PetCatalog` accepts multiple roots via repeated `scan()` calls and has a
+  new `rescan()` helper that replays all previously scanned roots (used after
+  a license activation downloads new pets).
+- Added startup recovery: any owned pet missing from `~/.code-pet/pets/`
+  (e.g. after the user wipes the user-data dir) is redownloaded from the
+  marketplace using the persisted license key. The marketplace catalog is
+  primed synchronously before recovery so productIds resolve.
 - `_downloadRemote` now also fetches `manifest.icon` (default `icon.png`)
   alongside sprite files. Missing icon logs a warning and continues.
 
 ### Removed
 - `assets/pets-dev/` — premium pet sprite templates are no longer shipped in
   the repo. They now live only on the marketplace server and are downloaded
-  to `assets/pets/{id}/` after purchase.
+  to `~/.code-pet/pets/{id}/` after purchase.
 - `PremiumStore._downloadLocal()` and the `DEV_ASSETS_DIR` constant.
 - `PremiumStore.loadSprites()` and `PremiumStore._mimeForFile()` — the
   renderer reads files directly off disk now.

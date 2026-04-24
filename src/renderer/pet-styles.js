@@ -14,7 +14,7 @@ function injectPetStyles(petType, manifest) {
     const totalWidth = frameSize * sprite.frames;
     const animName = `${petType}-${state}-anim`;
     const loopStr = sprite.loop ? 'infinite' : 'forwards';
-    const bgUrl = `../../assets/pets/${petType}/${sprite.file}`;
+    const bgUrl = `${manifest._dirUrl}/${encodeURIComponent(sprite.file)}`;
 
     css += `.pet[data-pet-type="${petType}"].${state} {
   background-image: url('${bgUrl}');

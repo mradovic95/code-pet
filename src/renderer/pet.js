@@ -22,6 +22,7 @@ class Pet {
     this.sprites = manifest ? manifest.sprites : DEFAULT_SPRITES;
     this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
     this.sounds = manifest ? (manifest.sounds || {}) : {};
+    this.petDirUrl = manifest ? manifest._dirUrl : null;
     this.currentState = 'idle';
     this.hasBeenActive = false;
     this.autoTransitionTimer = null;
@@ -144,8 +145,8 @@ class Pet {
 
   _playStateSound(state) {
     const soundFile = this.sounds && this.sounds[state];
-    if (!soundFile) return;
-    const audio = new Audio(`../../assets/pets/${this.petType}/${soundFile}`);
+    if (!soundFile || !this.petDirUrl) return;
+    const audio = new Audio(`${this.petDirUrl}/${encodeURIComponent(soundFile)}`);
     audio.volume = 0.5;
     audio.play().catch(() => {}); // silently fail
   }
@@ -155,6 +156,7 @@ class Pet {
     this.sprites = manifest ? manifest.sprites : DEFAULT_SPRITES;
     this.autoTransitions = manifest ? (manifest.autoTransitions || {}) : DEFAULT_AUTO_TRANSITIONS;
     this.sounds = manifest ? (manifest.sounds || {}) : {};
+    this.petDirUrl = manifest ? manifest._dirUrl : null;
     this.el.dataset.petType = petType;
 
     // Re-apply current state to pick up new sprites

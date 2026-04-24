@@ -119,7 +119,7 @@ Settings UI (Buy button)
     → PremiumStore.download(petId, key, api, productId)
       → GET /api/v1/products/{productId}/assets/manifest.json (header: X-License-Key)
       → GET /api/v1/products/{productId}/assets/{filename} (header: X-License-Key)
-      → write to assets/pets/{petId}/
+      → write to ~/.code-pet/pets/{petId}/
     → IPC: pet-catalog refresh → renderer reads the new pet's sprites from disk like any other
 ```
 
@@ -212,6 +212,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId) |
 | `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
 | `license.json` | Activated license key, owned pets, validation timestamp |
+| `pets/{id}/` | Downloaded marketplace pets (sprites + manifest + icon, plaintext). Lives outside the plugin dir so purchases survive `claude plugin upgrade`. Missing-but-owned pets are redownloaded on startup using `license.json`. |
 | `usage.log` | Append-only NDJSON log of skill / MCP tool events. One JSON object per line. Grows unbounded by design (cross-session analytics). Disable with `USAGE_STORE_TYPE=memory`. |
 
 ## Testing
@@ -293,4 +294,8 @@ npx electron src/app/main.js
 
 Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's `manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
 
-Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. All pets live in `assets/pets/{id}/`. Free ones (bird, cat, dog) ship with the app; premium ones are fetched from the marketplace API after purchase and written to the same folder. On startup, any owned pet missing from disk is redownloaded using the persisted license — so plugin reinstall doesn't permanently lose purchased pets.
+Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Pets live in two roots:
+- **Shipped** (bird, cat, dog): `assets/pets/{id}/` inside the plugin dir. Replaced by `claude plugin upgrade`.
+- **Downloaded** (anything from the marketplace): `~/.code-pet/pets/{id}/` under the user data dir. Survives plugin upgrade/reinstall.
+
+`PetCatalog.scan()` is called once per root at startup. Later-root entries overlay earlier on id collision. The renderer reads each manifest's pre-built `_dirUrl` (computed in main via `pathToFileURL` so Windows paths round-trip correctly) and appends the sprite/sound/icon filename — shipped vs downloaded is invisible to the renderer. If an owned pet is missing from `~/.code-pet/pets/` on startup (e.g. the user wiped the dir), the recovery loop in `main.js` redownloads it from the marketplace using the persisted license.

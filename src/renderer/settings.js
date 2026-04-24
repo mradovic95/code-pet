@@ -142,7 +142,7 @@ function wireSoundPreview(buttonId, soundState) {
     const catalog = window.codePetSettings.getPetCatalog();
     const pet = catalog.find(p => p.id === petType);
     if (!pet || !pet.sounds || !pet.sounds[soundState]) return;
-    const audio = new Audio(`../../assets/pets/${petType}/${pet.sounds[soundState]}`);
+    const audio = new Audio(`${pet._dirUrl}/${encodeURIComponent(pet.sounds[soundState])}`);
     audio.volume = 0.5;
     audio.play().catch(() => {});
   });
@@ -166,7 +166,7 @@ function renderPetSelector() {
     const preview = document.createElement('div');
     preview.className = 'pet-card-preview';
     const previewSize = 36;
-    preview.style.backgroundImage = `url('../../assets/pets/${pet.id}/${pet.icon || 'icon.png'}')`;
+    preview.style.backgroundImage = `url('${pet._dirUrl}/${encodeURIComponent(pet.icon || 'icon.png')}')`;
     preview.style.backgroundSize = `${previewSize}px ${previewSize}px`;
     preview.style.width = `${previewSize}px`;
     preview.style.height = `${previewSize}px`;

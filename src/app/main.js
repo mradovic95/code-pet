@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const os = require('os');
 const { app } = require('electron');
 const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setAllUsageEventsFn, setSessionsForProjectFn } = require('./window-manager');
 const { startServer, stopServer, dispatchEvent, setUsageStore, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession, getAllPersistedEvents } = require('./event-server');
@@ -52,8 +53,9 @@ if (!gotLock) {
       logger.warn(`Clearing stale mock license key from ~/.code-pet/license.json`);
       licenseManager.clear();
     }
-    const petsDir = path.join(__dirname, '..', '..', 'assets', 'pets');
-    const premiumStore = new PremiumStore(petsDir);
+    const pluginPetsDir = path.join(__dirname, '..', '..', 'assets', 'pets');
+    const userPetsDir = path.join(os.homedir(), '.code-pet', 'pets');
+    const premiumStore = new PremiumStore(userPetsDir);
     const marketplaceCatalog = new MarketplaceCatalog(licenseApi);
     const catalog = new PetCatalog();
 
@@ -96,7 +98,8 @@ if (!gotLock) {
       }
     }
 
-    catalog.scan(petsDir);
+    catalog.scan(pluginPetsDir);
+    catalog.scan(userPetsDir);
 
     setProjectsSnapshotFn(getProjectsSnapshot);
     setClaudePidFn(getClaudePidForSession);

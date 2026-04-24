@@ -210,8 +210,8 @@ ipcMain.handle('activate-license', async (_event, key) => {
   }
 
   // Re-scan the catalog so new pets appear in the selector
-  if (catalogObjRef && premiumStoreRef) {
-    catalogObjRef.scan(premiumStoreRef.getBaseDir());
+  if (catalogObjRef) {
+    catalogObjRef.rescan();
     if (catalogFn) {
       sendToRenderer('pet-catalog', catalogFn());
     }

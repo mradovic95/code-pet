@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const logger = require('./logger');
 
 const REQUIRED_STATES = ['idle', 'waking_up', 'working', 'planning', 'waiting_for_action'];
@@ -9,9 +10,24 @@ const REQUIRED_STATES = ['idle', 'waking_up', 'working', 'planning', 'waiting_fo
 class PetCatalog {
   constructor() {
     this._pets = new Map();
+    this._roots = [];
   }
 
   scan(petsDir) {
+    if (!this._roots.includes(petsDir)) {
+      this._roots.push(petsDir);
+    }
+    this._scanDir(petsDir);
+  }
+
+  rescan() {
+    this._pets.clear();
+    for (const root of this._roots) {
+      this._scanDir(root);
+    }
+  }
+
+  _scanDir(petsDir) {
     let entries;
     try {
       entries = fs.readdirSync(petsDir, { withFileTypes: true });
@@ -58,6 +74,7 @@ class PetCatalog {
 
         manifest.tier = manifest.tier || 'free';
         manifest._dir = petDir;
+        manifest._dirUrl = pathToFileURL(petDir).href;
         this._pets.set(manifest.id, manifest);
         logger.info(`Loaded pet: ${manifest.id} (${manifest.name}) [${manifest.tier}]`);
       } catch (err) {
@@ -86,6 +103,7 @@ class PetCatalog {
       sounds: m.sounds || {},
       frameSize: m.frameSize || 64,
       _dir: m._dir,
+      _dirUrl: m._dirUrl,
     }));
   }
 
