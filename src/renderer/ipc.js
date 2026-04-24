@@ -35,10 +35,6 @@ window.codePet.onPetLabelChanged(({ project, projectName }) => {
   petManager.updateLabel(project, projectName);
 });
 
-window.codePet.onPremiumSprites(({ petId, sprites }) => {
-  setPremiumSprites(petId, sprites);
-});
-
 window.codePet.onSoundSettingChanged(({ settings }) => {
   _soundSettings = settings;
 });

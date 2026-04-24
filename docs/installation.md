@@ -182,7 +182,6 @@ For the full event matrix and per-state behavior, see [`hook-table.md`](./hook-t
 | `marketplace.json` | User-provided                            | API URL, key, marketplace ID for premium pets                  |
 | `product-map.json` | `marketplace-api.js`                     | Cached productId ↔ petId map                                   |
 | `license.json`     | `license-manager.js`                     | Activated license, owned pet IDs                               |
-| `premium-pets/`    | `premium-store.js`                       | Downloaded premium sprites (XOR-encrypted)                     |
 
 ### Cleanup timers
 
@@ -224,8 +223,7 @@ removed, or renamed hook scripts take effect immediately.
 These live **outside** the plugin directory and are untouched:
 
 - `~/.code-pet/app.pid`, `app.log`, `install.log`, `code-pet.log`, `hooks-debug.log`
-- `~/.code-pet/license.json`, `marketplace.json`, `product-map.json`
-- `~/.code-pet/premium-pets/` (downloaded premium sprites)
+- `~/.code-pet/license.json`, `marketplace.json`, `product-map.json` — purchased pet ownership is tied to the license, so premium pets wiped from `assets/pets/` are redownloaded on the next startup via the recovery loop in `main.js`
 - The **running Electron process** — it keeps running on the **old** code until the next restart
 
 ### What does NOT survive

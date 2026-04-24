@@ -13,7 +13,7 @@ const os = require('os');
 const CODE_PET_DIR = path.join(os.homedir(), '.code-pet');
 const LICENSE_FILE = path.join(CODE_PET_DIR, 'license.json');
 const PRODUCT_MAP_FILE = path.join(CODE_PET_DIR, 'product-map.json');
-const PREMIUM_DIR = path.join(CODE_PET_DIR, 'premium-pets');
+const TEST_PETS_DIR = path.join(os.tmpdir(), 'code-pet-test-pets');
 
 describe('marketplace end-to-end flow', () => {
   let server;
@@ -47,8 +47,8 @@ describe('marketplace end-to-end flow', () => {
     backups.productMap = fs.existsSync(PRODUCT_MAP_FILE) ? fs.readFileSync(PRODUCT_MAP_FILE, 'utf8') : null;
     if (fs.existsSync(LICENSE_FILE)) fs.unlinkSync(LICENSE_FILE);
     if (fs.existsSync(PRODUCT_MAP_FILE)) fs.unlinkSync(PRODUCT_MAP_FILE);
-    if (fs.existsSync(path.join(PREMIUM_DIR, 'cat'))) {
-      fs.rmSync(path.join(PREMIUM_DIR, 'cat'), { recursive: true, force: true });
+    if (fs.existsSync(TEST_PETS_DIR)) {
+      fs.rmSync(TEST_PETS_DIR, { recursive: true, force: true });
     }
 
     delete require.cache[require.resolve('../../src/app/marketplace-api')];
@@ -62,8 +62,8 @@ describe('marketplace end-to-end flow', () => {
     else if (fs.existsSync(LICENSE_FILE)) fs.unlinkSync(LICENSE_FILE);
     if (backups.productMap) fs.writeFileSync(PRODUCT_MAP_FILE, backups.productMap);
     else if (fs.existsSync(PRODUCT_MAP_FILE)) fs.unlinkSync(PRODUCT_MAP_FILE);
-    if (fs.existsSync(path.join(PREMIUM_DIR, 'cat'))) {
-      fs.rmSync(path.join(PREMIUM_DIR, 'cat'), { recursive: true, force: true });
+    if (fs.existsSync(TEST_PETS_DIR)) {
+      fs.rmSync(TEST_PETS_DIR, { recursive: true, force: true });
     }
   });
 
@@ -91,6 +91,7 @@ describe('marketplace end-to-end flow', () => {
     routes['GET /api/v1/products/20/assets/manifest.json'] = (_req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
+        icon: 'icon.png',
         sprites: { idle: { file: 'idle.svg', width: 64, height: 64 } },
       }));
     };
@@ -98,6 +99,11 @@ describe('marketplace end-to-end flow', () => {
     routes['GET /api/v1/products/20/assets/idle.svg'] = (_req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
       res.end(spriteBytes);
+    };
+    const iconBytes = Buffer.from('PNG-fake-bytes');
+    routes['GET /api/v1/products/20/assets/icon.png'] = (_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'image/png' });
+      res.end(iconBytes);
     };
 
     const { MarketplaceAPI } = require('../../src/app/marketplace-api');
@@ -110,7 +116,7 @@ describe('marketplace end-to-end flow', () => {
     });
     const licenseManager = new LicenseManager(api);
     licenseManager.load();
-    const premiumStore = new PremiumStore();
+    const premiumStore = new PremiumStore(TEST_PETS_DIR);
 
     // WHEN the user browses the catalog
     const catalog = await api.getCatalog();
@@ -142,13 +148,17 @@ describe('marketplace end-to-end flow', () => {
     // WHEN sprites are downloaded
     await premiumStore.download('cat', purchaseResult.licenseKey, api, 20);
 
-    // THEN the download used X-License-Key for auth and stored the sprite
+    // THEN the download used X-License-Key for auth and wrote the pet into the shared pets folder
     assert.equal(
       receivedHeaders['GET /api/v1/products/20/assets/idle.svg']['x-license-key'],
       purchaseResult.licenseKey,
     );
     assert.equal(premiumStore.isDownloaded('cat'), true);
-    const sprites = premiumStore.loadSprites('cat', purchaseResult.licenseKey);
-    assert.ok(sprites && sprites.idle && sprites.idle.startsWith('data:image/svg+xml'));
+    const petDir = path.join(TEST_PETS_DIR, 'cat');
+    assert.ok(fs.existsSync(path.join(petDir, 'manifest.json')), 'manifest.json should be on disk');
+    const diskSprite = fs.readFileSync(path.join(petDir, 'idle.svg'));
+    assert.deepEqual(diskSprite, spriteBytes, 'sprite on disk should match bytes served by the API');
+    const diskIcon = fs.readFileSync(path.join(petDir, 'icon.png'));
+    assert.deepEqual(diskIcon, iconBytes, 'icon.png should be downloaded alongside sprites');
   });
 });

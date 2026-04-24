@@ -102,7 +102,7 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 Premium pets are purchased and downloaded from the deployed marketplace module (Spring Boot API backed by AWS API Gateway + EC2). Defaults live in `src/app/marketplace-constants.js` — `DEFAULT_BASE_URL` and `DEFAULT_MARKETPLACE_ID = 1`.
 
 - **Real mode** (default): `MarketplaceAPI` calls the deployed REST API. No configuration required out of the box.
-- **Mock mode** (dev only): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Activate by setting `MARKETPLACE_MOCK=true`.
+- **Mock mode** (dev only): `MockLicenseAPI` generates fake license keys for activation testing. Sprite download is not supported in mock mode — a real marketplace API is required to fetch assets. Activate by setting `MARKETPLACE_MOCK=true`.
 
 ```
 Settings UI (Buy button)
@@ -119,8 +119,8 @@ Settings UI (Buy button)
     → PremiumStore.download(petId, key, api, productId)
       → GET /api/v1/products/{productId}/assets/manifest.json (header: X-License-Key)
       → GET /api/v1/products/{productId}/assets/{filename} (header: X-License-Key)
-      → XOR-encrypt + write to ~/.code-pet/premium-pets/{petId}/
-    → IPC: premium-sprites → renderer injects data: URIs into CSS
+      → write to assets/pets/{petId}/
+    → IPC: pet-catalog refresh → renderer reads the new pet's sprites from disk like any other
 ```
 
 **Configuration** (all optional, overrides the defaults in `marketplace-constants.js`):
@@ -212,7 +212,6 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId) |
 | `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
 | `license.json` | Activated license key, owned pets, validation timestamp |
-| `premium-pets/` | Downloaded premium pet assets (XOR-encrypted sprites + manifest) |
 | `usage.log` | Append-only NDJSON log of skill / MCP tool events. One JSON object per line. Grows unbounded by design (cross-session analytics). Disable with `USAGE_STORE_TYPE=memory`. |
 
 ## Testing
@@ -294,4 +293,4 @@ npx electron src/app/main.js
 
 Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's `manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
 
-Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Free pets are in `assets/pets/{id}/`, premium pets in `assets/pets-dev/{id}/` (downloaded to `~/.code-pet/premium-pets/{id}/` after purchase).
+Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. All pets live in `assets/pets/{id}/`. Free ones (bird, cat, dog) ship with the app; premium ones are fetched from the marketplace API after purchase and written to the same folder. On startup, any owned pet missing from disk is redownloaded using the persisted license — so plugin reinstall doesn't permanently lose purchased pets.

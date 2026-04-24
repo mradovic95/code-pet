@@ -12,17 +12,9 @@ class PetCatalog {
   }
 
   scan(petsDir) {
-    this._scanDir(petsDir, 'free');
-  }
-
-  scanPremium(premiumDir) {
-    this._scanDir(premiumDir, 'premium', true);
-  }
-
-  _scanDir(dir, defaultTier, skipFileValidation) {
     let entries;
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = fs.readdirSync(petsDir, { withFileTypes: true });
     } catch (err) {
       logger.warn(`Cannot read pets directory: ${err.message}`);
       return;
@@ -31,7 +23,7 @@ class PetCatalog {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
 
-      const petDir = path.join(dir, entry.name);
+      const petDir = path.join(petsDir, entry.name);
       const manifestPath = path.join(petDir, 'manifest.json');
 
       if (!fs.existsSync(manifestPath)) {
@@ -42,36 +34,29 @@ class PetCatalog {
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-        // Validate required fields
         if (!manifest.id || !manifest.sprites) {
           logger.warn(`Skipping pet "${entry.name}": missing id or sprites`);
           continue;
         }
 
-        // Validate all required states present
         const missing = REQUIRED_STATES.filter(s => !manifest.sprites[s]);
         if (missing.length > 0) {
           logger.warn(`Skipping pet "${entry.name}": missing states: ${missing.join(', ')}`);
           continue;
         }
 
-        // Skip file validation for premium pets (files are obfuscated on disk)
-        if (!skipFileValidation) {
-          let filesValid = true;
-          for (const state of REQUIRED_STATES) {
-            const spriteFile = path.join(petDir, manifest.sprites[state].file);
-            if (!fs.existsSync(spriteFile)) {
-              logger.warn(`Skipping pet "${entry.name}": missing sprite file "${manifest.sprites[state].file}"`);
-              filesValid = false;
-              break;
-            }
+        let filesValid = true;
+        for (const state of REQUIRED_STATES) {
+          const spriteFile = path.join(petDir, manifest.sprites[state].file);
+          if (!fs.existsSync(spriteFile)) {
+            logger.warn(`Skipping pet "${entry.name}": missing sprite file "${manifest.sprites[state].file}"`);
+            filesValid = false;
+            break;
           }
-          if (!filesValid) continue;
         }
+        if (!filesValid) continue;
 
-        // Set tier from manifest or default
-        manifest.tier = manifest.tier || defaultTier;
-        // Store path for renderer reference
+        manifest.tier = manifest.tier || 'free';
         manifest._dir = petDir;
         this._pets.set(manifest.id, manifest);
         logger.info(`Loaded pet: ${manifest.id} (${manifest.name}) [${manifest.tier}]`);

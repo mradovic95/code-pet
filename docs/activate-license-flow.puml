@@ -18,6 +18,7 @@ participant "Window Manager\n(main process)" as wm #FFE0B2
 participant "LicenseManager" as lm #FFE0B2
 participant "MarketplaceAPI\n(http-client)" as api #D4E6F1
 participant "PremiumStore" as store #D4E6F1
+participant "PetCatalog" as cat #D4E6F1
 participant "Marketplace\nAPI Gateway" as gw #E8EAF6
 participant "S3 Bucket" as s3 #E8F5E9
 
@@ -44,7 +45,7 @@ loop for each newly owned pet
   gw --> api : manifest.json bytes
   api --> store : Buffer
 
-  note right of store : Parse manifest to discover sprite files
+  note right of store : Parse manifest to discover sprite + icon files
 
   loop for each sprite in manifest
     store -> api : downloadAsset(10, "idle.png", key)
@@ -53,27 +54,29 @@ loop for each newly owned pet
     s3 --> gw : Binary PNG data
     gw --> api : Binary data
     api --> store : Buffer
-    note right of store : XOR-encrypt with SHA-256(key+petId)\nWrite to ~/.code-pet/premium-pets/dragon/
+    note right of store : Write bytes to assets/pets/dragon/
   end
+
+  store -> api : downloadAsset(10, manifest.icon || "icon.png", key)
+  api --> store : Buffer (or warn on 404)
+  note right of store : Write icon to assets/pets/dragon/icon.png
 end
 
 note right of store
   Assets stored at:
-  **~/.code-pet/premium-pets/{petId}/**
-  * manifest.json — plaintext
-  * *.png / *.svg — XOR-encrypted
-    with SHA-256(licenseKey + petId)
+  **assets/pets/{petId}/** — same folder as free starter pets.
+  * manifest.json
+  * idle/working/planning/waiting_for_action/waking_up sprites
+  * icon.png
+  PetCatalog.scan() picks up free and premium uniformly — no split.
 end note
 
-== 3. Load Sprites to Renderer ==
+== 3. Refresh Catalog ==
 
-wm -> store : loadSprites("dragon", key)
-note right of store : Read encrypted files from disk\nXOR-decrypt with same derived key\nConvert to base64 data: URIs
-store --> wm : {idle: "data:image/png;base64,...", working: "data:...", ...}
-wm -> ui : IPC: premium-sprites {petId, sprites}
-note right of ui : injectPetStyles() uses data: URIs\nin CSS background-image
-ui --> user : Dragon pet available & animated!
-
+wm -> cat : scan(petsDir)
+cat --> wm : catalog list (now includes dragon)
 wm -> ui : IPC: pet-catalog (updated catalog with new pet)
+note right of ui : renderPetSelector iterates catalog\nreads assets/pets/dragon/icon.png directly
+ui --> user : Dragon pet appears in selector & is clickable
 
 @enduml

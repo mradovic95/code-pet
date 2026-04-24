@@ -16,7 +16,6 @@ const fs = require('fs');
 const path = require('path');
 
 const PETS_DIR = path.join(__dirname, '..', 'assets', 'pets');
-const PETS_DEV_DIR = path.join(__dirname, '..', 'assets', 'pets-dev');
 
 const PET_CONFIGS = {
   dog: {
@@ -57,32 +56,6 @@ const PET_CONFIGS = {
       waiting_for_action: '#FB923C',
     },
     earShape: 'wing', // small wing shapes on sides
-  },
-  dragon: {
-    name: 'Dragon',
-    description: 'A fiery coding dragon',
-    tier: 'premium',
-    colors: {
-      idle: '#E74C3C',
-      waking_up: '#E74C3C',
-      working: '#C0392B',
-      planning: '#8E44AD',
-      waiting_for_action: '#F39C12',
-    },
-    earShape: 'horn', // dragon horns
-  },
-  panda: {
-    name: 'Panda',
-    description: 'A zen coding panda',
-    tier: 'premium',
-    colors: {
-      idle: '#ECF0F1',
-      waking_up: '#ECF0F1',
-      working: '#BDC3C7',
-      planning: '#95A5A6',
-      waiting_for_action: '#F1C40F',
-    },
-    earShape: 'round', // round panda ears
   },
 };
 
@@ -305,9 +278,7 @@ function generatePet(petId) {
     process.exit(1);
   }
 
-  // Premium pets go to assets/pets-dev/, free pets to assets/pets/
-  const baseDir = petConfig.tier === 'premium' ? PETS_DEV_DIR : PETS_DIR;
-  const petDir = path.join(baseDir, petId);
+  const petDir = path.join(PETS_DIR, petId);
   if (!fs.existsSync(petDir)) {
     fs.mkdirSync(petDir, { recursive: true });
   }

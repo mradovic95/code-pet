@@ -24,6 +24,11 @@ These are produced by `scripts/generate-readme-gifs.js` directly from each
 pet's sprite strips under `assets/pets/<id>/`. Don't edit them by hand —
 rerun the script after changing a sprite or manifest.
 
+Premium pets (`panda/`, `dolphin/`) are marketplace-only; their sprite strips
+don't live in this repo, so the script can't regenerate their GIFs. The
+committed GIFs are rendered out-of-band from the seller-side source sprites
+and only updated when those sprites change.
+
 ```
 node scripts/generate-readme-gifs.js
 ```

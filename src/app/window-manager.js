@@ -197,30 +197,21 @@ ipcMain.handle('activate-license', async (_event, key) => {
   const result = await licenseManagerRef.activate(key);
   if (!result.success) return result;
 
-  // Download sprites for newly owned pets
-  const PetCatalog = require('./pet-catalog');
+  // Download newly owned pets into the shared pets folder
   for (const petId of result.ownedPets) {
-    if (!premiumStoreRef.isDownloaded(petId)) {
-      try {
-        const productId = licenseApiRef.getProductIdForPet ? licenseApiRef.getProductIdForPet(petId) : null;
-        await premiumStoreRef.download(petId, key, licenseApiRef, productId);
-        logger.info(`Downloaded premium pet "${petId}" after activation`);
-      } catch (err) {
-        logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
-      }
-    }
-
-    // Load and send sprites to renderer
-    const sprites = premiumStoreRef.loadSprites(petId, key);
-    if (sprites) {
-      sendToRenderer('premium-sprites', { petId, sprites });
+    if (premiumStoreRef.isDownloaded(petId)) continue;
+    try {
+      const productId = licenseApiRef.getProductIdForPet ? licenseApiRef.getProductIdForPet(petId) : null;
+      await premiumStoreRef.download(petId, key, licenseApiRef, productId);
+      logger.info(`Downloaded premium pet "${petId}" after activation`);
+    } catch (err) {
+      logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
     }
   }
 
-  // Re-scan premium pets so the catalog picks up the new pet
+  // Re-scan the catalog so new pets appear in the selector
   if (catalogObjRef && premiumStoreRef) {
-    catalogObjRef.scanPremium(premiumStoreRef.getPremiumDir());
-    // Update renderer catalog
+    catalogObjRef.scan(premiumStoreRef.getBaseDir());
     if (catalogFn) {
       sendToRenderer('pet-catalog', catalogFn());
     }
@@ -277,15 +268,6 @@ ipcMain.on('get-buyer-email', (event) => {
 ipcMain.handle('set-buyer-email', async (_event, email) => {
   const settingsStore = require('./settings-store');
   return settingsStore.setBuyerEmail(email);
-});
-
-ipcMain.handle('get-premium-sprites', async (_event, petId) => {
-  if (!premiumStoreRef || !licenseManagerRef) return null;
-
-  const key = licenseManagerRef.getLicenseKey();
-  if (!key || !premiumStoreRef.isDownloaded(petId)) return null;
-
-  return premiumStoreRef.loadSprites(petId, key);
 });
 
 ipcMain.on('renderer-ready', () => {

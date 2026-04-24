@@ -62,11 +62,11 @@ claude plugin remove code-pet
 
 | <img src="./assets/docs/pets/dog/idle.gif" width="96"> | <img src="./assets/docs/pets/cat/idle.gif" width="96"> | <img src="./assets/docs/pets/panda/idle.gif" width="96"> | <img src="./assets/docs/pets/dolphin/idle.gif" width="96"> | <img src="./assets/docs/pets/bird/idle.gif" width="96"> |
 |:---:|:---:|:---:|:---:|:---:|
-| **Dog** | **Cat** | **Panda** | **Dolphin** | **Bird** |
+| **Dog** | **Cat** | **Panda** (premium) | **Dolphin** (premium) | **Bird** |
 
 </div>
 
-More pets on the way.
+_Premium pets are purchased from the in-app marketplace._ More pets on the way.
 
 ## How it works
 

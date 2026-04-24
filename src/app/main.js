@@ -2,7 +2,7 @@
 
 const path = require('path');
 const { app } = require('electron');
-const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setAllUsageEventsFn, setSessionsForProjectFn, sendToRenderer } = require('./window-manager');
+const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setAllUsageEventsFn, setSessionsForProjectFn } = require('./window-manager');
 const { startServer, stopServer, dispatchEvent, setUsageStore, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession, getAllPersistedEvents } = require('./event-server');
 const { writePid, removePid } = require('./process-manager');
 const PetCatalog = require('./pet-catalog');
@@ -52,14 +52,10 @@ if (!gotLock) {
       logger.warn(`Clearing stale mock license key from ~/.code-pet/license.json`);
       licenseManager.clear();
     }
-    const premiumStore = new PremiumStore();
+    const petsDir = path.join(__dirname, '..', '..', 'assets', 'pets');
+    const premiumStore = new PremiumStore(petsDir);
     const marketplaceCatalog = new MarketplaceCatalog(licenseApi);
-
     const catalog = new PetCatalog();
-    catalog.scan(path.join(__dirname, '..', '..', 'assets', 'pets'));
-
-    // Scan premium pets if any are downloaded
-    catalog.scanPremium(premiumStore.getPremiumDir());
 
     writePid(process.pid);
 
@@ -70,6 +66,37 @@ if (!gotLock) {
       app.quit();
       return;
     }
+
+    // Prime product catalog so recovery redownloads can resolve productIds
+    if (!mockMode) {
+      try {
+        await licenseApi.getCatalog();
+      } catch (err) {
+        logger.warn(`Failed to prime marketplace catalog: ${err.message}`);
+      }
+    }
+
+    // Recovery: re-download any owned pet missing from disk (e.g. after plugin reinstall)
+    const ownedPets = licenseManager.getOwnedPets();
+    const licenseKey = licenseManager.getLicenseKey();
+    if (ownedPets.length > 0 && licenseKey) {
+      for (const petId of ownedPets) {
+        if (premiumStore.isDownloaded(petId)) continue;
+        const productId = licenseApi.getProductIdForPet ? licenseApi.getProductIdForPet(petId) : null;
+        if (!productId) {
+          logger.warn(`Recovery: no productId for owned pet "${petId}" — skipping`);
+          continue;
+        }
+        try {
+          await premiumStore.download(petId, licenseKey, licenseApi, productId);
+          logger.info(`Recovery: redownloaded owned pet "${petId}"`);
+        } catch (err) {
+          logger.warn(`Recovery redownload failed for "${petId}": ${err.message}`);
+        }
+      }
+    }
+
+    catalog.scan(petsDir);
 
     setProjectsSnapshotFn(getProjectsSnapshot);
     setClaudePidFn(getClaudePidForSession);
@@ -88,13 +115,6 @@ if (!gotLock) {
     setLicenseApiFn(licenseApi);
     createOverlayWindow();
 
-    // Prime product catalog if using real API (populates productId <-> petId map)
-    if (!mockMode) {
-      licenseApi.getCatalog().catch(err => {
-        logger.warn(`Failed to prime marketplace catalog: ${err.message}`);
-      });
-    }
-
     // Validate license if stale
     if (licenseManager.needsRevalidation()) {
       licenseManager.validate().then(result => {
@@ -102,21 +122,6 @@ if (!gotLock) {
       }).catch(err => {
         logger.warn(`License revalidation failed: ${err.message}`);
       });
-    }
-
-    // Send premium sprites to renderer after it's ready
-    const ownedPets = licenseManager.getOwnedPets();
-    const licenseKey = licenseManager.getLicenseKey();
-    if (ownedPets.length > 0 && licenseKey) {
-      // Defer until renderer is ready (window-manager handles the queue)
-      for (const petId of ownedPets) {
-        if (premiumStore.isDownloaded(petId)) {
-          const sprites = premiumStore.loadSprites(petId, licenseKey);
-          if (sprites) {
-            sendToRenderer('premium-sprites', { petId, sprites });
-          }
-        }
-      }
     }
 
     logger.info('Code Pet is running');

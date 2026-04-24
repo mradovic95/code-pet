@@ -61,7 +61,7 @@ Written by `src/app/settings-store.js`. These are normally toggled through the S
 Single decision point in `src/app/main.js`, gated by `marketplaceConfig.isMockMode()` which returns `process.env.MARKETPLACE_MOCK === 'true'`.
 
 - **Real mode** (default): `MarketplaceAPI` calls the deployed marketplace REST API at `DEFAULT_BASE_URL` (see `src/app/marketplace-constants.js`). No configuration required.
-- **Mock mode** (`MARKETPLACE_MOCK=true`): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Intended for offline dev.
+- **Mock mode** (`MARKETPLACE_MOCK=true`): `MockLicenseAPI` generates fake license keys for activation testing. Sprite download is not supported in mock mode — `PremiumStore.download()` requires a real marketplace API + productId.
 
 **Stale mock key guard**: on startup in real mode, if `~/.code-pet/license.json` holds a key starting with `MOCK-`, the file is cleared (with a warning log) to prevent mixed-state crashes for devs toggling between modes.
 
