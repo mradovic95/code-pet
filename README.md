@@ -68,6 +68,15 @@ claude plugin remove code-pet
 
 _Premium pets are purchased from the in-app marketplace._ More pets on the way.
 
+## Customize your pet
+
+Double-click the pet to open **Settings**. From the **General** tab you can
+switch pets, toggle sounds, or dismiss the pet for this project.
+
+<div align="center">
+<img src="./assets/docs/settings-general.png" width="480" alt="Settings — General tab">
+</div>
+
 ## How it works
 
 Your pet watches Claude Code and reacts in real time. Here's what happens in

@@ -37,6 +37,33 @@ Requires ImageMagick (`brew install imagemagick`).
 
 ## Hand-produced assets (still to create)
 
+### `settings-general.png` and `settings-usage.png`
+
+Screenshots of the Settings window, one per visible tab. Referenced from the
+root README's "Customize your pet" and "See what you actually use" sections.
+
+- Display width ~480px, capture at 2× retina (actual ~960px wide)
+- Trim tightly to the settings window — no desktop background
+- PNG, transparent or solid dark background matching the app chrome
+
+**What each must show:**
+
+- `settings-general.png` — **General** tab active. "Your Pets" list with
+  multiple pets and one visibly selected (this is the visual answer to
+  "how do I change my pet"). Sound toggles and Dismiss button should also
+  be in frame.
+- `settings-usage.png` — **Usage** tab active, after a short real session so
+  the skill / MCP tool list is populated (empty state is unimpressive).
+
+**How to capture:**
+
+1. Run the app (`npx electron src/app/main.js` or via a normal Claude Code session).
+2. Double-click the pet overlay to open the Settings window.
+3. Use CleanShot / Kap / macOS `Shift+Cmd+4` then `Space` to snap the window.
+4. Save into `assets/docs/` with the filenames above (overwrite existing).
+
+The Store tab is hidden behind a feature flag in v1 — do not capture it.
+
 ### `hero.mp4` (+ `hero.gif` fallback)
 
 - 10–15 seconds, seamless loop
