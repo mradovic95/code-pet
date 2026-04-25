@@ -6,6 +6,8 @@ const FEATURE_FLAGS = {
   USAGE_TAB: true,
 };
 
+const PREVIEW_STATES = ['idle', 'working', 'planning', 'waiting_for_action', 'waking_up'];
+
 // --- Load tab HTML partials ---
 
 async function loadTab(containerId, file) {
@@ -64,6 +66,10 @@ async function init() {
 
   wireSoundPreview('preview-idle', 'idle');
   wireSoundPreview('preview-waiting', 'waiting_for_action');
+
+  // --- Animation preview collapse toggle ---
+
+  initAnimationPreviewCollapse();
 
   // --- Store tab feature flag ---
 
@@ -194,10 +200,98 @@ function renderPetSelector() {
       });
       card.classList.add('selected', 'just-selected');
       setTimeout(() => card.classList.remove('just-selected'), 400);
+      renderAnimationPreviews(pet);
     });
 
     container.appendChild(card);
   }
+
+  const currentPet = catalog.find(p => p.id === currentType);
+  if (currentPet) renderAnimationPreviews(currentPet);
+}
+
+// --- Animation Previews ---
+
+function renderAnimationPreviews(pet) {
+  const container = document.getElementById('animation-previews-container');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!pet || !pet.sprites) return;
+
+  const frameSize = pet.frameSize || 64;
+
+  for (const state of PREVIEW_STATES) {
+    const sprite = pet.sprites[state];
+    if (!sprite) continue;
+
+    const box = document.createElement('div');
+    box.className = 'animation-preview-box';
+
+    const frame = document.createElement('div');
+    frame.className = 'animation-preview-frame';
+    const totalWidth = frameSize * sprite.frames;
+    const bgUrl = `${pet._dirUrl}/${encodeURIComponent(sprite.file)}`;
+    frame.style.width = `${frameSize}px`;
+    frame.style.height = `${frameSize}px`;
+    frame.style.backgroundImage = `url('${bgUrl}')`;
+    frame.style.backgroundSize = `${totalWidth}px ${frameSize}px`;
+    // Preview always loops, even one-shot states like waking_up.
+    frame.style.animation = `preview-${state}-${pet.id} ${sprite.duration}ms steps(${sprite.frames}) infinite`;
+
+    const label = document.createElement('div');
+    label.className = 'animation-preview-label';
+    label.textContent = state.replace(/_/g, ' ');
+
+    const card = document.createElement('div');
+    card.className = 'animation-preview-card';
+    card.append(frame);
+
+    box.append(card, label);
+    container.append(box);
+  }
+
+  injectPreviewKeyframes(pet, frameSize);
+}
+
+function injectPreviewKeyframes(pet, frameSize) {
+  let style = document.getElementById('preview-keyframes');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'preview-keyframes';
+    document.head.append(style);
+  }
+  let css = '';
+  for (const state of PREVIEW_STATES) {
+    const sprite = pet.sprites[state];
+    if (!sprite) continue;
+    const totalWidth = frameSize * sprite.frames;
+    css += `@keyframes preview-${state}-${pet.id} {
+  from { background-position-x: 0; }
+  to { background-position-x: -${totalWidth}px; }
+}\n`;
+  }
+  style.textContent = css;
+}
+
+function initAnimationPreviewCollapse() {
+  const section = document.getElementById('animation-preview-section');
+  const toggle = document.getElementById('animation-preview-toggle');
+  const chevron = document.getElementById('animation-preview-chevron');
+  if (!section || !toggle || !chevron) return;
+
+  const collapsed = window.codePetSettings.getAnimationPreviewCollapsed();
+  applyCollapsed(section, chevron, collapsed);
+
+  toggle.addEventListener('click', async () => {
+    const next = !section.classList.contains('collapsed');
+    applyCollapsed(section, chevron, next);
+    await window.codePetSettings.setAnimationPreviewCollapsed(next);
+  });
+}
+
+function applyCollapsed(section, chevron, collapsed) {
+  section.classList.toggle('collapsed', collapsed);
+  chevron.textContent = collapsed ? '▸' : '▾';
 }
 
 // --- Marketplace ---

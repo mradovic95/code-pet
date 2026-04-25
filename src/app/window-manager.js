@@ -270,6 +270,16 @@ ipcMain.handle('set-buyer-email', async (_event, email) => {
   return settingsStore.setBuyerEmail(email);
 });
 
+ipcMain.on('get-animation-preview-collapsed', (event) => {
+  const settingsStore = require('./settings-store');
+  event.returnValue = settingsStore.getAnimationPreviewCollapsed();
+});
+
+ipcMain.handle('set-animation-preview-collapsed', async (_event, value) => {
+  const settingsStore = require('./settings-store');
+  settingsStore.setAnimationPreviewCollapsed(value);
+});
+
 ipcMain.on('renderer-ready', () => {
   rendererReady = true;
   logger.info('Renderer signaled ready');

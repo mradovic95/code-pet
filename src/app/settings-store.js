@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   activationId: null,
   soundEnabled: { ...DEFAULT_SOUND_SETTINGS },
   buyerEmail: null,
+  animationPreviewCollapsed: false,
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -116,6 +117,15 @@ function setBuyerEmail(email) {
   return true;
 }
 
+function getAnimationPreviewCollapsed() {
+  return settings.animationPreviewCollapsed === true;
+}
+
+function setAnimationPreviewCollapsed(value) {
+  settings.animationPreviewCollapsed = value === true;
+  save();
+}
+
 module.exports = {
   load,
   save,
@@ -131,4 +141,6 @@ module.exports = {
   setSoundEnabledForState,
   getBuyerEmail,
   setBuyerEmail,
+  getAnimationPreviewCollapsed,
+  setAnimationPreviewCollapsed,
 };
