@@ -2,7 +2,11 @@
 
 # Code Pet
 
-### Your Claude Code sessions, but with a dog.
+### Your Claude Code sessions, but with a pet.
+
+A tiny animated companion that lives in the corner of your screen,
+reacts as Claude works, and looks up at you the moment Claude
+needs your attention.
 
 [![license](https://img.shields.io/github/license/mradovic95/code-pet?color=blue)](#license)
 [![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#requirements)
