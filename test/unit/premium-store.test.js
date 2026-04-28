@@ -11,12 +11,13 @@ const path = require('path');
 
 const PremiumStore = require('../../src/app/premium-store');
 
-function makeFakeApi({ manifestSprites, withIcon = true } = {}) {
+function makeFakeApi({ manifestSprites, withIcon = true, withSounds = true } = {}) {
   const sprites = manifestSprites || {
     idle: { file: 'idle.png', frames: 4, duration: 1000, loop: true },
   };
   const manifest = { id: 'panda', name: 'Panda', sprites };
   if (withIcon) manifest.icon = 'icon.png';
+  manifest.sounds = { idle: 'idle.wav', waiting_for_action: 'waiting_for_action.wav' };
   const assetsServed = [];
   return {
     assetsServed,
@@ -27,6 +28,9 @@ function makeFakeApi({ manifestSprites, withIcon = true } = {}) {
       }
       if (!withIcon && filename === 'icon.png') {
         throw new Error('no icon');
+      }
+      if (!withSounds && filename.endsWith('.wav')) {
+        throw new Error('no sound');
       }
       return Buffer.from(`bytes:${filename}`, 'utf8');
     },
@@ -103,6 +107,34 @@ describe('PremiumStore', () => {
       assert.equal(fs.existsSync(path.join(petDir, 'manifest.json')), true);
       assert.equal(fs.existsSync(path.join(petDir, 'idle.png')), true);
       assert.equal(fs.existsSync(path.join(petDir, 'icon.png')), false);
+    });
+
+    it('writes sound files alongside sprites', async () => {
+      // GIVEN a fake api whose manifest declares sounds
+      const api = makeFakeApi();
+
+      // WHEN downloading
+      await sut.download('panda', 'LIC-1', api, 10);
+
+      // THEN sound files are written next to sprites
+      const petDir = path.join(tmpBase, 'panda');
+      assert.equal(fs.existsSync(path.join(petDir, 'idle.wav')), true);
+      assert.equal(fs.existsSync(path.join(petDir, 'waiting_for_action.wav')), true);
+    });
+
+    it('warns but succeeds when a sound asset is missing', async () => {
+      // GIVEN an api that 404s on .wav files
+      const api = makeFakeApi({ withSounds: false });
+
+      // WHEN downloading
+      await sut.download('panda', 'LIC-1', api, 10);
+
+      // THEN manifest and sprites are present but sound files are not
+      const petDir = path.join(tmpBase, 'panda');
+      assert.equal(fs.existsSync(path.join(petDir, 'manifest.json')), true);
+      assert.equal(fs.existsSync(path.join(petDir, 'idle.png')), true);
+      assert.equal(fs.existsSync(path.join(petDir, 'idle.wav')), false);
+      assert.equal(fs.existsSync(path.join(petDir, 'waiting_for_action.wav')), false);
     });
   });
 

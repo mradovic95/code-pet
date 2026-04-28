@@ -59,6 +59,16 @@ class PremiumStore {
     } catch (err) {
       logger.warn(`No icon for premium pet "${petId}" (${iconFile}): ${err.message}`);
     }
+
+    for (const [, soundFile] of Object.entries(manifest.sounds || {})) {
+      if (!soundFile) continue;
+      try {
+        const data = await api.downloadAsset(productId, soundFile, licenseKey);
+        fs.writeFileSync(path.join(destDir, soundFile), data);
+      } catch (err) {
+        logger.warn(`No sound asset "${soundFile}" for "${petId}": ${err.message}`);
+      }
+    }
   }
 
   isDownloaded(petId) {
