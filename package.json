@@ -3,7 +3,11 @@
 	"version": "0.1.0",
 	"description": "Animated desktop pet companion that reacts to Claude Code activity",
 	"main": "src/app/main.js",
-	"author": "mradovic95",
+	"author": {
+		"name": "Mihailo Radovic",
+		"email": "22870872+mradovic95@users.noreply.github.com",
+		"url": "https://github.com/mradovic95"
+	},
 	"license": "SEE LICENSE IN LICENSE",
 	"repository": {
 		"type": "git",
@@ -15,7 +19,9 @@
 	},
 	"keywords": [
 		"claude-code",
+		"claude-code-plugin",
 		"plugin",
+		"pet",
 		"desktop-pet",
 		"electron",
 		"animation",

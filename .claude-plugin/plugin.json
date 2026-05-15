@@ -3,15 +3,22 @@
 	"description": "Animated desktop pet companion that reacts to Claude Code activity",
 	"version": "0.1.0",
 	"author": {
-		"name": "mradovic95"
+		"name": "Mihailo Radovic",
+		"email": "22870872+mradovic95@users.noreply.github.com",
+		"url": "https://github.com/mradovic95"
 	},
 	"homepage": "https://github.com/mradovic95/code-pet",
 	"repository": "https://github.com/mradovic95/code-pet",
 	"license": "MIT",
 	"keywords": [
-		"animation",
-		"desktop",
+		"claude-code",
+		"claude-code-plugin",
+		"pet",
+		"desktop-pet",
 		"companion",
-		"overlay"
+		"electron",
+		"overlay",
+		"animation",
+		"productivity"
 	]
 }

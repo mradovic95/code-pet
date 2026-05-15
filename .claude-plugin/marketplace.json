@@ -1,13 +1,15 @@
 {
 	"name": "code-pet-marketplace",
 	"owner": {
-		"name": "mradovic95"
+		"name": "Mihailo Radovic",
+		"email": "22870872+mradovic95@users.noreply.github.com",
+		"url": "https://github.com/mradovic95"
 	},
 	"plugins": [
 		{
 			"name": "code-pet",
 			"source": "./",
-			"description": "Animated desktop pet companion that reacts to Claude Code activity",
+			"description": "A tiny animated companion that reacts to Claude Code in real time — works, plans, waits, sleeps.",
 			"version": "0.1.0"
 		}
 	]
