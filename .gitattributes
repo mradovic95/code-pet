@@ -1,0 +1,13 @@
+# Normalize line endings: text files are LF in the repo, native on checkout.
+* text=auto eol=lf
+
+# Binary assets — never normalize, never diff as text.
+*.png  binary
+*.gif  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.webp binary
+*.mp3  binary
+*.wav  binary
+*.ogg  binary

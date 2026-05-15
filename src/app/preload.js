@@ -18,9 +18,6 @@ contextBridge.exposeInMainWorld('codePet', {
   onPetTypeChanged: (callback) => {
     ipcRenderer.on('pet-type-changed', (_event, data) => callback(data));
   },
-  onPremiumSprites: (callback) => {
-    ipcRenderer.on('premium-sprites', (_event, data) => callback(data));
-  },
   onPetLabelChanged: (callback) => {
     ipcRenderer.on('pet-label-changed', (_event, data) => callback(data));
   },

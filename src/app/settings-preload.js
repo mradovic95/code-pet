@@ -15,10 +15,19 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   // Usage
   getToolUsage: () => ipcRenderer.sendSync('get-tool-usage'),
   getToolEvents: () => ipcRenderer.sendSync('get-tool-events'),
+  getAllUsageEvents: () => ipcRenderer.invoke('get-all-usage-events'),
   // Marketplace
   activateLicense: (key) => ipcRenderer.invoke('activate-license', key),
   getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
   getMarketplaceCatalog: () => ipcRenderer.invoke('get-marketplace-catalog'),
-  purchasePet: (petId) => ipcRenderer.invoke('purchase-pet', petId),
+  purchasePet: (petId, buyerEmail) => ipcRenderer.invoke('purchase-pet', { petId, buyerEmail }),
   pollPaymentStatus: (token) => ipcRenderer.invoke('poll-payment-status', token),
+  getBuyerEmail: () => ipcRenderer.sendSync('get-buyer-email'),
+  setBuyerEmail: (email) => ipcRenderer.invoke('set-buyer-email', email),
+  // Animation preview collapse state
+  getAnimationPreviewCollapsed: () => ipcRenderer.sendSync('get-animation-preview-collapsed'),
+  setAnimationPreviewCollapsed: (value) => ipcRenderer.invoke('set-animation-preview-collapsed', value),
+  // About
+  getVersion: () => ipcRenderer.sendSync('get-version'),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
 });

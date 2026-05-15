@@ -140,6 +140,15 @@ class LicenseManager {
       needsRevalidation: this.needsRevalidation(),
     };
   }
+
+  clear() {
+    this._license = { ...DEFAULT_LICENSE };
+    try {
+      if (fs.existsSync(LICENSE_FILE)) fs.unlinkSync(LICENSE_FILE);
+    } catch (err) {
+      logger.warn(`Failed to clear license file: ${err.message}`);
+    }
+  }
 }
 
 module.exports = LicenseManager;

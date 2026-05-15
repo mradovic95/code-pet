@@ -1,24 +1,12 @@
 'use strict';
 
 let _petCatalog = [];
-let _premiumSprites = {}; // petId -> { idle: "data:...", working: "data:...", ... }
 let _soundSettings = { idle: false, waiting_for_action: false };
 
 function setPetCatalog(catalog) {
   _petCatalog = catalog;
-  // Pre-inject CSS for all known pet types
   for (const manifest of _petCatalog) {
-    const dataUris = _premiumSprites[manifest.id] || null;
-    injectPetStyles(manifest.id, manifest, dataUris);
-  }
-}
-
-function setPremiumSprites(petId, sprites) {
-  _premiumSprites[petId] = sprites;
-  // Re-inject styles with data URIs if catalog is already loaded
-  const manifest = _petCatalog.find(m => m.id === petId);
-  if (manifest) {
-    injectPetStyles(petId, manifest, sprites);
+    injectPetStyles(manifest.id, manifest);
   }
 }
 
@@ -48,10 +36,8 @@ class PetManager {
     const type = petType || 'dog';
     const manifest = getManifestForType(type);
 
-    // Inject CSS if not already done
     if (manifest) {
-      const dataUris = _premiumSprites[type] || null;
-      injectPetStyles(type, manifest, dataUris);
+      injectPetStyles(type, manifest);
     }
 
     const slot = document.createElement('div');
@@ -81,8 +67,7 @@ class PetManager {
 
     const manifest = getManifestForType(petType);
     if (manifest) {
-      const dataUris = _premiumSprites[petType] || null;
-      injectPetStyles(petType, manifest, dataUris);
+      injectPetStyles(petType, manifest);
     }
 
     entry.petType = petType;

@@ -363,12 +363,13 @@ describe('PetRegistry', () => {
       const reg = new PetRegistry({ store: fakeStore });
 
       // WHEN
-      const pet = reg.getOrCreate('proj::1', 'proj', 'Project');
+      const pet = reg.getOrCreate('proj::1', '/home/user/proj', 'Project');
       pet.recordToolUsage('Skill', { skill: 'commit' });
 
       // THEN
       assert.equal(seen.length, 1);
       assert.equal(seen[0].name, 'commit');
+      assert.equal(seen[0].projectPath, '/home/user/proj');
     });
 
     it('setStore swaps the store for newly-created contexts', () => {

@@ -16,15 +16,12 @@ const PRODUCT_MAP_FILE = path.join(os.homedir(), '.code-pet', 'product-map.json'
 class MarketplaceAPI {
   constructor(config) {
     this._baseUrl = (config.baseUrl || '').replace(/\/+$/, '');
-    this._apiKey = config.apiKey || null;
     this._marketplaceId = config.marketplaceId || null;
     this._jwtToken = config.jwtToken || null;
 
     // Bidirectional product ID <-> pet ID map
     this._productToPet = new Map(); // productId (number) -> petId (string)
     this._petToProduct = new Map(); // petId (string) -> productId (number)
-    this._catalogCache = null;
-    this._catalogLoadedAt = 0;
 
     this._loadProductMap();
   }
@@ -32,11 +29,11 @@ class MarketplaceAPI {
   // --- Public interface (matches MockLicenseAPI) ---
 
   async activate(key, machineId) {
-    await this._ensureCatalogLoaded();
+    await this.getCatalog();
 
     try {
       const url = `${this._baseUrl}/api/v1/licenses/${encodeURIComponent(key)}/activations`;
-      const result = await postJson(url, { machineId }, this._apiKeyHeaders());
+      const result = await postJson(url, { machineId });
 
       const ownedPets = this._resolveProductIds(result.ownedProductIds || []);
       return {
@@ -51,11 +48,11 @@ class MarketplaceAPI {
   }
 
   async validate(key, machineId) {
-    await this._ensureCatalogLoaded();
+    await this.getCatalog();
 
     try {
       const url = `${this._baseUrl}/api/v1/licenses/${encodeURIComponent(key)}/validations`;
-      const result = await postJson(url, { machineId }, this._apiKeyHeaders());
+      const result = await postJson(url, { machineId });
 
       const ownedPets = this._resolveProductIds(result.ownedProductIds || []);
       return { valid: result.valid !== false, ownedPets };
@@ -73,8 +70,6 @@ class MarketplaceAPI {
       }
 
       const products = await getJson(url);
-      this._catalogCache = products;
-      this._catalogLoadedAt = Date.now();
       this._buildProductMap(products);
 
       return products.map(p => ({
@@ -83,8 +78,8 @@ class MarketplaceAPI {
         description: p.description,
         price: this._formatPrice(p.priceCents),
         tier: (p.tier || 'free').toLowerCase(),
-        previewUrl: p.previewUrl || null,
-        thumbnailUrl: p.thumbnailUrl || null,
+        previewUrl: this._toAbsolute(p.previewUrl),
+        thumbnailUrl: this._toAbsolute(p.thumbnailUrl),
         productId: p.id,
       }));
     } catch (err) {
@@ -93,7 +88,11 @@ class MarketplaceAPI {
     }
   }
 
-  async purchase(petId) {
+  async purchase(petId, buyerEmail) {
+    if (typeof buyerEmail !== 'string' || buyerEmail.trim() === '') {
+      return { success: false, error: 'buyerEmail required' };
+    }
+
     const productId = this._petToProduct.get(petId);
     if (!productId) {
       return { success: false, error: `Unknown pet "${petId}"` };
@@ -101,7 +100,7 @@ class MarketplaceAPI {
 
     try {
       const url = `${this._baseUrl}/api/v1/products/${productId}/purchases`;
-      const result = await postJson(url, null, this._bearerHeaders());
+      const result = await postJson(url, { buyerEmail: buyerEmail.trim() }, this._bearerHeaders());
 
       if (result.licenseKey) {
         // Free product — license returned immediately
@@ -155,16 +154,9 @@ class MarketplaceAPI {
 
   // --- Private helpers ---
 
-  _apiKeyHeaders() {
-    const h = {};
-    if (this._apiKey) h['X-Api-Key'] = this._apiKey;
-    return h;
-  }
-
   _bearerHeaders() {
     const h = {};
     if (this._jwtToken) h['Authorization'] = `Bearer ${this._jwtToken}`;
-    if (this._apiKey) h['X-Api-Key'] = this._apiKey;
     return h;
   }
 
@@ -176,6 +168,12 @@ class MarketplaceAPI {
   _formatPrice(priceCents) {
     if (!priceCents || priceCents === 0) return 'Free';
     return `$${(priceCents / 100).toFixed(2)}`;
+  }
+
+  _toAbsolute(url) {
+    if (!url) return null;
+    if (/^https?:\/\//i.test(url)) return url;
+    return `${this._baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
   }
 
   _extractToken(paymentUrl) {
@@ -200,13 +198,6 @@ class MarketplaceAPI {
     return productIds
       .map(id => this._productToPet.get(id))
       .filter(Boolean);
-  }
-
-  async _ensureCatalogLoaded() {
-    // If map is empty and we haven't fetched recently, prime it
-    if (this._productToPet.size === 0 || (Date.now() - this._catalogLoadedAt > 3600000)) {
-      await this.getCatalog();
-    }
   }
 
   _loadProductMap() {

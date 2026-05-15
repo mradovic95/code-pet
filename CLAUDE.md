@@ -59,7 +59,7 @@ src/
     settings.css             # Settings window styling
   tracking/                  # Skill / MCP tool usage tracking (self-contained)
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore
-    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId)
+    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath)
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -99,40 +99,48 @@ Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero
 
 ## Marketplace Integration
 
-Premium pets are purchased and downloaded from a real marketplace backend. The system supports two modes:
+Premium pets are purchased and downloaded from the deployed marketplace module (Spring Boot API backed by AWS API Gateway + EC2). Defaults live in `src/app/marketplace-constants.js` — `DEFAULT_BASE_URL` and `DEFAULT_MARKETPLACE_ID = 1`.
 
-- **Mock mode** (default): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`. Active when no API key is configured.
-- **Real mode**: `MarketplaceAPI` calls the marketplace REST API. Active when `~/.code-pet/marketplace.json` has an `apiKey`.
+- **Real mode** (default): `MarketplaceAPI` calls the deployed REST API. No configuration required out of the box.
+- **Mock mode** (dev only): `MockLicenseAPI` generates fake license keys for activation testing. Sprite download is not supported in mock mode — a real marketplace API is required to fetch assets. Activate by setting `MARKETPLACE_MOCK=true`.
 
 ```
 Settings UI (Buy button)
-  → IPC: purchase-pet
-    → MarketplaceAPI.purchase(petId)
-      → POST /api/v1/products/{productId}/purchases
-        → FREE: license key returned immediately
+  → buyer email collected (stored in settings.json under "buyerEmail")
+  → IPC: purchase-pet { petId, buyerEmail }
+    → MarketplaceAPI.purchase(petId, buyerEmail)
+      → POST /api/v1/products/{productId}/purchases { buyerEmail }
+        → FREE: license key returned immediately (also emailed to buyer)
         → PREMIUM: PayPal URL returned → shell.openExternal() → user pays
           → IPC: poll-payment-status → GET /purchases/payment-success?token=...
             → license key returned
   → IPC: activate-license
-    → LicenseManager.activate(key) → POST /api/v1/licenses/{key}/activations
+    → LicenseManager.activate(key) → POST /api/v1/licenses/{key}/activations { machineId }
     → PremiumStore.download(petId, key, api, productId)
-      → GET /api/v1/products/{productId}/assets/{filename} (per sprite file)
-      → XOR-encrypt + write to ~/.code-pet/premium-pets/{petId}/
-    → IPC: premium-sprites → renderer injects data: URIs into CSS
+      → GET /api/v1/products/{productId}/assets/manifest.json (header: X-License-Key)
+      → GET /api/v1/products/{productId}/assets/{filename} (header: X-License-Key)
+      → write to ~/.code-pet/pets/{petId}/
+    → IPC: pet-catalog refresh → renderer reads the new pet's sprites from disk like any other
 ```
 
-**Configuration** (`~/.code-pet/marketplace.json`):
+**Configuration** (all optional, overrides the defaults in `marketplace-constants.js`):
+
+`~/.code-pet/marketplace.json`:
 ```json
 {
   "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
-  "apiKey": "your-api-key",
-  "marketplaceId": 1
+  "marketplaceId": 1,
+  "jwtToken": null
 }
 ```
 
-Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_API_KEY`, `MARKETPLACE_ID`.
+Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_ID`, `MARKETPLACE_MOCK`.
 
-**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response (product name lowercased) and cached to `~/.code-pet/product-map.json`.
+**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response — `petId = product.name.toLowerCase().replace(/\s+/g, '-')` — and cached to `~/.code-pet/product-map.json`. **Sellers must name products predictably** for this to round-trip.
+
+**Asset manifest convention**: Each product has a `manifest.json` asset listing sprite filenames. The client fetches `manifest.json` first, then each referenced sprite. Sellers are responsible for uploading both. Asset downloads are gated by `X-License-Key` (not `Authorization: Bearer`).
+
+**Stale mock key recovery**: if `~/.code-pet/license.json` contains a key starting with `MOCK-` while running in real mode, the file is cleared on startup (logged as a warning). Prevents confusion when a dev toggles off mock mode.
 
 ## Events and States
 
@@ -204,7 +212,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId) |
 | `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
 | `license.json` | Activated license key, owned pets, validation timestamp |
-| `premium-pets/` | Downloaded premium pet assets (XOR-encrypted sprites + manifest) |
+| `pets/{id}/` | Downloaded marketplace pets (sprites + manifest + icon, plaintext). Lives outside the plugin dir so purchases survive `claude plugin upgrade`. Missing-but-owned pets are redownloaded on startup using `license.json`. |
 | `usage.log` | Append-only NDJSON log of skill / MCP tool events. One JSON object per line. Grows unbounded by design (cross-session analytics). Disable with `USAGE_STORE_TYPE=memory`. |
 
 ## Testing
@@ -286,4 +294,8 @@ npx electron src/app/main.js
 
 Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's `manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
 
-Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Free pets are in `assets/pets/{id}/`, premium pets in `assets/pets-dev/{id}/` (downloaded to `~/.code-pet/premium-pets/{id}/` after purchase).
+Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Pets live in two roots:
+- **Shipped** (bird, cat, dog): `assets/pets/{id}/` inside the plugin dir. Replaced by `claude plugin upgrade`.
+- **Downloaded** (anything from the marketplace): `~/.code-pet/pets/{id}/` under the user data dir. Survives plugin upgrade/reinstall.
+
+`PetCatalog.scan()` is called once per root at startup. Later-root entries overlay earlier on id collision. The renderer reads each manifest's pre-built `_dirUrl` (computed in main via `pathToFileURL` so Windows paths round-trip correctly) and appends the sprite/sound/icon filename — shipped vs downloaded is invisible to the renderer. If an owned pet is missing from `~/.code-pet/pets/` on startup (e.g. the user wiped the dir), the recovery loop in `main.js` redownloads it from the marketplace using the persisted license.

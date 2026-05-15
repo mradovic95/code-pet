@@ -41,8 +41,7 @@ class PetRegistry {
       return pet;
     }
     const petType = settingsStore.getPetTypeForProject(projectPath);
-    const pet = new PetContext(projectName, petType, { store: this._store });
-    pet.projectPath = projectPath;
+    const pet = new PetContext(projectName, petType, { store: this._store, projectPath });
     this._projects.set(sessionKey, pet);
 
     // Maintain secondary index

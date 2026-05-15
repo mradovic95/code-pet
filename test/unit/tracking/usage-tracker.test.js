@@ -9,7 +9,7 @@ describe('UsageTracker', () => {
   let sut;
 
   beforeEach(() => {
-    sut = new UsageTracker({ sessionId: 'test-session' });
+    sut = new UsageTracker({ sessionId: 'test-session', projectPath: '/p' });
   });
 
   it('starts with zero events', () => {
@@ -34,6 +34,31 @@ describe('UsageTracker', () => {
     assert.equal(sut.size, 1);
     assert.equal(event.type, 'mcp_tool');
     assert.equal(event.name, 'mcp__db__query');
+    assert.equal(event.projectPath, '/p');
+  });
+
+  it('stamps projectPath on every recorded event', () => {
+    // GIVEN
+    const tracker = new UsageTracker({ sessionId: 's', projectPath: '/repo' });
+
+    // WHEN
+    const first = tracker.record('skill', 'commit');
+    const second = tracker.record('mcp_tool', 'mcp__db__query');
+
+    // THEN
+    assert.equal(first.projectPath, '/repo');
+    assert.equal(second.projectPath, '/repo');
+  });
+
+  it('stamps projectPath as null when not provided', () => {
+    // GIVEN
+    const tracker = new UsageTracker({ sessionId: 's' });
+
+    // WHEN
+    const event = tracker.record('skill', 'commit');
+
+    // THEN
+    assert.equal(event.projectPath, null);
   });
 
   it('returns aggregated counts by type', () => {

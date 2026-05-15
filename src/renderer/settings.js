@@ -2,9 +2,11 @@
 
 // Feature flags — hardcoded, flip to false to disable
 const FEATURE_FLAGS = {
-  STORE_TAB: true,
+  STORE_TAB: false,   // v1: hidden until marketplace ships publicly
   USAGE_TAB: true,
 };
+
+const PREVIEW_STATES = ['idle', 'working', 'planning', 'waiting_for_action', 'waking_up'];
 
 // --- Load tab HTML partials ---
 
@@ -32,8 +34,18 @@ async function init() {
     window.codePetSettings.close();
   });
 
-  document.getElementById('dismiss-btn').addEventListener('click', () => {
+  const dismissBtn = document.getElementById('dismiss-btn');
+  const dismissConfirm = document.getElementById('dismiss-confirm');
+  dismissBtn.addEventListener('click', () => {
+    dismissBtn.style.display = 'none';
+    dismissConfirm.style.display = '';
+  });
+  document.getElementById('dismiss-yes').addEventListener('click', () => {
     window.codePetSettings.dismissProject();
+  });
+  document.getElementById('dismiss-no').addEventListener('click', () => {
+    dismissConfirm.style.display = 'none';
+    dismissBtn.style.display = '';
   });
 
   // --- Sound toggles ---
@@ -50,6 +62,15 @@ async function init() {
     window.codePetSettings.setSoundEnabledForState('waiting_for_action', soundToggleWaiting.checked);
   });
 
+  // --- Sound preview buttons ---
+
+  wireSoundPreview('preview-idle', 'idle');
+  wireSoundPreview('preview-waiting', 'waiting_for_action');
+
+  // --- Animation preview collapse toggle ---
+
+  initAnimationPreviewCollapse();
+
   // --- Store tab feature flag ---
 
   if (FEATURE_FLAGS.STORE_TAB) {
@@ -61,24 +82,76 @@ async function init() {
     document.getElementById('tab-btn-usage').style.display = '';
   }
 
-  // --- Tabs ---
+  // --- Tabs (with fade transition) ---
+
+  const TAB_IDS = ['tab-general', 'tab-store', 'tab-usage'];
+  let _activeTabId = 'tab-general';
+  let _tabTransitioning = false;
 
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
+      const target = 'tab-' + tab.dataset.tab;
+      if (target === _activeTabId || _tabTransitioning) return;
+      _tabTransitioning = true;
+
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      const target = tab.dataset.tab;
-      document.getElementById('tab-general').style.display = target === 'general' ? '' : 'none';
-      document.getElementById('tab-store').style.display = target === 'store' ? '' : 'none';
-      document.getElementById('tab-usage').style.display = target === 'usage' ? '' : 'none';
-      if (target === 'usage') renderUsageTab();
-      if (target === 'store') renderMarketplace();
+
+      const oldEl = document.getElementById(_activeTabId);
+      const newEl = document.getElementById(target);
+
+      // Fade out current tab
+      oldEl.classList.add('fading');
+      setTimeout(() => {
+        oldEl.style.display = 'none';
+        oldEl.classList.remove('fading');
+
+        // Show new tab (start invisible, then fade in)
+        newEl.style.display = '';
+        newEl.classList.add('fading');
+        _activeTabId = target;
+
+        // Trigger lazy loads before fade-in
+        if (tab.dataset.tab === 'usage') renderUsageTab();
+        if (tab.dataset.tab === 'store') renderMarketplace();
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            newEl.classList.remove('fading');
+            _tabTransitioning = false;
+          });
+        });
+      }, 120);
     });
+  });
+
+  // --- Footer ---
+
+  document.getElementById('version-text').textContent = `v${window.codePetSettings.getVersion()}`;
+  document.getElementById('github-link').addEventListener('click', () => {
+    window.codePetSettings.openExternal('https://github.com/mradovic95/code-pet');
   });
 
   // --- Render initial tab ---
 
   renderPetSelector();
+}
+
+// --- Sound Preview ---
+
+function wireSoundPreview(buttonId, soundState) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const petType = window.codePetSettings.getCurrentPetType();
+    const catalog = window.codePetSettings.getPetCatalog();
+    const pet = catalog.find(p => p.id === petType);
+    if (!pet || !pet.sounds || !pet.sounds[soundState]) return;
+    const audio = new Audio(`${pet._dirUrl}/${encodeURIComponent(pet.sounds[soundState])}`);
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  });
 }
 
 // --- Pet Selector (free + owned premium) ---
@@ -99,7 +172,7 @@ function renderPetSelector() {
     const preview = document.createElement('div');
     preview.className = 'pet-card-preview';
     const previewSize = 36;
-    preview.style.backgroundImage = `url('../../assets/pets/${pet.id}/${pet.icon || 'icon.png'}')`;
+    preview.style.backgroundImage = `url('${pet._dirUrl}/${encodeURIComponent(pet.icon || 'icon.png')}')`;
     preview.style.backgroundSize = `${previewSize}px ${previewSize}px`;
     preview.style.width = `${previewSize}px`;
     preview.style.height = `${previewSize}px`;
@@ -122,15 +195,217 @@ function renderPetSelector() {
 
     card.addEventListener('click', () => {
       window.codePetSettings.setPetType(pet.id);
-      container.querySelectorAll('.pet-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
+      container.querySelectorAll('.pet-card').forEach(c => {
+        c.classList.remove('selected', 'just-selected');
+      });
+      card.classList.add('selected', 'just-selected');
+      setTimeout(() => card.classList.remove('just-selected'), 400);
+      renderAnimationPreviews(pet);
     });
 
     container.appendChild(card);
   }
+
+  const currentPet = catalog.find(p => p.id === currentType);
+  if (currentPet) renderAnimationPreviews(currentPet);
+}
+
+// --- Animation Previews ---
+
+function renderAnimationPreviews(pet) {
+  const container = document.getElementById('animation-previews-container');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!pet || !pet.sprites) return;
+
+  const frameSize = pet.frameSize || 64;
+
+  for (const state of PREVIEW_STATES) {
+    const sprite = pet.sprites[state];
+    if (!sprite) continue;
+
+    const box = document.createElement('div');
+    box.className = 'animation-preview-box';
+
+    const frame = document.createElement('div');
+    frame.className = 'animation-preview-frame';
+    const totalWidth = frameSize * sprite.frames;
+    const bgUrl = `${pet._dirUrl}/${encodeURIComponent(sprite.file)}`;
+    frame.style.width = `${frameSize}px`;
+    frame.style.height = `${frameSize}px`;
+    frame.style.backgroundImage = `url('${bgUrl}')`;
+    frame.style.backgroundSize = `${totalWidth}px ${frameSize}px`;
+    // Preview always loops, even one-shot states like waking_up.
+    frame.style.animation = `preview-${state}-${pet.id} ${sprite.duration}ms steps(${sprite.frames}) infinite`;
+
+    const label = document.createElement('div');
+    label.className = 'animation-preview-label';
+    label.textContent = state.replace(/_/g, ' ');
+
+    const card = document.createElement('div');
+    card.className = 'animation-preview-card';
+    card.append(frame);
+
+    box.append(card, label);
+    container.append(box);
+  }
+
+  injectPreviewKeyframes(pet, frameSize);
+}
+
+function injectPreviewKeyframes(pet, frameSize) {
+  let style = document.getElementById('preview-keyframes');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'preview-keyframes';
+    document.head.append(style);
+  }
+  let css = '';
+  for (const state of PREVIEW_STATES) {
+    const sprite = pet.sprites[state];
+    if (!sprite) continue;
+    const totalWidth = frameSize * sprite.frames;
+    css += `@keyframes preview-${state}-${pet.id} {
+  from { background-position-x: 0; }
+  to { background-position-x: -${totalWidth}px; }
+}\n`;
+  }
+  style.textContent = css;
+}
+
+function initAnimationPreviewCollapse() {
+  const section = document.getElementById('animation-preview-section');
+  const toggle = document.getElementById('animation-preview-toggle');
+  const chevron = document.getElementById('animation-preview-chevron');
+  if (!section || !toggle || !chevron) return;
+
+  const collapsed = window.codePetSettings.getAnimationPreviewCollapsed();
+  applyCollapsed(section, chevron, collapsed);
+
+  toggle.addEventListener('click', async () => {
+    const next = !section.classList.contains('collapsed');
+    applyCollapsed(section, chevron, next);
+    await window.codePetSettings.setAnimationPreviewCollapsed(next);
+  });
+}
+
+function applyCollapsed(section, chevron, collapsed) {
+  section.classList.toggle('collapsed', collapsed);
+  chevron.textContent = collapsed ? '▸' : '▾';
 }
 
 // --- Marketplace ---
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function renderEmailBanner(section) {
+  let banner = section.querySelector('.buyer-email-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.className = 'buyer-email-banner';
+    const title = section.querySelector('.section-title');
+    if (title && title.nextSibling) {
+      section.insertBefore(banner, title.nextSibling);
+    } else {
+      section.insertBefore(banner, section.firstChild);
+    }
+  }
+  const email = window.codePetSettings.getBuyerEmail();
+  banner.innerHTML = '';
+  const label = document.createElement('span');
+  label.className = 'buyer-email-label';
+  label.textContent = email
+    ? `License key will be emailed to ${email}`
+    : 'We will email the license key — click to set address.';
+  const link = document.createElement('a');
+  link.href = '#';
+  link.className = 'buyer-email-change';
+  link.textContent = email ? 'Change' : 'Set email';
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    promptForBannerEmail(banner, email);
+  });
+  banner.appendChild(label);
+  banner.appendChild(link);
+}
+
+function promptForBannerEmail(banner, currentEmail) {
+  banner.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'email';
+  input.className = 'buyer-email-input';
+  input.placeholder = 'you@example.com';
+  input.value = currentEmail || '';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'buyer-email-save';
+  saveBtn.textContent = 'Save';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'buyer-email-cancel';
+  cancelBtn.textContent = 'Cancel';
+  const finish = () => {
+    const section = banner.parentElement;
+    if (section) renderEmailBanner(section);
+  };
+  saveBtn.addEventListener('click', async () => {
+    const value = input.value.trim();
+    if (!EMAIL_REGEX.test(value)) {
+      input.classList.add('invalid');
+      return;
+    }
+    await window.codePetSettings.setBuyerEmail(value);
+    finish();
+  });
+  cancelBtn.addEventListener('click', finish);
+  banner.appendChild(input);
+  banner.appendChild(saveBtn);
+  banner.appendChild(cancelBtn);
+  input.focus();
+}
+
+async function ensureBuyerEmail(buyBtn) {
+  const existing = window.codePetSettings.getBuyerEmail();
+  if (existing && EMAIL_REGEX.test(existing)) return existing;
+
+  return new Promise((resolve) => {
+    const actionsEl = buyBtn.parentElement;
+    const card = actionsEl.closest('.marketplace-card') || actionsEl;
+    buyBtn.style.display = 'none';
+    const row = document.createElement('div');
+    row.className = 'buyer-email-inline';
+    const input = document.createElement('input');
+    input.type = 'email';
+    input.className = 'buyer-email-input';
+    input.placeholder = 'email for license';
+    const confirm = document.createElement('button');
+    confirm.className = 'buyer-email-save';
+    confirm.textContent = 'OK';
+    const cancel = document.createElement('button');
+    cancel.className = 'buyer-email-cancel';
+    cancel.textContent = 'x';
+    const cleanup = (email) => {
+      row.remove();
+      buyBtn.style.display = '';
+      resolve(email);
+    };
+    confirm.addEventListener('click', async () => {
+      const value = input.value.trim();
+      if (!EMAIL_REGEX.test(value)) {
+        input.classList.add('invalid');
+        return;
+      }
+      await window.codePetSettings.setBuyerEmail(value);
+      const section = document.getElementById('marketplace-section');
+      if (section) renderEmailBanner(section);
+      cleanup(value);
+    });
+    cancel.addEventListener('click', () => cleanup(null));
+    row.appendChild(input);
+    row.appendChild(confirm);
+    row.appendChild(cancel);
+    card.appendChild(row);
+    input.focus();
+  });
+}
 
 async function renderMarketplace() {
   const section = document.getElementById('marketplace-section');
@@ -148,47 +423,68 @@ async function renderMarketplace() {
 
   const ownedPets = new Set(licenseStatus.ownedPets || []);
 
-  // Filter to only show premium pets not yet owned
-  const available = catalog.filter(p => p.tier === 'premium' && !ownedPets.has(p.id));
+  const available = catalog.filter(p => !ownedPets.has(p.id));
 
   if (available.length === 0 && ownedPets.size === 0) {
-    // No premium pets at all — hide section
     section.style.display = 'none';
     return;
   }
 
   section.style.display = '';
+  renderEmailBanner(section);
   grid.innerHTML = '';
 
-  for (const pet of catalog.filter(p => p.tier === 'premium')) {
+  for (const pet of catalog) {
+    const buyLabel = pet.tier === 'free' ? 'Claim' : 'Buy';
     const owned = ownedPets.has(pet.id);
     const card = document.createElement('div');
     card.className = 'marketplace-card' + (owned ? ' owned' : '');
 
     const preview = document.createElement('div');
     preview.className = 'marketplace-preview';
+    if (pet.thumbnailUrl) {
+      const img = document.createElement('img');
+      img.className = 'marketplace-thumb';
+      img.alt = pet.name;
+      img.src = pet.thumbnailUrl;
+      img.addEventListener('error', () => img.remove());
+      preview.appendChild(img);
+    }
 
     const lockBadge = document.createElement('div');
     lockBadge.className = owned ? 'badge-owned' : 'badge-locked';
     lockBadge.textContent = owned ? '\u2713' : '\uD83D\uDD12';
 
+    const body = document.createElement('div');
+    body.className = 'marketplace-body';
+
     const nameEl = document.createElement('div');
     nameEl.className = 'marketplace-name';
     nameEl.textContent = pet.name;
+    body.appendChild(nameEl);
+
+    if (pet.description) {
+      const descEl = document.createElement('div');
+      descEl.className = 'marketplace-description';
+      descEl.textContent = pet.description;
+      body.appendChild(descEl);
+    }
 
     const priceEl = document.createElement('div');
     priceEl.className = 'marketplace-price';
-    priceEl.textContent = owned ? 'Owned' : pet.price;
+    priceEl.textContent = owned ? 'Owned' : (pet.tier === 'free' ? 'Free' : pet.price);
+    body.appendChild(priceEl);
 
     card.appendChild(preview);
     card.appendChild(lockBadge);
-    card.appendChild(nameEl);
-    card.appendChild(priceEl);
+    card.appendChild(body);
 
     if (!owned) {
+      const actions = document.createElement('div');
+      actions.className = 'marketplace-actions';
       const buyBtn = document.createElement('button');
       buyBtn.className = 'marketplace-buy-btn';
-      buyBtn.textContent = 'Buy';
+      buyBtn.textContent = buyLabel;
       buyBtn.addEventListener('click', async () => {
         // If waiting for payment completion, check status
         if (buyBtn._pendingPayment && buyBtn._paymentToken) {
@@ -200,7 +496,7 @@ async function renderMarketplace() {
               document.getElementById('license-input').value = payResult.licenseKey;
               showLicenseStatus('Payment complete! Click Activate to enable.', 'success');
               buyBtn._pendingPayment = false;
-              buyBtn.textContent = 'Buy';
+              buyBtn.textContent = buyLabel;
             } else {
               showLicenseStatus('Payment not yet completed. Try again in a moment.', 'info');
             }
@@ -212,12 +508,14 @@ async function renderMarketplace() {
           return;
         }
 
+        const email = await ensureBuyerEmail(buyBtn);
+        if (!email) return;
+
         buyBtn.disabled = true;
         buyBtn.textContent = '...';
         try {
-          const result = await window.codePetSettings.purchasePet(pet.id);
+          const result = await window.codePetSettings.purchasePet(pet.id, email);
           if (result.paymentPending) {
-            // Paid pet: PayPal opened in browser
             showLicenseStatus('Payment opened in browser. Complete payment, then click Check Payment.', 'info');
             buyBtn.textContent = 'Check Payment';
             buyBtn._paymentToken = result.paymentToken;
@@ -226,9 +524,8 @@ async function renderMarketplace() {
             return;
           }
           if (result.success && result.licenseKey) {
-            // Free pet or mock: license key returned directly
             document.getElementById('license-input').value = result.licenseKey;
-            showLicenseStatus('Key generated! Click Activate to enable.', 'info');
+            showLicenseStatus(`License key ready (also emailed to ${email}). Click Activate.`, 'info');
           } else {
             showLicenseStatus(result.error || 'Purchase failed', 'error');
           }
@@ -236,9 +533,10 @@ async function renderMarketplace() {
           showLicenseStatus('Purchase failed', 'error');
         }
         buyBtn.disabled = false;
-        buyBtn.textContent = 'Buy';
+        buyBtn.textContent = buyLabel;
       });
-      card.appendChild(buyBtn);
+      actions.appendChild(buyBtn);
+      card.appendChild(actions);
     }
 
     grid.appendChild(card);
@@ -288,34 +586,223 @@ function initLicenseActivation() {
 
 // --- Usage Tab ---
 
-function renderUsageTab() {
-  const usage = window.codePetSettings.getToolUsage();
-  renderUsageList('mcp-usage-list', usage.mcp, 'No MCP tool usage yet');
-  renderUsageList('skill-usage-list', usage.skills, 'No skill usage yet');
-  renderEventLog();
+let _allEvents = [];              // full event list read from usage.log
+let _filteredEvents = [];         // last filtered result (for CSV export)
+let _filtersWired = false;        // event listeners attached once
+let _lastProjectFilter = '';      // track project changes to reset session dropdown
+let _eventPage = 0;               // current page in event log
+const EVENT_PAGE_SIZE = 50;
+
+function basename(p) {
+  if (!p) return '(unknown)';
+  const idx = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+  return idx >= 0 ? p.slice(idx + 1) : p;
 }
 
-function renderEventLog() {
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+async function renderUsageTab() {
+  try {
+    _allEvents = await window.codePetSettings.getAllUsageEvents();
+  } catch {
+    _allEvents = [];
+  }
+  if (!Array.isArray(_allEvents)) _allEvents = [];
+
+  populateProjectOptions();
+  populateSessionOptions('');
+  _lastProjectFilter = '';
+
+  if (!_filtersWired) {
+    document.getElementById('filter-date-range').addEventListener('change', applyFilters);
+    document.getElementById('filter-project').addEventListener('change', applyFilters);
+    document.getElementById('filter-session').addEventListener('change', applyFilters);
+    document.getElementById('export-csv-btn').addEventListener('click', exportCsv);
+    document.getElementById('page-prev').addEventListener('click', () => {
+      if (_eventPage > 0) { _eventPage--; renderEventLog(_filteredEvents); }
+    });
+    document.getElementById('page-next').addEventListener('click', () => {
+      _eventPage++;
+      renderEventLog(_filteredEvents);
+    });
+    _filtersWired = true;
+  }
+
+  applyFilters();
+}
+
+function populateProjectOptions() {
+  const select = document.getElementById('filter-project');
+  // Keep "All projects" (first option); rebuild the rest.
+  const seen = new Set();
+  const entries = [];
+  for (const evt of _allEvents) {
+    const p = evt.projectPath || '';
+    if (!p || seen.has(p)) continue;
+    seen.add(p);
+    entries.push({ path: p, label: basename(p) });
+  }
+  entries.sort((a, b) => a.label.localeCompare(b.label));
+
+  // Preserve current selection if still present after rebuild.
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">All projects</option>';
+  for (const e of entries) {
+    const opt = document.createElement('option');
+    opt.value = e.path;
+    opt.textContent = e.label;
+    select.appendChild(opt);
+  }
+  if (currentVal && entries.some(e => e.path === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+function populateSessionOptions(projectFilter) {
+  const select = document.getElementById('filter-session');
+  // Deduplicate sessions; compute earliest timestamp per session.
+  const sessionMap = new Map();
+  for (const evt of _allEvents) {
+    if (!evt.sessionId) continue;
+    if (projectFilter && evt.projectPath !== projectFilter) continue;
+    const existing = sessionMap.get(evt.sessionId);
+    if (!existing) {
+      sessionMap.set(evt.sessionId, {
+        sessionId: evt.sessionId,
+        projectPath: evt.projectPath || '',
+        firstTs: evt.timestamp,
+      });
+    } else if (evt.timestamp < existing.firstTs) {
+      existing.firstTs = evt.timestamp;
+    }
+  }
+
+  const sessions = [...sessionMap.values()].sort((a, b) => b.firstTs - a.firstTs);
+
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">All sessions</option>';
+  for (const s of sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.sessionId;
+    opt.textContent = `${basename(s.projectPath)} — ${formatTime(s.firstTs)}`;
+    select.appendChild(opt);
+  }
+  // Only keep prior session selection if it still exists under the new project filter.
+  if (currentVal && sessions.some(s => s.sessionId === currentVal)) {
+    select.value = currentVal;
+  } else {
+    select.value = '';
+  }
+}
+
+function getMinTimestamp(rangeValue) {
+  if (!rangeValue) return 0;
+  if (rangeValue === 'today') return new Date().setHours(0, 0, 0, 0);
+  if (rangeValue === '7d') return Date.now() - 7 * 86400000;
+  if (rangeValue === '30d') return Date.now() - 30 * 86400000;
+  return 0;
+}
+
+function exportCsv() {
+  const rows = [['timestamp', 'type', 'name', 'project', 'session']];
+  const sorted = _filteredEvents.slice().sort((a, b) => b.timestamp - a.timestamp);
+  for (const e of sorted) {
+    rows.push([
+      new Date(e.timestamp).toISOString(),
+      e.type || '',
+      e.name || '',
+      basename(e.projectPath),
+      e.sessionId || '',
+    ]);
+  }
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const btn = document.getElementById('export-csv-btn');
+  navigator.clipboard.writeText(csv).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy CSV'; }, 1500);
+  }).catch(() => {
+    btn.textContent = 'Failed';
+    setTimeout(() => { btn.textContent = 'Copy CSV'; }, 1500);
+  });
+}
+
+function applyFilters() {
+  const dateRangeVal = document.getElementById('filter-date-range').value;
+  const projectVal = document.getElementById('filter-project').value;
+  const sessionVal = document.getElementById('filter-session').value;
+
+  // If project changed, rebuild session dropdown (narrowed to that project).
+  if (projectVal !== _lastProjectFilter) {
+    populateSessionOptions(projectVal);
+    _lastProjectFilter = projectVal;
+  }
+
+  const sessionAfter = document.getElementById('filter-session').value;
+  const minTs = getMinTimestamp(dateRangeVal);
+
+  const filtered = _allEvents.filter((e) => {
+    if (minTs && e.timestamp < minTs) return false;
+    if (projectVal && e.projectPath !== projectVal) return false;
+    if (sessionAfter && e.sessionId !== sessionAfter) return false;
+    return true;
+  });
+
+  const mcpCounts = {};
+  const skillCounts = {};
+  for (const e of filtered) {
+    if (e.type === 'mcp_tool') {
+      mcpCounts[e.name] = (mcpCounts[e.name] || 0) + 1;
+    } else if (e.type === 'skill') {
+      skillCounts[e.name] = (skillCounts[e.name] || 0) + 1;
+    }
+  }
+
+  const hasAnyFilter = Boolean(dateRangeVal || projectVal || sessionAfter);
+  const emptyEventsMsg = hasAnyFilter ? 'No events match current filters' : 'No events yet';
+  const emptyMcpMsg = hasAnyFilter ? 'No MCP tool usage for this filter' : 'No MCP tool usage yet';
+  const emptySkillsMsg = hasAnyFilter ? 'No skill usage for this filter' : 'No skill usage yet';
+
+  _filteredEvents = filtered;
+  _eventPage = 0;
+
+  renderEventLog(filtered, emptyEventsMsg);
+  renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
+  renderUsageList('skill-usage-list', skillCounts, emptySkillsMsg);
+}
+
+function renderEventLog(events, emptyMsg) {
   const container = document.getElementById('event-log');
-  const events = window.codePetSettings.getToolEvents();
+  const paginationEl = document.getElementById('event-pagination');
 
   if (!events || events.length === 0) {
-    container.innerHTML = '<div class="usage-empty">No events yet</div>';
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No events yet'}</div>`;
+    if (paginationEl) paginationEl.style.display = 'none';
     return;
   }
 
-  container.innerHTML = '';
   // Newest first
   const sorted = events.slice().sort((a, b) => b.timestamp - a.timestamp);
+  const totalPages = Math.ceil(sorted.length / EVENT_PAGE_SIZE);
+  if (_eventPage >= totalPages) _eventPage = totalPages - 1;
+  const start = _eventPage * EVENT_PAGE_SIZE;
+  const page = sorted.slice(start, start + EVENT_PAGE_SIZE);
 
-  for (const evt of sorted) {
+  container.innerHTML = '';
+  for (const evt of page) {
     const row = document.createElement('div');
     row.className = 'event-row';
 
     const timeEl = document.createElement('span');
     timeEl.className = 'event-timestamp';
     const d = new Date(evt.timestamp);
-    timeEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(2);
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    timeEl.textContent = `${dd}.${mm}.${yy} ${time}`;
 
     const badge = document.createElement('span');
     badge.className = 'event-type-badge ' + (evt.type === 'mcp_tool' ? 'badge-mcp' : 'badge-skill');
@@ -330,6 +817,18 @@ function renderEventLog() {
     row.appendChild(badge);
     row.appendChild(nameEl);
     container.appendChild(row);
+  }
+
+  // Pagination controls
+  if (paginationEl) {
+    if (totalPages <= 1) {
+      paginationEl.style.display = 'none';
+    } else {
+      paginationEl.style.display = '';
+      document.getElementById('page-prev').disabled = _eventPage === 0;
+      document.getElementById('page-next').disabled = _eventPage >= totalPages - 1;
+      document.getElementById('page-info').textContent = `${_eventPage + 1} / ${totalPages}`;
+    }
   }
 }
 

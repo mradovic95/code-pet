@@ -29,7 +29,7 @@ describe('FilesystemStore', () => {
 
   it('appends a single event as one NDJSON line', async () => {
     // GIVEN
-    const event = new UsageEvent('skill', 'commit', 'session-1');
+    const event = new UsageEvent('skill', 'commit', 'session-1', '/home/user/proj');
 
     // WHEN
     await sut.append(event);
@@ -43,6 +43,7 @@ describe('FilesystemStore', () => {
     assert.equal(parsed.type, 'skill');
     assert.equal(parsed.name, 'commit');
     assert.equal(parsed.sessionId, 'session-1');
+    assert.equal(parsed.projectPath, '/home/user/proj');
   });
 
   it('appends plain object events (no toJSON)', async () => {
@@ -71,6 +72,23 @@ describe('FilesystemStore', () => {
     assert.equal(events.length, 2);
     assert.equal(events[0].name, 'a');
     assert.equal(events[1].name, 'b');
+  });
+
+  it('readAll preserves all UsageEvent fields (contract for settings UI)', async () => {
+    // GIVEN — an event with every field populated
+    const event = new UsageEvent('mcp_tool', 'mcp__db__query', 'abc-123', '/home/user/proj');
+    await sut.append(event);
+    await sut.flush();
+
+    // WHEN
+    const [read] = await sut.readAll();
+
+    // THEN — all 5 fields survive the NDJSON round-trip
+    assert.equal(read.type, 'mcp_tool');
+    assert.equal(read.name, 'mcp__db__query');
+    assert.equal(read.sessionId, 'abc-123');
+    assert.equal(read.projectPath, '/home/user/proj');
+    assert.equal(typeof read.timestamp, 'number');
   });
 
   it('readAll filters by type', async () => {

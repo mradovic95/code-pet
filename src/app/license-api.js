@@ -68,6 +68,13 @@ class MockLicenseAPI {
         tier: 'premium',
       },
       {
+        id: 'dolphin',
+        name: 'Dolphin',
+        description: 'A playful coding dolphin',
+        price: '$2.99',
+        tier: 'premium',
+      },
+      {
         id: 'panda',
         name: 'Panda',
         description: 'A zen coding panda',

@@ -23,6 +23,7 @@ let catalogFn = null;
 let setPetTypeForProjectFn = null;
 let getToolUsageFn = null;
 let getToolEventsFn = null;
+let getAllUsageEventsFn = null;
 let getSessionsForProjectFn = null;
 let currentSettingsSessionKey = null;
 let currentSettingsProjectPath = null;
@@ -115,6 +116,16 @@ ipcMain.on('get-tool-events', (event) => {
   }
 });
 
+ipcMain.handle('get-all-usage-events', async () => {
+  if (!getAllUsageEventsFn) return [];
+  try {
+    return await getAllUsageEventsFn();
+  } catch (err) {
+    logger.warn(`get-all-usage-events handler failed: ${err.message}`);
+    return [];
+  }
+});
+
 ipcMain.on('get-sound-enabled', (event) => {
   const settingsStore = require('./settings-store');
   event.returnValue = settingsStore.getSoundEnabled();
@@ -125,6 +136,18 @@ ipcMain.on('set-sound-enabled-for-state', (_event, { state, enabled }) => {
   settingsStore.setSoundEnabledForState(state, enabled);
   sendToRenderer('sound-setting-changed', { settings: settingsStore.getSoundEnabled() });
   logger.info(`Sound for ${state}: ${enabled ? 'enabled' : 'disabled'}`);
+});
+
+ipcMain.on('get-version', (event) => {
+  const pkg = require('../../package.json');
+  event.returnValue = pkg.version;
+});
+
+ipcMain.on('open-external', (_event, url) => {
+  if (typeof url === 'string' && url.startsWith('https://')) {
+    const { shell } = require('electron');
+    shell.openExternal(url);
+  }
 });
 
 ipcMain.on('set-pet-type', (_event, petType) => {
@@ -174,30 +197,21 @@ ipcMain.handle('activate-license', async (_event, key) => {
   const result = await licenseManagerRef.activate(key);
   if (!result.success) return result;
 
-  // Download sprites for newly owned pets
-  const PetCatalog = require('./pet-catalog');
+  // Download newly owned pets into the shared pets folder
   for (const petId of result.ownedPets) {
-    if (!premiumStoreRef.isDownloaded(petId)) {
-      try {
-        const productId = licenseApiRef.getProductIdForPet ? licenseApiRef.getProductIdForPet(petId) : null;
-        await premiumStoreRef.download(petId, key, licenseApiRef, productId);
-        logger.info(`Downloaded premium pet "${petId}" after activation`);
-      } catch (err) {
-        logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
-      }
-    }
-
-    // Load and send sprites to renderer
-    const sprites = premiumStoreRef.loadSprites(petId, key);
-    if (sprites) {
-      sendToRenderer('premium-sprites', { petId, sprites });
+    if (premiumStoreRef.isDownloaded(petId)) continue;
+    try {
+      const productId = licenseApiRef.getProductIdForPet ? licenseApiRef.getProductIdForPet(petId) : null;
+      await premiumStoreRef.download(petId, key, licenseApiRef, productId);
+      logger.info(`Downloaded premium pet "${petId}" after activation`);
+    } catch (err) {
+      logger.warn(`Failed to download premium pet "${petId}": ${err.message}`);
     }
   }
 
-  // Re-scan premium pets so the catalog picks up the new pet
-  if (catalogObjRef && premiumStoreRef) {
-    catalogObjRef.scanPremium(premiumStoreRef.getPremiumDir());
-    // Update renderer catalog
+  // Re-scan the catalog so new pets appear in the selector
+  if (catalogObjRef) {
+    catalogObjRef.rescan();
     if (catalogFn) {
       sendToRenderer('pet-catalog', catalogFn());
     }
@@ -206,13 +220,15 @@ ipcMain.handle('activate-license', async (_event, key) => {
   return result;
 });
 
-ipcMain.handle('purchase-pet', async (_event, petId) => {
+ipcMain.handle('purchase-pet', async (_event, arg) => {
   if (!licenseApiRef) {
     return { success: false, error: 'License system not initialized' };
   }
 
+  const { petId, buyerEmail } = typeof arg === 'object' && arg !== null ? arg : { petId: arg };
+
   try {
-    const result = await licenseApiRef.purchase(petId);
+    const result = await licenseApiRef.purchase(petId, buyerEmail);
 
     if (result.paymentUrl) {
       // Paid pet: open PayPal in browser
@@ -244,13 +260,24 @@ ipcMain.handle('poll-payment-status', async (_event, token) => {
   return licenseApiRef.checkPaymentStatus(token);
 });
 
-ipcMain.handle('get-premium-sprites', async (_event, petId) => {
-  if (!premiumStoreRef || !licenseManagerRef) return null;
+ipcMain.on('get-buyer-email', (event) => {
+  const settingsStore = require('./settings-store');
+  event.returnValue = settingsStore.getBuyerEmail();
+});
 
-  const key = licenseManagerRef.getLicenseKey();
-  if (!key || !premiumStoreRef.isDownloaded(petId)) return null;
+ipcMain.handle('set-buyer-email', async (_event, email) => {
+  const settingsStore = require('./settings-store');
+  return settingsStore.setBuyerEmail(email);
+});
 
-  return premiumStoreRef.loadSprites(petId, key);
+ipcMain.on('get-animation-preview-collapsed', (event) => {
+  const settingsStore = require('./settings-store');
+  event.returnValue = settingsStore.getAnimationPreviewCollapsed();
+});
+
+ipcMain.handle('set-animation-preview-collapsed', async (_event, value) => {
+  const settingsStore = require('./settings-store');
+  settingsStore.setAnimationPreviewCollapsed(value);
 });
 
 ipcMain.on('renderer-ready', () => {
@@ -393,6 +420,10 @@ function setToolEventsFn(fn) {
   getToolEventsFn = fn;
 }
 
+function setAllUsageEventsFn(fn) {
+  getAllUsageEventsFn = fn;
+}
+
 function setSessionsForProjectFn(fn) {
   getSessionsForProjectFn = fn;
 }
@@ -424,8 +455,8 @@ function createSettingsWindow() {
   }
 
   const overlayBounds = overlayWindow ? overlayWindow.getBounds() : null;
-  const settingsWidth = 320;
-  const settingsHeight = 620;
+  const settingsWidth = 480;
+  const settingsHeight = 680;
 
   let x, y;
   if (overlayBounds) {
@@ -493,6 +524,7 @@ module.exports = {
   setLicenseApiFn,
   setToolUsageFn,
   setToolEventsFn,
+  setAllUsageEventsFn,
   setSessionsForProjectFn,
   closeSettingsWindow,
 };

@@ -2,18 +2,38 @@
   <div class="section-title">Your Pets</div>
   <div id="pet-selector"></div>
 </div>
+<div class="section" id="animation-preview-section">
+  <div class="section-title section-title-clickable" id="animation-preview-toggle">
+    <span>Animation Preview</span>
+    <span class="section-chevron" id="animation-preview-chevron">&#9662;</span>
+  </div>
+  <div id="animation-previews-container"></div>
+</div>
 <div class="section">
   <div class="section-title">Sound</div>
-  <label class="toggle-row">
-    <input type="checkbox" id="sound-toggle-idle">
-    <span>Play sound on task completion</span>
-  </label>
-  <label class="toggle-row" style="margin-top: 6px;">
-    <input type="checkbox" id="sound-toggle-waiting">
-    <span>Play sound on permission prompt</span>
-  </label>
+  <div class="toggle-row-wrap">
+    <label class="toggle-row">
+      <input type="checkbox" id="sound-toggle-idle">
+      <span>Play sound on task completion</span>
+    </label>
+    <button class="sound-preview-btn" id="preview-idle" title="Preview sound">&#9654;</button>
+  </div>
+  <div class="toggle-row-wrap" style="margin-top: 6px;">
+    <label class="toggle-row">
+      <input type="checkbox" id="sound-toggle-waiting">
+      <span>Play sound on permission prompt</span>
+    </label>
+    <button class="sound-preview-btn" id="preview-waiting" title="Preview sound">&#9654;</button>
+  </div>
 </div>
 <div class="section">
   <div class="section-title">Actions</div>
   <button id="dismiss-btn" class="btn-dismiss">Dismiss Pet</button>
+  <div id="dismiss-confirm" class="dismiss-confirm" style="display:none;">
+    <span class="dismiss-confirm-text">Remove pet for this project?</span>
+    <div class="dismiss-confirm-actions">
+      <button id="dismiss-yes" class="btn-dismiss-yes">Yes, dismiss</button>
+      <button id="dismiss-no" class="btn-dismiss-no">Cancel</button>
+    </div>
+  </div>
 </div>

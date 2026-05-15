@@ -1,8 +1,12 @@
 # Contributing to Code Pet
 
-Thanks for your interest! Bug reports, small fixes, and improvements to the
-core plugin are welcome. **Pet content (new characters, sprites, animations)
-is managed by the maintainer** — please don't open PRs for new pets.
+Code Pet is maintained as a small project. **Bug reports and feature requests** are welcome — please [open an issue](https://github.com/mradovic95/code-pet/issues).
+
+**Code pull requests** are accepted on a case-by-case basis — but please **open an issue first** to discuss the change. Unsolicited PRs (without a prior issue) may be closed without review, to keep the maintainer's queue manageable.
+
+Pet content (new characters, sprites, animations) is managed by the maintainer.
+
+By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Setup
 
@@ -12,6 +16,8 @@ cd code-pet
 npm install
 npm test
 ```
+
+For an architectural map of the codebase, see [CLAUDE.md](CLAUDE.md).
 
 ## Running locally
 
@@ -44,7 +50,6 @@ npm run test:watch      # watch mode
 
 ## Pull requests
 
-- **Small fixes** (typos, minor bugs): open a PR directly.
-- **Larger changes** (new features, refactors): [open an issue](https://github.com/mradovic95/code-pet/issues) first so we can discuss the approach.
-- All PRs must pass `npm test` and the CI version sync check.
+- **Open an issue first.** PRs without a prior issue may be closed without review.
+- All PRs must pass `npm test` and the CI version-sync check.
 - PRs adding new pet characters will not be accepted.

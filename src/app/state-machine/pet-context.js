@@ -4,7 +4,7 @@ const { VALID_EVENTS, STATES } = require('./events');
 const { UsageTracker } = require('../../tracking');
 
 class PetContext {
-  constructor(projectName, petType, { store } = {}) {
+  constructor(projectName, petType, { store, projectPath } = {}) {
     this.lastActiveEvent = null;
     this.lastEventName = null;
     this.lastEventTime = 0;
@@ -14,9 +14,9 @@ class PetContext {
     this.claudePid = null;
     this.tty = null;
     this.permissionMode = null;
-    this.projectPath = null;
+    this.projectPath = projectPath || null;
     this.createdAt = Date.now();
-    this.tracker = new UsageTracker({ store });
+    this.tracker = new UsageTracker({ store, projectPath: this.projectPath });
     this.changeState(STATES.IDLE);
   }
 

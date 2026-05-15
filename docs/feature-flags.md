@@ -17,30 +17,28 @@ Read at `src/app/logger.js:8` and `hooks/scripts/send-event.js:9`. The main-proc
 | Name | Default | Effect | Read at |
 |------|---------|--------|---------|
 | `CODE_PET_PORT` | `31425` | HTTP port for the event server + hook clients | `src/app/event-server.js:11`, `src/app/process-manager.js:11`, `hooks/scripts/send-event.js:10` |
-| `MARKETPLACE_URL` | (from config file) | Overrides `marketplace.json.baseUrl` | `src/app/marketplace-config.js:33` |
-| `MARKETPLACE_API_KEY` | (from config file) | Overrides `marketplace.json.apiKey`. Presence flips mock → real mode | `src/app/marketplace-config.js:36` |
-| `MARKETPLACE_ID` | (from config file) | Overrides `marketplace.json.marketplaceId`; coerced to `Number` | `src/app/marketplace-config.js:39` |
+| `MARKETPLACE_URL` | `DEFAULT_BASE_URL` from `marketplace-constants.js` | Overrides `marketplace.json.baseUrl` | `src/app/marketplace-config.js` |
+| `MARKETPLACE_ID` | `DEFAULT_MARKETPLACE_ID` (`1`) from `marketplace-constants.js` | Overrides `marketplace.json.marketplaceId`; coerced to `Number` | `src/app/marketplace-config.js` |
+| `MARKETPLACE_MOCK` | `false` | When `"true"`, forces `MockLicenseAPI` instead of the real marketplace client (dev-only) | `src/app/marketplace-config.js` → `isMockMode()` |
 | `CLAUDE_PLUGIN_ROOT` | resolved from hook script location | Plugin root directory; set by Claude Code at hook invocation time | `hooks/scripts/bootstrap.js`, `hooks/scripts/on-session-start.js`, `hooks/scripts/on-session-end.js` |
 | `USAGE_STORE_TYPE` | `filesystem` | Backend for persistent skill / MCP usage events. `filesystem` writes NDJSON to `~/.code-pet/usage.log`; `memory` disables persistence (in-process only) | `src/app/main.js` (passed to `createStore`) |
 
 ## 3. `~/.code-pet/marketplace.json`
 
-Defaults live in `src/app/marketplace-config.js:11-16`.
+Defaults come from `src/app/marketplace-constants.js` and are merged with file values in `src/app/marketplace-config.js`.
 
 | Field | Default | Effect |
 |-------|---------|--------|
-| `baseUrl` | `https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage` | Marketplace REST API base URL |
-| `apiKey` | `null` | **Mock/real mode gate** — presence switches to `MarketplaceAPI` (see section 5) |
-| `marketplaceId` | `null` | Marketplace ID passed to API calls |
-| `jwtToken` | `null` | Session JWT; internal, populated by login flow |
+| `baseUrl` | `DEFAULT_BASE_URL` (deployed stage URL) | Marketplace REST API base URL |
+| `marketplaceId` | `DEFAULT_MARKETPLACE_ID` (`1`) | Marketplace ID passed as `?marketplaceId=` when listing products |
+| `jwtToken` | `null` | Session JWT for admin/seller endpoints; unused for customer flows |
 
-Example:
+File is optional — the defaults work out of the box. Example override:
 
 ```json
 {
-  "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
-  "apiKey": "your-api-key",
-  "marketplaceId": 1
+  "baseUrl": "https://staging.marketplace.example.com",
+  "marketplaceId": 2
 }
 ```
 
@@ -56,23 +54,26 @@ Written by `src/app/settings-store.js`. These are normally toggled through the S
 | `activationId` | `null` | Machine-specific activation id bound to the license |
 | `soundEnabled.idle` | `false` | Play sound when entering idle state |
 | `soundEnabled.waiting_for_action` | `false` | Play sound when entering waiting-for-action state |
+| `buyerEmail` | `null` | Email used for marketplace purchases — collected inline on first Buy click |
 
 ## 5. Mock vs real marketplace mode
 
-Single decision point in `src/app/main.js`, gated by `marketplaceConfig.isConfigured()` which evaluates `!!config.apiKey` (`src/app/marketplace-config.js:66-68`).
+Single decision point in `src/app/main.js`, gated by `marketplaceConfig.isMockMode()` which returns `process.env.MARKETPLACE_MOCK === 'true'`.
 
-- **Mock mode** (default, no `apiKey` set): `MockLicenseAPI` generates fake keys and copies sprites from `assets/pets-dev/`.
-- **Real mode** (`apiKey` set via file or env): `MarketplaceAPI` calls the marketplace REST API and downloads XOR-encrypted sprites to `~/.code-pet/premium-pets/`.
+- **Real mode** (default): `MarketplaceAPI` calls the deployed marketplace REST API at `DEFAULT_BASE_URL` (see `src/app/marketplace-constants.js`). No configuration required.
+- **Mock mode** (`MARKETPLACE_MOCK=true`): `MockLicenseAPI` generates fake license keys for activation testing. Sprite download is not supported in mock mode — `PremiumStore.download()` requires a real marketplace API + productId.
 
-To force mock mode in a configured environment: unset `MARKETPLACE_API_KEY` **and** remove `apiKey` from `~/.code-pet/marketplace.json`.
+**Stale mock key guard**: on startup in real mode, if `~/.code-pet/license.json` holds a key starting with `MOCK-`, the file is cleared (with a warning log) to prevent mixed-state crashes for devs toggling between modes.
+
+**Lazy catalog fetch**: `MarketplaceAPI.getCatalog()` is never called at app startup. The productId↔petId map is loaded from `~/.code-pet/product-map.json` in the `MarketplaceAPI` constructor, and refreshed on demand by `activate()`, `validate()`, and the Store tab (`getMarketplaceCatalog` IPC). The recovery loop in `src/app/main.js` lazy-primes via `getCatalog()` only on a first cache miss. Net effect: a fresh install with no owned pets produces **zero** marketplace HTTP until the user opens the Store tab.
 
 ## 6. Settings-window tab flags
 
-Hardcoded in `src/renderer/settings.js:3-7` as `FEATURE_FLAGS`. Renderer-only, compile-time toggles — flip the literal to `false` and reload the settings window. Backing IPC handlers in `src/app/window-manager.js` stay wired either way; hiding a tab just removes the UI entry point.
+Hardcoded in `src/renderer/settings.js:3-7` as `FEATURE_FLAGS`. Renderer-only, compile-time toggles — flip the literal to `false` and reload the settings window. Backing IPC handlers in `src/app/window-manager.js` stay wired either way; hiding a tab just removes the UI entry point. No marketplace HTTP fires while a tab is hidden (see section 5 — all marketplace calls are lazy / user-initiated).
 
 | Flag | Default | Hides when `false` | Wired at |
 |------|---------|-------------------|----------|
-| `STORE_TAB` | `true` | **Store** tab — marketplace grid, Buy buttons, license activation form | `src/renderer/settings.js:21-23, 55-58` |
+| `STORE_TAB` | `false` | **Store** tab — marketplace grid, Buy buttons, license activation form. Default is `false` for v1 until the marketplace ships publicly. | `src/renderer/settings.js:21-23, 55-58` |
 | `USAGE_TAB` | `true` | **Usage** tab — MCP/skill usage counters, event log | `src/renderer/settings.js:24-26, 60-62` |
 
 The **General** tab (pet selector, sound toggles, Dismiss) is always shown.

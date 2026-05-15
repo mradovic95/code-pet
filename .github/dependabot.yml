@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # The npm runtime — Electron is the only direct dep, but transitive
+  # advisories also surface here.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+
+  # Keep CI actions (checkout, setup-node, action-gh-release) on patched
+  # majors. Without this, supply-chain advisories in third-party actions
+  # accumulate silently.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
