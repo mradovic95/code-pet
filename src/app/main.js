@@ -32,6 +32,13 @@ if (!gotLock) {
   logger.warn('Another instance is already running, quitting');
   app.quit();
 } else {
+  for (const sig of ['SIGTERM', 'SIGINT']) {
+    process.on(sig, () => {
+      logger.info(`Received ${sig} — quitting`);
+      app.quit();
+    });
+  }
+
   app.on('ready', async () => {
     logger.info('App ready, starting up...');
 
@@ -135,6 +142,7 @@ if (!gotLock) {
   });
 
   app.on('window-all-closed', () => {
+    logger.info('window-all-closed fired — quitting');
     app.quit();
   });
 

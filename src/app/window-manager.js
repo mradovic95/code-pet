@@ -351,6 +351,7 @@ function createOverlayWindow() {
   });
 
   overlayWindow.on('closed', () => {
+    logger.info('Overlay window closed');
     overlayWindow = null;
     rendererReady = false;
     eventQueue = [];

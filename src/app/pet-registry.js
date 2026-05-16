@@ -2,6 +2,7 @@
 
 const PetContext = require('./state-machine/pet-context');
 const settingsStore = require('./settings-store');
+const logger = require('./logger');
 
 class PetRegistry {
   constructor({ store } = {}) {
@@ -151,7 +152,9 @@ class PetRegistry {
     this._cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [sessionKey, pet] of this._projects) {
-        if (now - pet.lastEventTime > 3 * 60 * 60 * 1000) {
+        const idleMs = now - pet.lastEventTime;
+        if (idleMs > 3 * 60 * 60 * 1000) {
+          logger.info(`Stale session: ${sessionKey} idle ${Math.round(idleMs / 60000)}m — removing`);
           this.remove(sessionKey);
         }
       }
