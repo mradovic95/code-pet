@@ -40,6 +40,9 @@ _See [CHANGELOG.md](CHANGELOG.md) for recent changes._
   a permission prompt, or done — without switching windows.
 - **Zero friction.** Fully transparent, click-through, always-on-top. It
   never steals focus and never interrupts your flow.
+- **[See what you actually use.](#see-what-you-actually-use)** A private,
+  local log of every skill and MCP tool you call — find which ones you
+  actually depend on and which you forgot you installed.
 
 ## Install
 
