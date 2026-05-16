@@ -11,7 +11,7 @@ needs your attention.
 _A transparent, click-through Electron overlay driven by Claude Code hooks._
 
 [![license](https://img.shields.io/github/license/mradovic95/code-pet?color=blue)](#license)
-[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#requirements)
+![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://docs.claude.com/en/docs/claude-code)
 [![CI](https://github.com/mradovic95/code-pet/actions/workflows/ci.yml/badge.svg)](https://github.com/mradovic95/code-pet/actions/workflows/ci.yml)
 [![stars](https://img.shields.io/github/stars/mradovic95/code-pet?style=social)](https://github.com/mradovic95/code-pet)

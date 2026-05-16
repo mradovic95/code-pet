@@ -5,6 +5,7 @@ const path = require('path');
 const http = require('http');
 const { spawn, execFileSync } = require('child_process');
 const os = require('os');
+const logger = require('./logger');
 
 const STATE_DIR = path.join(os.homedir(), '.code-pet');
 const PID_FILE = path.join(STATE_DIR, 'app.pid');
@@ -26,7 +27,8 @@ function readPid() {
     const content = fs.readFileSync(PID_FILE, 'utf8').trim();
     const pid = parseInt(content, 10);
     return isNaN(pid) ? null : pid;
-  } catch {
+  } catch (err) {
+    if (err.code !== 'ENOENT') logger.warn(`readPid failed: ${err.code} ${err.message}`);
     return null;
   }
 }
@@ -34,14 +36,18 @@ function readPid() {
 function removePid() {
   try {
     fs.unlinkSync(PID_FILE);
-  } catch { /* ignore */ }
+  } catch (err) {
+    if (err.code !== 'ENOENT') logger.warn(`removePid failed: ${err.code} ${err.message}`);
+  }
 }
 
 function killProcess(pid) {
   if (process.platform === 'win32') {
     try {
       execFileSync('taskkill', ['/pid', String(pid), '/t'], { stdio: 'ignore' });
-    } catch { /* ignore */ }
+    } catch (err) {
+      logger.warn(`killProcess(taskkill) failed for pid ${pid}: ${err.message}`);
+    }
   } else {
     process.kill(pid, 'SIGTERM');
   }
@@ -162,7 +168,9 @@ function stopApp() {
       if (pid) {
         try {
           killProcess(pid);
-        } catch { /* ignore */ }
+        } catch (err) {
+          if (err.code !== 'ESRCH') logger.warn(`stopApp fallback kill failed for pid ${pid}: ${err.code} ${err.message}`);
+        }
       }
       removePid();
       resolve(false);
@@ -173,7 +181,9 @@ function stopApp() {
       if (pid) {
         try {
           killProcess(pid);
-        } catch { /* ignore */ }
+        } catch (err) {
+          if (err.code !== 'ESRCH') logger.warn(`stopApp timeout kill failed for pid ${pid}: ${err.code} ${err.message}`);
+        }
       }
       removePid();
       resolve(false);

@@ -1,7 +1,18 @@
 Copyright (c) 2025 mradovic95. All rights reserved.
 
 The art assets in this directory (sprites, sounds, animations, and icons)
-are proprietary. You may not copy, distribute, modify, or sell these assets
-without explicit written permission from the copyright holder.
+are proprietary.
 
-These assets are provided as part of the Code Pet plugin for personal use only.
+You are granted a non-exclusive, non-transferable, royalty-free license to
+use these assets solely as part of the Code Pet plugin, in any context
+(personal or commercial), provided the plugin is installed and used as
+distributed.
+
+You may NOT, without prior written permission from the copyright holder:
+  - copy, extract, or republish these assets outside of the plugin
+  - modify or create derivative works from these assets
+  - sell, sublicense, or otherwise commercially exploit these assets
+  - bundle these assets into another product or distribution
+
+For licensing inquiries, open an issue at
+https://github.com/mradovic95/code-pet/issues.
