@@ -35,7 +35,7 @@
 		"test:watch": "node --test --watch"
 	},
 	"dependencies": {
-		"electron": "41.3.0"
+		"electron": "42.1.0"
 	},
 	"engines": {
 		"node": ">=18.0.0"
