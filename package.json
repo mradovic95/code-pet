@@ -29,10 +29,10 @@
 		"companion"
 	],
 	"scripts": {
-		"test": "node --test \"test/**/*.test.js\"",
-		"test:unit": "node --test \"test/unit/**/*.test.js\"",
-		"test:integration": "node --test \"test/integration/**/*.test.js\"",
-		"test:watch": "node --test --watch \"test/**/*.test.js\""
+		"test": "node --test",
+		"test:unit": "cd test/unit && node --test",
+		"test:integration": "cd test/integration && node --test",
+		"test:watch": "node --test --watch"
 	},
 	"dependencies": {
 		"electron": "41.3.0"
