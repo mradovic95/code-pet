@@ -43,7 +43,7 @@ describe('marketplace-config', () => {
     sut.load();
 
     // THEN
-    assert.equal(sut.getBaseUrl(), 'https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage');
+    assert.equal(sut.getBaseUrl(), 'https://fake-marketplace.invalid');
     assert.equal(sut.getMarketplaceId(), 1);
     assert.equal(sut.getJwtToken(), null);
     assert.equal(sut.isMockMode(), false);

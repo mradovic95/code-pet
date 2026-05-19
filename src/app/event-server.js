@@ -9,6 +9,7 @@ const PetRegistry = require('./pet-registry');
 const { healthCheck, readPid, killProcess, removePid } = require('./process-manager');
 
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
+const IDLE_CLEANUP_ENABLED = process.env.CODE_PET_IDLE_CLEANUP === 'true';
 
 let server = null;
 let shutdownTimer = null;
@@ -176,7 +177,12 @@ function startServer() {
       }
     });
 
-    registry.startCleanup();
+    if (IDLE_CLEANUP_ENABLED) {
+      registry.startCleanup();
+      logger.info('Idle-session cleanup enabled (CODE_PET_IDLE_CLEANUP=true)');
+    } else {
+      logger.info('Idle-session cleanup disabled (default). Set CODE_PET_IDLE_CLEANUP=true to enable.');
+    }
 
     server.listen(PORT, '127.0.0.1', () => {
       logger.info(`Event server listening on 127.0.0.1:${PORT}`);
@@ -214,7 +220,7 @@ function startServer() {
 }
 
 function stopServer() {
-  registry.stopCleanup();
+  if (IDLE_CLEANUP_ENABLED) registry.stopCleanup();
   return new Promise((resolve) => {
     if (server) {
       server.close(() => {

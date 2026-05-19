@@ -22,6 +22,7 @@ Read at `src/app/logger.js:8` and `hooks/scripts/send-event.js:9`. The main-proc
 | `MARKETPLACE_MOCK` | `false` | When `"true"`, forces `MockLicenseAPI` instead of the real marketplace client (dev-only) | `src/app/marketplace-config.js` → `isMockMode()` |
 | `CLAUDE_PLUGIN_ROOT` | resolved from hook script location | Plugin root directory; set by Claude Code at hook invocation time | `hooks/scripts/bootstrap.js`, `hooks/scripts/on-session-start.js`, `hooks/scripts/on-session-end.js` |
 | `USAGE_STORE_TYPE` | `filesystem` | Backend for persistent skill / MCP usage events. `filesystem` writes NDJSON to `~/.code-pet/usage.log`; `memory` disables persistence (in-process only) | `src/app/main.js` (passed to `createStore`) |
+| `CODE_PET_IDLE_CLEANUP` | `false` | When `"true"`, runs the 60 s stale-project sweep that removes projects idle > 3 h. Default off — projects persist in the registry until the Electron process exits. Disabling can delay or prevent the 5 s idle-shutdown trigger on multi-project users (registry never reaches empty on its own). | `src/app/event-server.js` |
 
 ## 3. `~/.code-pet/marketplace.json`
 
@@ -84,8 +85,8 @@ Internal — require a code change + rebuild, not runtime flags. Listed so opera
 
 | Constant | Value | Location | Effect |
 |----------|-------|----------|--------|
-| Stale session cleanup threshold | 3 hours | `src/app/pet-registry.js:150` | Projects with no events for this long are removed from the registry. Raised from 30 min in commit `47b5b3e`. |
-| Cleanup check interval | 60 s | `src/app/pet-registry.js:154` | How often the stale-cleanup sweep runs |
+| Stale session cleanup threshold | 3 hours | `src/app/pet-registry.js:150` | Projects with no events for this long are removed from the registry. Raised from 30 min in commit `47b5b3e`. Only applies when `CODE_PET_IDLE_CLEANUP=true` (see section 2); otherwise the sweep does not run. |
+| Cleanup check interval | 60 s | `src/app/pet-registry.js:154` | How often the stale-cleanup sweep runs (when enabled via `CODE_PET_IDLE_CLEANUP`) |
 | `REVALIDATION_INTERVAL` | 7 days | `src/app/license-manager.js:12` | License revalidation cadence against marketplace |
 | `OFFLINE_GRACE_PERIOD` | 30 days | `src/app/license-manager.js:13` | License stays valid this long without a successful revalidation |
 | `DEFAULT_MAX_EVENTS` | 2000 | `src/tracking/usage-tracker.js:6` | In-memory usage event cap; evicts 25% when exceeded |

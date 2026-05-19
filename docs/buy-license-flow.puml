@@ -68,8 +68,10 @@ ui --> user : "Payment complete! Click Activate"
 
 note over gw
   **Stage URL:**
-  https://2vyd33gumd.execute-api
-  .us-east-2.amazonaws.com/stage
+  https://fake-marketplace.invalid
+  (placeholder — set the real URL in
+  ~/.code-pet/marketplace.json or via
+  the MARKETPLACE_URL env var)
 
   Configured in:
   **~/.code-pet/marketplace.json**

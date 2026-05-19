@@ -128,7 +128,7 @@ Settings UI (Buy button)
 `~/.code-pet/marketplace.json`:
 ```json
 {
-  "baseUrl": "https://2vyd33gumd.execute-api.us-east-2.amazonaws.com/stage",
+  "baseUrl": "https://fake-marketplace.invalid",
   "marketplaceId": 1,
   "jwtToken": null
 }
@@ -195,6 +195,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
 - `USAGE_STORE_TYPE` env var selects the persistence backend (`filesystem` default, `memory` to disable). Skill / MCP events are appended to `~/.code-pet/usage.log` by default.
+- `CODE_PET_IDLE_CLEANUP=true` enables the 60 s stale-project sweep that removes projects idle > 3 h (`src/app/pet-registry.js:151`, gated in `src/app/event-server.js`). Default off — projects persist in the registry until the app exits, which can delay the 5 s idle-shutdown trigger on multi-project users.
 - `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables it. Logging is off by default.
 - Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )
 - All runtime flags (sentinel files, env vars, config fields, tunable constants) are catalogued in `docs/feature-flags.md`
