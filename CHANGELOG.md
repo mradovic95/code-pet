@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release
-- Five pets: Dog, Cat, Panda, Dolphin, Bird
+- Three pets: Dog, Cat, Bird
 - Real-time Claude Code state tracking (idle, working, planning, waiting for action)
 - Transparent, click-through, always-on-top overlay
 - Waking up animation on session start

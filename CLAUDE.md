@@ -5,7 +5,7 @@ Animated desktop pet that reacts to Claude Code activity. A transparent, always-
 ## Tech Stack
 
 - **Node.js** (>= 18) — hook scripts, process management
-- **Electron** (^33.0.0) — transparent overlay window, the only runtime dependency
+- **Electron** (^42.0.0) — transparent overlay window, the only runtime dependency
 - No other external dependencies. Keep it that way.
 
 ## Directory Structure
@@ -29,14 +29,22 @@ src/
     main.js                  # Entry point: PID → server → overlay window
     event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
     pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
+    pet-catalog.js           # Scans shipped + downloaded pet manifests, merges by id
     process-manager.js       # PID file, app launch/stop, health checks
     window-manager.js        # Transparent click-through BrowserWindow + marketplace IPC handlers
     logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
     preload.js               # Context bridge: window.codePet.onPetEvent()
     settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
+    settings-store.js        # Persistent user settings (~/.code-pet/settings.json) with sound + dismissed pets
+    terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
     http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
     marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
+    marketplace-catalog.js   # Catalog fetch + productId↔petId mapping (cached to product-map.json)
     marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
+    marketplace-constants.js # DEFAULT_BASE_URL, DEFAULT_MARKETPLACE_ID; consulted when no override
+    license-api.js           # MockLicenseAPI (dev/test fallback when MARKETPLACE_MOCK=true)
+    license-manager.js       # License activation, revalidation, offline grace period
+    premium-store.js         # Downloads premium pet manifests + sprites to ~/.code-pet/pets/{id}/
     state-machine/             # Server-side state machine (whitelist pattern)
       states.js                # STATES enum
       events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
@@ -52,11 +60,16 @@ src/
     index.html               # Shell: <div id="pets-container">, loads pet.js + pet-manager.js + ipc.js
     pet.js                   # Sprite state machine + interaction (Pet class)
     pet-manager.js           # Multi-project pet orchestration (PetManager class)
+    pet-styles.js            # Builds + injects per-pet @keyframes/.pet.<state> CSS at runtime
     ipc.js                   # Wires IPC events to state machine
-    styles.css               # CSS sprite strip animations for all 5 states
+    styles.css               # Base/static styles for .pet (size, transitions); sprite rules are injected by pet-styles.js
     settings.html            # Settings window UI (opened on double-click)
     settings.js              # Settings window logic
     settings.css             # Settings window styling
+    tabs/                    # Settings window tab partials
+      general.html             # General settings tab
+      store.html               # Marketplace / store tab
+      usage.html               # Usage analytics tab
   tracking/                  # Skill / MCP tool usage tracking (self-contained)
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath)
@@ -65,7 +78,7 @@ src/
     stores/
       memory-store.js        # No-op store (default; used in tests)
       filesystem-store.js    # NDJSON append-only at ~/.code-pet/usage.log (single-flight write queue)
-assets/sprites/              # Horizontal sprite strips (64×64px per frame)
+assets/pets/{id}/            # Shipped pet bundles: idle/working/planning/waiting_for_action/waking_up PNG strips, sounds, icon.png, manifest.json
 docs/
   hook-table.md              # Complete hook event → pet event → state matrix
   state-diagram.puml         # PlantUML state machine and event flow diagrams
@@ -157,7 +170,7 @@ Four semantic events map to four server-side states. Four additional events (`aw
 | `falling_asleep` | *(ignored or removes project)* | SessionEnd |
 | `dismiss` | *(removes project unconditionally)* | UI: Settings → Dismiss Pet |
 
-> `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (20 frames, 4s) and auto-transitions back to idle CSS.
+> `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (4s, frame count per the pet's manifest) and auto-transitions back to idle CSS.
 
 > `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored.
 
@@ -177,7 +190,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 | working | 4 | 1200ms | yes | — |
 | planning | 4 | 1200ms | yes | — |
 | waiting_for_action | 4 | 1600ms | yes | — |
-| *waking_up (renderer-only)* | 20 | 4000ms | no | → idle (4000ms) |
+| *waking_up (renderer-only)* | per manifest (shipped pets: 4; in-code fallback in `pet.js`: 20) | 4000ms | no | → idle (4000ms) |
 
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
 - **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
@@ -252,6 +265,9 @@ test/
       memory-store.test.js
       filesystem-store.test.js
     pet-registry.test.js
+    pet-catalog.test.js
+    premium-store.test.js
+    event-server.test.js
     http-client.test.js
     marketplace-api.test.js
     marketplace-config.test.js
@@ -261,6 +277,7 @@ test/
     hook-stop.test.js
     hook-notification.test.js
     hook-session-end.test.js
+    marketplace-flow.test.js
 ```
 
 ### Test Conventions
