@@ -58,10 +58,12 @@ _See [CHANGELOG.md](CHANGELOG.md) for recent changes._
 /plugin install code-pet
 ```
 
-**3.** Run `/reset` or start a new session so Claude picks up the new hooks.
+**3.** Quit Claude Code and reopen it so it loads the new hooks.
 
-That's it. Electron is installed in the background on first run (~85 MB),
-so the pet appears instantly on every session after.
+On the first session after the restart you'll see a one-line message —
+`Code Pet: Installing Electron (~85MB)…` — while Electron downloads in the
+background (one-time, ~30 s on a fast connection). The pet appears on the
+next session after the download finishes.
 
 Having trouble? See [docs/installation.md#troubleshooting](docs/installation.md#troubleshooting).
 

@@ -62,6 +62,9 @@ The plugin is essentially dormant until the user starts a Claude Code session.
 
 Triggered by Claude Code firing the `SessionStart` hook.
 
+> Note: `/plugin install` registers the plugin in storage but does not load it into the running Claude Code process. The
+> user must fully quit Claude Code and reopen it before Phase 2 can begin.
+
 ### Step 2.1 — Hook entry
 
 Claude Code runs `node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-session-start.js`. The script immediately calls
@@ -98,13 +101,23 @@ Claude Code runs `node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/on-session-start.js`.
 
 ### Step 2.5 — Tell the user, exit non-blocking
 
-The hook prints to stderr (visible in Claude Code) and exits 0 (`on-session-start.js:15-21`):
+The hook prints one of two messages to stderr (visible in Claude Code) and exits 0 (`on-session-start.js:15-21`):
 
-```
-Code Pet: Installing Electron (~85MB), pet will appear on next session...
-```
+- First invocation — `npm install` just kicked off (`reason: 'install-started'`):
 
-The pet **does not appear during this first session**. The user will see it the next time they start Claude Code.
+  ```
+  Code Pet: Installing Electron (~85MB), pet will appear on next session...
+  ```
+
+- Any later SessionStart fired while `npm install` is still running (`reason: 'install-in-progress'`, lock file detected
+  by `bootstrap.js:29-43`):
+
+  ```
+  Code Pet: Installation in progress, pet will appear soon...
+  ```
+
+The pet **does not appear during this first session**. The user will see it the next time they start Claude Code,
+provided `npm install` has finished by then.
 
 ### Step 2.6 — Launch Electron (subsequent SessionStart)
 
@@ -225,7 +238,9 @@ These live **outside** the plugin directory and are untouched:
 
 - `~/.code-pet/app.pid`, `app.log`, `install.log`, `code-pet.log`, `hooks-debug.log`
 - `~/.code-pet/license.json`, `marketplace.json`, `product-map.json`
-- `~/.code-pet/pets/` — downloaded marketplace pets live under the user data dir, so they persist through plugin updates with no network dependency. If the user wipes this directory, the recovery loop in `main.js` redownloads owned pets on next startup using `license.json`.
+- `~/.code-pet/pets/` — downloaded marketplace pets live under the user data dir, so they persist through plugin updates
+  with no network dependency. If the user wipes this directory, the recovery loop in `main.js` redownloads owned pets on
+  next startup using `license.json`.
 - The **running Electron process** — it keeps running on the **old** code until the next restart
 
 ### What does NOT survive
@@ -237,7 +252,9 @@ These live **inside** the plugin directory:
 
 ### The key insight: Electron is NOT auto-replaced
 
-`/plugin update` only swaps **files on disk**. The Electron process that's already running has the **old** `src/app/*.js` and `src/renderer/*.js` code loaded into memory, and Node.js / Chromium do not hot-reload it. The new Electron only starts running when:
+`/plugin update` only swaps **files on disk**. The Electron process that's already running has the **old**
+`src/app/*.js` and `src/renderer/*.js` code loaded into memory, and Node.js / Chromium do not hot-reload it. The new
+Electron only starts running when:
 
 1. The **old** Electron process exits (auto-shutdown, manual `/shutdown`, or kill), AND
 2. A **fresh** `SessionStart` fires after the old process is gone.
@@ -246,12 +263,12 @@ There is no "restart-on-update" hook — Code Pet does not know an update happen
 
 ### Two kinds of files behave differently
 
-| File category | Path | When the new code takes effect |
-|---|---|---|
-| Hook scripts | `hooks/scripts/*.js` | **Immediately** — every hook spawns a fresh `node` process, so the next event runs the new script. |
-| Electron app code | `src/app/*.js`, `src/renderer/*.js`, `assets/sprites/` | **Only after the old Electron exits and a new SessionStart spawns a fresh one.** |
-| `hooks/hooks.json` | hook registration | **Immediately** when Claude Code re-reads the manifest during update. |
-| `node_modules/electron` | binary | If wiped, re-installed on next SessionStart via Phase 2 bootstrap. |
+| File category           | Path                                                   | When the new code takes effect                                                                     |
+|-------------------------|--------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| Hook scripts            | `hooks/scripts/*.js`                                   | **Immediately** — every hook spawns a fresh `node` process, so the next event runs the new script. |
+| Electron app code       | `src/app/*.js`, `src/renderer/*.js`, `assets/sprites/` | **Only after the old Electron exits and a new SessionStart spawns a fresh one.**                   |
+| `hooks/hooks.json`      | hook registration                                      | **Immediately** when Claude Code re-reads the manifest during update.                              |
+| `node_modules/electron` | binary                                                 | If wiped, re-installed on next SessionStart via Phase 2 bootstrap.                                 |
 
 ### Step-by-step — Scenario A: hook-script-only update
 
@@ -261,23 +278,29 @@ The simplest case. Nothing about Electron changes.
 2. The user keeps working in their open Claude Code session.
 3. Claude Code fires `Stop` → spawns `node hooks/scripts/on-stop.js` → **this is the new script**, runs immediately.
 4. The new script HTTP-POSTs `work_finished` to the old Electron on `127.0.0.1:31425`.
-5. Old Electron handles the event with old `src/app/event-server.js` code. That's fine because the wire protocol (event names, JSON shape) didn't change.
+5. Old Electron handles the event with old `src/app/event-server.js` code. That's fine because the wire protocol (event
+   names, JSON shape) didn't change.
 6. **Result:** new hooks active, old Electron still running. No restart needed.
 
 ### Step-by-step — Scenario B: Electron / renderer code changed
 
 This is the case where you need to know what's happening.
 
-1. **Update lands.** `/plugin update code-pet` swaps files. `src/app/event-server.js` is now v2 on disk. The running Electron still has v1 loaded in memory.
+1. **Update lands.** `/plugin update code-pet` swaps files. `src/app/event-server.js` is now v2 on disk. The running
+   Electron still has v1 loaded in memory.
 2. **User starts a new Claude Code session** in the same project (or any project).
 3. Claude Code fires `SessionStart` → runs the **new** `hooks/scripts/on-session-start.js`.
 4. Bootstrap step (`bootstrap.js`):
-   - `isElectronInstalled()` checks `node_modules/electron`. Usually still present after a plugin update, so returns `true`.
-   - If `node_modules/` was wiped (full reinstall mode), Phase 2 reinstall triggers: write `~/.code-pet/installing` lock, spawn `npm install` to `~/.code-pet/install.log`, exit with the "pet will appear on next session" message. Skip to step 7 on the SessionStart **after** install completes.
+    - `isElectronInstalled()` checks `node_modules/electron`. Usually still present after a plugin update, so returns
+      `true`.
+    - If `node_modules/` was wiped (full reinstall mode), Phase 2 reinstall triggers: write `~/.code-pet/installing`
+      lock, spawn `npm install` to `~/.code-pet/install.log`, exit with the "pet will appear on next session" message.
+      Skip to step 7 on the SessionStart **after** install completes.
 5. The hook calls `pm.isRunning()` (`process-manager.js:84-94`):
-   - HTTP `GET /health` on `127.0.0.1:31425` → the **old** Electron answers `200 ok`.
-   - `isRunning()` returns `true` → `launchApp()` is **skipped**.
-6. **The old Electron is reused.** The new code on disk is never loaded. The pet keeps running v1 behavior. ⚠️ This is the trap.
+    - HTTP `GET /health` on `127.0.0.1:31425` → the **old** Electron answers `200 ok`.
+    - `isRunning()` returns `true` → `launchApp()` is **skipped**.
+6. **The old Electron is reused.** The new code on disk is never loaded. The pet keeps running v1 behavior. ⚠️ This is
+   the trap.
 7. **To force the swap, kill the old Electron.** Three ways, in order of cleanliness:
 
    **(a) Graceful HTTP shutdown** — drains in 100 ms, removes PID file, releases port:
@@ -286,13 +309,15 @@ This is the case where you need to know what's happening.
    curl -X POST http://127.0.0.1:31425/shutdown
    ```
 
-   This hits `event-server.js:164-169` → responds `200 shutting-down` → `setTimeout(() => app.quit(), 100)` → `before-quit` handler closes settings window, `stopServer()`, `removePid()` (`main.js:116-121`).
+   This hits `event-server.js:164-169` → responds `200 shutting-down` → `setTimeout(() => app.quit(), 100)` →
+   `before-quit` handler closes settings window, `stopServer()`, `removePid()` (`main.js:116-121`).
 
    **(b) Drain via SessionEnd** — let it die naturally:
-   - End every Claude Code session that has a pet for the project.
-   - Each `SessionEnd` POSTs `falling_asleep`. If the pet is in `idle`, the project is removed from the registry.
-   - When the registry hits 0, `event-server.js:33-42` schedules `app.quit()` after **5 seconds** (cancelled if a new event arrives in that window).
-   - `before-quit` runs the same cleanup as (a).
+    - End every Claude Code session that has a pet for the project.
+    - Each `SessionEnd` POSTs `falling_asleep`. If the pet is in `idle`, the project is removed from the registry.
+    - When the registry hits 0, `event-server.js:33-42` schedules `app.quit()` after **5 seconds** (cancelled if a new
+      event arrives in that window).
+    - `before-quit` runs the same cleanup as (a).
 
    **(c) Hard kill** — last resort if HTTP is unresponsive:
 
@@ -309,25 +334,28 @@ This is the case where you need to know what's happening.
    curl -sf http://127.0.0.1:31425/health || echo "down"
    ```
 
-   Should print `down`. If `~/.code-pet/app.pid` still exists, `pm.isRunning()` will detect it as stale on the next call (`process-manager.js:88-92`: `kill(pid, 0)` fails → PID file deleted automatically).
+   Should print `down`. If `~/.code-pet/app.pid` still exists, `pm.isRunning()` will detect it as stale on the next
+   call (`process-manager.js:88-92`: `kill(pid, 0)` fails → PID file deleted automatically).
 
 9. **Trigger a fresh SessionStart.** Open a new Claude Code session.
 10. The hook runs again. This time:
     - `pm.isRunning()` → `/health` fails (no listener) → reads PID file (empty/stale) → returns `false`.
-    - `pm.launchApp(PLUGIN_ROOT)` (`process-manager.js:106-141`) resolves the Electron binary at `node_modules/electron/dist/Electron.app/Contents/MacOS/Electron` (macOS), spawns it with `src/app/main.js` — **the new v2 code** — and writes the new PID to `~/.code-pet/app.pid`.
+    - `pm.launchApp(PLUGIN_ROOT)` (`process-manager.js:106-141`) resolves the Electron binary at
+      `node_modules/electron/dist/Electron.app/Contents/MacOS/Electron` (macOS), spawns it with `src/app/main.js` — *
+      *the new v2 code** — and writes the new PID to `~/.code-pet/app.pid`.
     - `main.js` requires `event-server.js` — the v2 file — and starts the HTTP server on the same port.
 11. Hook polls `/health` for ~2 s, sends `awaken`. The new Electron answers. Pet appears running v2 code.
 
 ### Quick reference
 
-| What changed | Restart Electron? |
-|---|---|
-| Only `hooks/scripts/*.js` | No |
-| Only `hooks/hooks.json` | No (Claude Code re-reads it) |
-| `src/app/*.js` (main process) | **Yes** |
-| `src/renderer/*.js`, `src/renderer/styles.css` | **Yes** |
-| `assets/sprites/`, `assets/pets/` | **Yes** (catalog scan happens on Electron startup) |
-| `node_modules/` wiped | Yes — bootstrap will reinstall on next SessionStart |
+| What changed                                   | Restart Electron?                                   |
+|------------------------------------------------|-----------------------------------------------------|
+| Only `hooks/scripts/*.js`                      | No                                                  |
+| Only `hooks/hooks.json`                        | No (Claude Code re-reads it)                        |
+| `src/app/*.js` (main process)                  | **Yes**                                             |
+| `src/renderer/*.js`, `src/renderer/styles.css` | **Yes**                                             |
+| `assets/sprites/`, `assets/pets/`              | **Yes** (catalog scan happens on Electron startup)  |
+| `node_modules/` wiped                          | Yes — bootstrap will reinstall on next SessionStart |
 
 ---
 
