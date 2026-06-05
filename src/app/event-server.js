@@ -149,7 +149,8 @@ function startServer() {
           const eventName = body.event;
           const projectPath = body.project || 'unknown';
           const projectName = body.projectName || 'unknown';
-          const sessionKey = PetRegistry.makeSessionKey(projectPath, body.claudePid);
+          // Key sessions by the stable session_id; fall back to claudePid for legacy payloads
+          const sessionKey = PetRegistry.makeSessionKey(projectPath, body.sessionId || body.claudePid);
 
           const pet = registry.getOrCreate(sessionKey, projectPath, projectName);
           pet.updateProcessInfo(body.claudePid, body.tty);

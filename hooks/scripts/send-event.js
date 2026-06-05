@@ -42,6 +42,22 @@ function debugLog(msg) {
   } catch { /* ignore */ }
 }
 
+function readStdin() {
+  return new Promise((resolve) => {
+    const chunks = [];
+    process.stdin.on('data', (chunk) => chunks.push(chunk));
+    process.stdin.on('end', () => {
+      try {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    process.stdin.on('error', () => resolve({}));
+  });
+}
+
 function sendEvent(eventName, data) {
   debugLog(`hook → ${eventName} (port ${PORT})`);
   return new Promise((resolve) => {
@@ -81,4 +97,4 @@ function sendEvent(eventName, data) {
   });
 }
 
-module.exports = { sendEvent, debugLog };
+module.exports = { sendEvent, debugLog, readStdin };

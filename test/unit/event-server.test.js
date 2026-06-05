@@ -225,6 +225,32 @@ describe('event-server', () => {
       assert.equal(petEventCalls[0].payload.state, 'working');
     });
 
+    it('keeps one session when claudePid changes but sessionId is stable', async () => {
+      // GIVEN — on Windows each hook runs behind a fresh shell, so ppid differs per event
+      const projectPath = uniqueProjectPath();
+
+      // WHEN
+      await request(port, 'POST', '/event', {
+        event: 'working_started',
+        project: projectPath,
+        projectName: 'stable-sid-test',
+        claudePid: 11111,
+        sessionId: 'sess-stable',
+      });
+      await request(port, 'POST', '/event', {
+        event: 'working_started',
+        project: projectPath,
+        projectName: 'stable-sid-test',
+        claudePid: 22222,
+        sessionId: 'sess-stable',
+      });
+      const res = await request(port, 'GET', `/last-event?project=${encodeURIComponent(projectPath)}`);
+
+      // THEN — pid drift must not split the session into two pets
+      assert.equal(res.statusCode, 200);
+      assert.equal(Object.keys(res.body.sessions).length, 1);
+    });
+
     it('stores permissionMode on the pet when provided', async () => {
       // GIVEN
       const projectPath = uniqueProjectPath();

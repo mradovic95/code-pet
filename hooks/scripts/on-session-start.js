@@ -2,11 +2,13 @@
 
 const path = require('path');
 const { bootstrap } = require('./bootstrap');
-const { sendEvent } = require('./send-event');
+const { sendEvent, readStdin } = require('./send-event');
 
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..', '..');
 
 async function main() {
+  const input = await readStdin();
+
   // Step 1: Ensure dependencies are installed
   const result = bootstrap(PLUGIN_ROOT);
 
@@ -40,7 +42,7 @@ async function main() {
   }
 
   // Step 3: Send awaken event
-  await sendEvent('awaken');
+  await sendEvent('awaken', { sessionId: input.session_id });
 
   process.stdout.write('{}');
 }

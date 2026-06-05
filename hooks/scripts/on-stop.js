@@ -23,7 +23,7 @@ async function main() {
 
   debugLog(`on-stop stdin: ${JSON.stringify(input)}`);
 
-  await sendEvent('work_finished', { stop_reason: input.stop_reason });
+  await sendEvent('work_finished', { stop_reason: input.stop_reason, sessionId: input.session_id });
 
   process.stdout.write('{}');
 }

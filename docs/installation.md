@@ -153,7 +153,7 @@ If not running, `pm.launchApp(PLUGIN_ROOT)` (`process-manager.js:106-141`):
 | Method | Path          | Purpose                                                                                                               |
 |--------|---------------|-----------------------------------------------------------------------------------------------------------------------|
 | `GET`  | `/health`     | `200 ok` if renderer ready, `503 waiting` otherwise. Used by `pm.healthCheck()`.                                      |
-| `POST` | `/event`      | Main event dispatch. Body: `{ event, project, projectName, claudePid, tty, permissionMode?, toolName?, toolInput? }`. |
+| `POST` | `/event`      | Main event dispatch. Body: `{ event, project, projectName, claudePid, tty, sessionId?, permissionMode?, toolName?, toolInput? }`. Session key uses `sessionId` (Claude Code `session_id`), falling back to `claudePid`. |
 | `GET`  | `/last-event` | Snapshot of session state (debugging). Query: `?session=KEY` or `?project=PATH`.                                      |
 | `POST` | `/shutdown`   | Graceful quit. Responds, then `app.quit()` after 100 ms.                                                              |
 

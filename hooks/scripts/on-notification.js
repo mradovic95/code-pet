@@ -23,7 +23,7 @@ async function main() {
 
   debugLog(`on-notification stdin: ${JSON.stringify(input)}`);
 
-  await sendEvent('action_requested', { notification: input.notification });
+  await sendEvent('action_requested', { notification: input.notification, sessionId: input.session_id });
 
   process.stdout.write('{}');
 }

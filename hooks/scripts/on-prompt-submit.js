@@ -24,7 +24,7 @@ async function main() {
   debugLog(`on-prompt-submit stdin: ${JSON.stringify(input)}`);
 
   const event = input.permission_mode === 'plan' ? 'planning_started' : 'working_started';
-  await sendEvent(event, { prompt_length: input.prompt?.length });
+  await sendEvent(event, { prompt_length: input.prompt?.length, sessionId: input.session_id });
 
   process.stdout.write('{}');
 }
