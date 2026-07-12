@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Bump transitive dependency `undici` to 7.28.0 to resolve seven high-severity
+  advisories (GHSA-vmh5-mc38-953g and others) that failed the CI audit job
+
 ## [0.1.0] - 2026-02-23
 
 ### Added
