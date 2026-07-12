@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-12
+
 ### Fixed
 - Pet no longer disappears on `/clear` or `/resume` — the SessionEnd hook now
   reads the `reason` field and only sends `falling_asleep` on real session

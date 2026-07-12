@@ -10,7 +10,7 @@
 			"name": "code-pet",
 			"source": "./",
 			"description": "A tiny animated companion that reacts to Claude Code in real time — works, plans, waits, sleeps.",
-			"version": "0.1.0"
+			"version": "0.1.1"
 		}
 	]
 }
