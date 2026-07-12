@@ -19,7 +19,7 @@ hooks/
     bootstrap.js             # Lazy Electron installer (background npm install)
     send-event.js            # HTTP POST client to event server
     on-session-start.js      # SessionStart: bootstrap → launch app → send awaken
-    on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron
+    on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron (skipped for reason clear/resume)
     on-notification.js       # Notification: send action_requested (+notification payload)
     on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started (+prompt_length)
     on-post-tool-use.js      # PostToolUse: sends action_completed for all tool completions
@@ -167,14 +167,14 @@ Four semantic events map to four server-side states. Four additional events (`aw
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
 | `work_finished` | `idle` | Stop |
 | `action_completed` | *(restores previous)* | PostToolUse (any tool) |
-| `falling_asleep` | *(ignored or removes project)* | SessionEnd |
+| `falling_asleep` | *(ignored or removes project)* | SessionEnd (real terminations only; not sent for `reason: clear`/`resume`) |
 | `dismiss` | *(removes project unconditionally)* | UI: Settings → Dismiss Pet |
 
 > `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (4s, frame count per the pet's manifest) and auto-transitions back to idle CSS.
 
 > `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored.
 
-> `falling_asleep` is handled specially by the server: removes the project only in `idle`; ignored in all other states (`working`, `planning`, `waiting_for_action`).
+> `falling_asleep` is handled specially by the server: removes the project only in `idle`; ignored in all other states (`working`, `planning`, `waiting_for_action`). The hook itself filters first: `on-session-end.js` reads `reason` from stdin and sends nothing when the session ends in place (`clear` from `/clear`, `resume` from `/resume`/`--continue`) — the pet survives those and the follow-up SessionStart just replays the waking_up animation.
 
 > `dismiss` unconditionally removes the project regardless of current state. It is triggered by the UI Dismiss button (Settings window), not by hooks. `BaseState.onDismiss()` defaults to `removeProject()`, so all states inherit this behavior.
 
