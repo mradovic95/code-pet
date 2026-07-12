@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Pet no longer disappears on `/clear` or `/resume` — the SessionEnd hook now
+  reads the `reason` field and only sends `falling_asleep` on real session
+  terminations (terminal exit, logout)
+
 ### Security
 - Bump transitive dependency `undici` to 7.28.0 to resolve seven high-severity
   advisories (GHSA-vmh5-mc38-953g and others) that failed the CI audit job
