@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- No more phantom pets for subfolders of the active project — hook scripts now
+  identify the project by `CLAUDE_PROJECT_DIR` (the stable session root)
+  instead of the hook process cwd, which drifts whenever a Bash tool call runs
+  `cd <subdir>` mid-session and previously registered a new pet per drifted
+  path (see `docs/subfolder-pet-investigation.md`)
 - Pet no longer sleeps through background subagents — when the main agent's
   turn ends while a background subagent keeps working, the subagent's
   tool events (tagged with `agent_id`) now wake the pet back to

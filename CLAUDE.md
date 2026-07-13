@@ -201,6 +201,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 ## Key Conventions
 
 - All hook scripts exit with `process.stdout.write('{}')` and code 0 — never block Claude Code
+- Project identity in hook payloads comes from `CLAUDE_PROJECT_DIR` (fallback: `process.cwd()`) via `getProjectRoot()` in `send-event.js` — never from the hook's cwd alone, which drifts when a Bash tool call runs `cd` mid-session and would mint phantom pets for subfolders. Pet keying stays one per session (`projectPath::claudePid`); concurrent sessions in the same folder get suffixed labels by design. See `docs/subfolder-pet-investigation.md`.
 - Errors in hooks are silently swallowed; the pet is non-intrusive
 - Electron installs lazily on first `SessionStart` via background `npm install` (lock file at `~/.code-pet/installing`)
 - Single instance enforced via `app.requestSingleInstanceLock()` + PID file

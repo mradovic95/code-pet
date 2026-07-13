@@ -9,7 +9,16 @@ const { execFileSync } = require('child_process');
 const DEBUG = fs.existsSync(pathMod.join(os.homedir(), '.code-pet', 'debug'));
 const PORT = parseInt(process.env.CODE_PET_PORT, 10) || 31425;
 const DEBUG_LOG = pathMod.join(os.homedir(), '.code-pet', 'hooks-debug.log');
-const PROJECT_NAME = pathMod.basename(process.cwd()).replace(/[-_]/g, ' ');
+
+// Project identity must not follow the session's cwd: hooks inherit whatever
+// directory Claude last `cd`-ed into, so cwd-derived keys mint a phantom pet
+// per subfolder. CLAUDE_PROJECT_DIR is the session-start project root and
+// never drifts (see docs/subfolder-pet-investigation.md).
+function getProjectRoot() {
+  return process.env.CLAUDE_PROJECT_DIR || process.cwd();
+}
+
+const PROJECT_NAME = pathMod.basename(getProjectRoot()).replace(/[-_]/g, ' ');
 
 function captureTty(pid) {
   if (process.platform === 'win32') return null;
@@ -24,10 +33,10 @@ function captureTty(pid) {
 
 function getProjectContext() {
   try {
-    const cwd = process.cwd();
-    const name = pathMod.basename(cwd).replace(/[-_]/g, ' ');
+    const projectRoot = getProjectRoot();
+    const name = pathMod.basename(projectRoot).replace(/[-_]/g, ' ');
     const tty = captureTty(process.ppid);
-    return { project: cwd, projectName: name, claudePid: process.ppid, tty };
+    return { project: projectRoot, projectName: name, claudePid: process.ppid, tty };
   } catch {
     return { project: 'unknown', projectName: 'unknown', claudePid: process.ppid, tty: null };
   }

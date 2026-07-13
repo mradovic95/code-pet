@@ -24,11 +24,16 @@ describe('on-post-tool-use hook', () => {
     await server.close();
   });
 
-  function spawnHook(stdinJson) {
+  function spawnHook(stdinJson, { env = {}, cwd } = {}) {
     return new Promise((resolve) => {
       let stdout = '';
+      // Strip CLAUDE_PROJECT_DIR inherited from a Claude Code session running
+      // the tests, so only the env explicitly passed by a test is in effect.
+      const baseEnv = { ...process.env, CODE_PET_PORT: String(port) };
+      delete baseEnv.CLAUDE_PROJECT_DIR;
       const sut = spawn('node', [HOOK_SCRIPT], {
-        env: { ...process.env, CODE_PET_PORT: String(port) },
+        env: { ...baseEnv, ...env },
+        cwd,
       });
       sut.stdout.on('data', (d) => (stdout += d));
       sut.stdin.write(JSON.stringify(stdinJson));
@@ -90,5 +95,33 @@ describe('on-post-tool-use hook', () => {
     const requests = server.getRequests();
     assert.equal(requests[0].body.event, 'action_completed');
     assert.equal(requests[0].body.permissionMode, 'plan');
+  });
+
+  it('uses CLAUDE_PROJECT_DIR as project even when cwd has drifted to a subfolder', async () => {
+    // GIVEN — the hook runs with cwd deep inside the repo, but the session root is set
+    const projectRoot = path.join(__dirname, '../..');
+    const driftedCwd = __dirname; // a subfolder of the project root
+    const input = { tool_name: 'Read' };
+
+    // WHEN
+    await spawnHook(input, { env: { CLAUDE_PROJECT_DIR: projectRoot }, cwd: driftedCwd });
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.project, projectRoot);
+    assert.equal(requests[0].body.projectName, path.basename(projectRoot).replace(/[-_]/g, ' '));
+  });
+
+  it('falls back to cwd as project when CLAUDE_PROJECT_DIR is not set', async () => {
+    // GIVEN
+    const cwd = __dirname;
+    const input = { tool_name: 'Read' };
+
+    // WHEN
+    await spawnHook(input, { cwd });
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.project, cwd);
   });
 });
