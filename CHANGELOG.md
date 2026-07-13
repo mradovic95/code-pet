@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tool events (tagged with `agent_id`) now wake the pet back to
   working/planning; it returns to idle after the wrap-up turn's Stop
   (see `docs/background-subagents-investigation.md`)
+- Ending one session no longer kills the shared pet app for other concurrent
+  sessions — the SessionEnd hook now confirms the server is genuinely
+  unreachable with a health-check probe before tearing down an orphaned
+  Electron process, so a briefly-slow server (a 1s `falling_asleep` timeout)
+  is no longer mistaken for a dead one (see `docs/bug-audit-2026-07-13.md`)
 
 ## [0.1.1] - 2026-07-12
 

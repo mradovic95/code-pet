@@ -35,9 +35,17 @@ async function main() {
 
   const sent = await sendEvent('falling_asleep', { reason: input.reason });
   if (!sent) {
-    // Server unreachable — clean up orphaned Electron as safety net
+    // sendEvent returns false on a connection error OR a 1s timeout, and a
+    // timeout can just mean the server is briefly busy. The Electron app is
+    // shared by every concurrent session, so quitting it on that signal alone
+    // wipes out everyone's pets. Confirm the server is genuinely unreachable
+    // with a second probe before tearing down an orphaned process — a healthy
+    // server removes this project itself and self-shuts-down when it empties.
     const pm = require(path.join(PLUGIN_ROOT, 'src', 'app', 'process-manager'));
-    await pm.stopApp();
+    const alive = await pm.healthCheck();
+    if (!alive) {
+      await pm.stopApp();
+    }
   }
   process.stdout.write('{}');
 }

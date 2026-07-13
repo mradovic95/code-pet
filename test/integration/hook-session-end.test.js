@@ -3,6 +3,7 @@
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('child_process');
+const http = require('http');
 const path = require('path');
 const TestHttpServer = require('../helpers/test-http-server');
 
@@ -88,5 +89,46 @@ describe('on-session-end hook', () => {
     // THEN — should still exit cleanly
     assert.equal(code, 0);
     assert.equal(stdout, '{}');
+  });
+
+  it('does not shut down a healthy-but-slow server on falling_asleep timeout', async () => {
+    // GIVEN — a server that stalls POST /event past the 1s sendEvent timeout
+    // (so sendEvent resolves false) but answers GET /health 200 instantly, so
+    // the safety net's confirmation probe sees a live server.
+    let shutdownRequested = false;
+    const slowServer = http.createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/event') {
+        // Never respond — force sendEvent to hit its 1s timeout.
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/shutdown') {
+        shutdownRequested = true;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'shutting-down' }));
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+    const slowPort = await new Promise((resolve) => {
+      slowServer.listen(0, '127.0.0.1', () => resolve(slowServer.address().port));
+    });
+
+    try {
+      // WHEN
+      const { code, stdout } = await runHook(slowPort, JSON.stringify({ reason: 'logout' }));
+
+      // THEN — hook exits cleanly and never tears down the live app.
+      assert.equal(code, 0);
+      assert.equal(stdout, '{}');
+      assert.equal(shutdownRequested, false);
+    } finally {
+      await new Promise((resolve) => slowServer.close(resolve));
+    }
   });
 });
