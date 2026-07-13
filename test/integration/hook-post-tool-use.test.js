@@ -58,6 +58,24 @@ describe('on-post-tool-use hook', () => {
     assert.equal(requests[0].body.permissionMode, 'auto-edit');
   });
 
+  it('forwards agent_id from stdin as agentId', async () => {
+    // GIVEN
+    const input = {
+      tool_name: 'WebFetch',
+      permission_mode: 'dontAsk',
+      agent_id: 'a8917150403d66ba2',
+      agent_type: 'Explore',
+    };
+
+    // WHEN
+    await spawnHook(input);
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.event, 'action_completed');
+    assert.equal(requests[0].body.agentId, 'a8917150403d66ba2');
+  });
+
   it('sends action_completed with plan permissionMode', async () => {
     // GIVEN
     const input = {

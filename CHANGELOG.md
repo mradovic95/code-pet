@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Pet no longer sleeps through background subagents — when the main agent's
+  turn ends while a background subagent keeps working, the subagent's
+  tool events (tagged with `agent_id`) now wake the pet back to
+  working/planning; it returns to idle after the wrap-up turn's Stop
+  (see `docs/background-subagents-investigation.md`)
+
 ## [0.1.1] - 2026-07-12
 
 ### Fixed

@@ -1,7 +1,7 @@
 'use strict';
 
 const BaseState = require('./base-state');
-const { STATES } = require('./events');
+const { EVENTS, STATES } = require('./events');
 const logger = require('../logger');
 
 class IdleState extends BaseState {
@@ -33,6 +33,23 @@ class IdleState extends BaseState {
   onActionRequested() {
     logger.info(`[${this.context.projectName}] IdleState.onActionRequested: transitioning to waiting_for_action`);
     return this.transitionTo(STATES.WAITING_FOR_ACTION);
+  }
+
+  onActionCompleted() {
+    // Only subagent-tagged events wake the pet; untagged ones may be a
+    // main-agent tool completion racing in after Stop, with no later Stop
+    // to put the pet back to sleep.
+    if (!this.context.lastAgentId) {
+      return this.ignore();
+    }
+    if (this.context.permissionMode === 'plan') {
+      logger.info(`[${this.context.projectName}] IdleState.onActionCompleted: background subagent active (${this.context.lastAgentId}), transitioning to planning`);
+      this.context.lastActiveEvent = EVENTS.PLANNING_STARTED;
+      return this.transitionTo(STATES.PLANNING);
+    }
+    logger.info(`[${this.context.projectName}] IdleState.onActionCompleted: background subagent active (${this.context.lastAgentId}), transitioning to working`);
+    this.context.lastActiveEvent = EVENTS.WORKING_STARTED;
+    return this.transitionTo(STATES.WORKING);
   }
 
   onFallingAsleep() {

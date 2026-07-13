@@ -29,7 +29,7 @@ async function main() {
   debugLog(`PostToolUse: tool=${toolName} input=${toolInput} output=${toolOutput}`);
 
   debugLog(`PostToolUse: tool completed → sending action_completed (permissionMode=${input.permission_mode || 'none'})`);
-  await sendEvent('action_completed', { permissionMode: input.permission_mode, toolName: input.tool_name, toolInput: input.tool_input });
+  await sendEvent('action_completed', { permissionMode: input.permission_mode, toolName: input.tool_name, toolInput: input.tool_input, agentId: input.agent_id });
 
   process.stdout.write('{}');
 }

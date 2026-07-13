@@ -10,6 +10,7 @@ function createMockContext(overrides = {}) {
     lastActiveEvent: null,
     lastEventName: null,
     permissionMode: null,
+    lastAgentId: null,
     changeState: function (stateName) {
       this._lastChangedTo = stateName;
     },

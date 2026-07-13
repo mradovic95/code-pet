@@ -245,6 +245,41 @@ describe('event-server', () => {
       assert.equal(res.body.event, 'planning_started');
     });
 
+    it('wakes an idle pet to working when action_completed carries agentId', async () => {
+      // GIVEN
+      const projectPath = uniqueProjectPath();
+      const base = { project: projectPath, projectName: 'bg-agent-test', claudePid: 99005 };
+      await request(port, 'POST', '/event', { event: 'working_started', ...base });
+      await request(port, 'POST', '/event', { event: 'work_finished', ...base });
+
+      // WHEN
+      const res = await request(port, 'POST', '/event', {
+        event: 'action_completed',
+        agentId: 'agent-abc',
+        ...base,
+      });
+
+      // THEN
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.state, 'working');
+    });
+
+    it('keeps an idle pet idle when action_completed has no agentId (stale tag cleared)', async () => {
+      // GIVEN
+      const projectPath = uniqueProjectPath();
+      const base = { project: projectPath, projectName: 'stale-tag-test', claudePid: 99006 };
+      await request(port, 'POST', '/event', { event: 'working_started', ...base });
+      await request(port, 'POST', '/event', { event: 'action_completed', agentId: 'agent-abc', ...base });
+      await request(port, 'POST', '/event', { event: 'work_finished', ...base });
+
+      // WHEN
+      const res = await request(port, 'POST', '/event', { event: 'action_completed', ...base });
+
+      // THEN
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.ignored, true);
+    });
+
     it('aborts the connection when body exceeds 1MB (current behavior)', async () => {
       // GIVEN
       const huge = 'x'.repeat(1024 * 1024 + 10);

@@ -14,6 +14,7 @@ class PetContext {
     this.claudePid = null;
     this.tty = null;
     this.permissionMode = null;
+    this.lastAgentId = null;
     this.projectPath = projectPath || null;
     this.createdAt = Date.now();
     this.tracker = new UsageTracker({ store, projectPath: this.projectPath });
