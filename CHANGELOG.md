@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-14
+
 ### Fixed
 - No more phantom pets for subfolders of the active project — hook scripts now
   identify the project by `CLAUDE_PROJECT_DIR` (the stable session root)
