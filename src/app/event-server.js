@@ -154,6 +154,7 @@ function startServer() {
           const pet = registry.getOrCreate(sessionKey, projectPath, projectName);
           pet.updateProcessInfo(body.claudePid, body.tty);
           if (body.permissionMode) pet.permissionMode = body.permissionMode;
+          pet.lastAgentId = body.agentId || null;
           if (body.toolName) pet.recordToolUsage(body.toolName, body.toolInput);
 
           const result = dispatchEvent(sessionKey, projectPath, projectName, eventName);

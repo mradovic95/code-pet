@@ -48,6 +48,10 @@ waiting_for_action -[#red,bold]-> [*] : UI Dismiss\n//dismiss//
 waiting_for_action -[#purple,dashed]-> working : PostToolUse(any tool)\n//action_completed//\n(restore)
 waiting_for_action -[#purple,dashed]-> planning : PostToolUse(any tool)\n//action_completed//\n(restore)
 
+' ── action_completed from a background subagent wakes the idle pet ──
+idle -[#purple,dashed]-> working : PostToolUse(agent_id)\n//action_completed//\n(background subagent)
+idle -[#purple,dashed]-> planning : PostToolUse(agent_id, plan)\n//action_completed//\n(background subagent)
+
 ' ── Stop ignored in waiting_for_action ──
 waiting_for_action -[#grey,dotted]-> waiting_for_action : Stop\n//work_finished// (ignored)
 
@@ -73,6 +77,10 @@ note right of idle
   **work_finished** is ignored in
   waiting_for_action; transitions to idle
   from working and planning.
+  **action_completed** is ignored in idle
+  unless tagged with agent_id (background
+  subagent) — then it wakes the pet to
+  working/planning.
   Debounce: 300ms collapses rapid events.
 end note
 

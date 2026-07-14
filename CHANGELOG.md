@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- No more phantom pets for subfolders of the active project — hook scripts now
+  identify the project by `CLAUDE_PROJECT_DIR` (the stable session root)
+  instead of the hook process cwd, which drifts whenever a Bash tool call runs
+  `cd <subdir>` mid-session and previously registered a new pet per drifted
+  path (see `docs/subfolder-pet-investigation.md`)
+- Pet no longer sleeps through background subagents — when the main agent's
+  turn ends while a background subagent keeps working, the subagent's
+  tool events (tagged with `agent_id`) now wake the pet back to
+  working/planning; it returns to idle after the wrap-up turn's Stop
+  (see `docs/background-subagents-investigation.md`)
+- Ending one session no longer kills the shared pet app for other concurrent
+  sessions — the SessionEnd hook now confirms the server is genuinely
+  unreachable with a health-check probe before tearing down an orphaned
+  Electron process, so a briefly-slow server (a 1s `falling_asleep` timeout)
+  is no longer mistaken for a dead one (see `docs/bug-audit-2026-07-13.md`)
+
 ## [0.1.1] - 2026-07-12
 
 ### Fixed

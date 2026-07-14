@@ -117,9 +117,9 @@ describe('IdleState', () => {
     assert.equal(ctx._lastChangedTo, null);
   });
 
-  it('ignores action_completed', () => {
+  it('ignores action_completed without subagent tag', () => {
     // GIVEN
-    // sut is an IdleState
+    // ctx.lastAgentId is null (main-agent tool event, e.g. racing in after Stop)
 
     // WHEN
     const result = sut.handleEvent('action_completed');
@@ -127,5 +127,32 @@ describe('IdleState', () => {
     // THEN
     assert.equal(result.response.ignored, true);
     assert.equal(ctx._lastChangedTo, null);
+  });
+
+  it('transitions to working when action_completed received from a background subagent', () => {
+    // GIVEN
+    ctx.lastAgentId = 'agent-123';
+
+    // WHEN
+    const result = sut.handleEvent('action_completed');
+
+    // THEN
+    assert.equal(result.rendererState, 'working');
+    assert.equal(ctx._lastChangedTo, 'working');
+    assert.equal(ctx.lastActiveEvent, 'working_started');
+  });
+
+  it('transitions to planning when action_completed received from a background subagent in plan mode', () => {
+    // GIVEN
+    ctx.lastAgentId = 'agent-123';
+    ctx.permissionMode = 'plan';
+
+    // WHEN
+    const result = sut.handleEvent('action_completed');
+
+    // THEN
+    assert.equal(result.rendererState, 'planning');
+    assert.equal(ctx._lastChangedTo, 'planning');
+    assert.equal(ctx.lastActiveEvent, 'planning_started');
   });
 });

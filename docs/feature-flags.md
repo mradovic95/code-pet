@@ -21,6 +21,7 @@ Read at `src/app/logger.js:8` and `hooks/scripts/send-event.js:9`. The main-proc
 | `MARKETPLACE_ID` | `DEFAULT_MARKETPLACE_ID` (`1`) from `marketplace-constants.js` | Overrides `marketplace.json.marketplaceId`; coerced to `Number` | `src/app/marketplace-config.js` |
 | `MARKETPLACE_MOCK` | `false` | When `"true"`, forces `MockLicenseAPI` instead of the real marketplace client (dev-only) | `src/app/marketplace-config.js` → `isMockMode()` |
 | `CLAUDE_PLUGIN_ROOT` | resolved from hook script location | Plugin root directory; set by Claude Code at hook invocation time | `hooks/scripts/bootstrap.js`, `hooks/scripts/on-session-start.js`, `hooks/scripts/on-session-end.js` |
+| `CLAUDE_PROJECT_DIR` | falls back to `process.cwd()` | Project root used as pet identity; set by Claude Code at hook invocation time. Stable across mid-session `cd` (unlike the hook's cwd) — see `docs/subfolder-pet-investigation.md` | `hooks/scripts/send-event.js` → `getProjectRoot()` |
 | `USAGE_STORE_TYPE` | `filesystem` | Backend for persistent skill / MCP usage events. `filesystem` writes NDJSON to `~/.code-pet/usage.log`; `memory` disables persistence (in-process only) | `src/app/main.js` (passed to `createStore`) |
 | `CODE_PET_IDLE_CLEANUP` | `false` | When `"true"`, runs the 60 s stale-project sweep that removes projects idle > 3 h. Default off — projects persist in the registry until the Electron process exits. Disabling can delay or prevent the 5 s idle-shutdown trigger on multi-project users (registry never reaches empty on its own). | `src/app/event-server.js` |
 

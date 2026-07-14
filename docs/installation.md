@@ -175,7 +175,7 @@ Once the Electron app is up, every other registered hook is a one-line HTTP POST
 |-----------------------|---------------------------------------------------------------------------|------------------------------------|
 | `on-prompt-submit.js` | `working_started` (or `planning_started` if `permission_mode === "plan"`) | `working` / `planning`             |
 | `on-notification.js`  | `action_requested` (only when `notification_type === permission_prompt`)  | `waiting_for_action`               |
-| `on-post-tool-use.js` | `action_completed`                                                        | restores previous active state     |
+| `on-post-tool-use.js` | `action_completed` (+ `agentId` for subagent tool calls)                  | restores previous active state; wakes an idle pet when agent-tagged (background subagent) |
 | `on-stop.js`          | `work_finished`                                                           | `idle`                             |
 | `on-session-end.js`   | `falling_asleep`                                                          | removes project (only from `idle`) |
 
