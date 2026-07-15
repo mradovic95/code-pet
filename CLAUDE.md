@@ -22,6 +22,7 @@ hooks/
     on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron (skipped for reason clear/resume)
     on-notification.js       # Notification: send action_requested (+notification payload)
     on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started (+prompt_length)
+    on-pre-tool-use.js       # PreToolUse (matcher Skill|mcp__.*): sends action_started for duration pairing
     on-post-tool-use.js      # PostToolUse: sends action_completed for all tool completions
     on-stop.js               # Stop: send work_finished (+stop_reason)
 src/
@@ -71,8 +72,9 @@ src/
       store.html               # Marketplace / store tab
       usage.html               # Usage analytics tab
   tracking/                  # Skill / MCP tool usage tracking (self-contained)
-    index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore
-    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath)
+    index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
+    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?)
+    usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -108,7 +110,7 @@ Claude Code hooks (stdin JSON)
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
 
-**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill` and `mcp_tool` events. The tracker holds a ring buffer in memory *and* writes each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`), constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code changes. See `docs/usage-tracking.md` for the data format and operator reference.
+**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill` and `mcp_tool` events. The tracker holds a ring buffer in memory *and* writes each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`), constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code changes. Events optionally carry `durationMs` (PreToolUse→PostToolUse pairing via an in-memory map on `PetContext`; the `action_started` event is handled before the state machine and never changes pet state) and `agentId` (subagent attribution). `src/tracking/usage-analytics.js` provides pure aggregation (top skills, weekly trends, co-occurrence, dormant detection, markdown report) consumed by the settings Usage tab. See `docs/usage-tracking.md` for the data format and operator reference.
 
 ## Marketplace Integration
 
@@ -162,6 +164,7 @@ Four semantic events map to four server-side states. Four additional events (`aw
 | Event (hook sends) | State (pet.js) | Triggered by |
 |---------------------|----------------|--------------|
 | `awaken` | *(renderer-only `waking_up` animation)* | SessionStart |
+| `action_started` | *(no state change)* | PreToolUse (Skill and MCP tools only) |
 | `working_started` | `working` | UserPromptSubmit (normal mode) |
 | `planning_started` | `planning` | UserPromptSubmit (plan mode) |
 | `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
@@ -209,6 +212,7 @@ Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 - Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
 - `USAGE_STORE_TYPE` env var selects the persistence backend (`filesystem` default, `memory` to disable). Skill / MCP events are appended to `~/.code-pet/usage.log` by default.
+- `CODE_PET_TOOL_START_TTL_MS` (default 600000) and `CODE_PET_MAX_PENDING_TOOL_STARTS` (default 50) env vars tune the duration-pairing map in `pet-context.js`; read once at app start, invalid values fall back.
 - `CODE_PET_IDLE_CLEANUP=true` enables the 60 s stale-project sweep that removes projects idle > 3 h (`src/app/pet-registry.js:151`, gated in `src/app/event-server.js`). Default off — projects persist in the registry until the app exits, which can delay the 5 s idle-shutdown trigger on multi-project users.
 - `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables it. Logging is off by default.
 - Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )

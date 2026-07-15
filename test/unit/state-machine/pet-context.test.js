@@ -182,4 +182,126 @@ describe('PetContext', () => {
     assert.ok(snap.createdAt > 0);
     assert.ok(snap.usage);
   });
+
+  it('forwards extra fields from recordToolUsage to the tracker', () => {
+    // GIVEN
+    // sut is a fresh context
+
+    // WHEN
+    sut.recordToolUsage('Skill', { skill: 'commit' }, { durationMs: 750, agentId: 'agent-1' });
+
+    // THEN
+    const events = sut.getUsageEvents();
+    assert.equal(events.length, 1);
+    assert.equal(events[0].durationMs, 750);
+    assert.equal(events[0].agentId, 'agent-1');
+  });
+
+  it('pairs a tool start with its completion into a duration', () => {
+    // GIVEN
+    sut.noteToolStart('toolu_123', 'Skill');
+
+    // WHEN
+    const durationMs = sut.resolveToolDuration('toolu_123', 'Skill');
+
+    // THEN
+    assert.equal(typeof durationMs, 'number');
+    assert.ok(durationMs >= 0);
+  });
+
+  it('pairs by tool name when no toolUseId is available', () => {
+    // GIVEN — PreToolUse payloads carry no tool_use_id (not in official docs)
+    sut.noteToolStart(undefined, 'Skill');
+
+    // WHEN
+    const durationMs = sut.resolveToolDuration(undefined, 'Skill');
+
+    // THEN
+    assert.equal(typeof durationMs, 'number');
+  });
+
+  it('returns undefined when no matching start exists', () => {
+    // GIVEN
+    // no noteToolStart
+
+    // WHEN
+    const durationMs = sut.resolveToolDuration('toolu_missing', 'Read');
+
+    // THEN
+    assert.equal(durationMs, undefined);
+  });
+
+  it('resolves a start only once', () => {
+    // GIVEN
+    sut.noteToolStart('toolu_1', 'Skill');
+    sut.resolveToolDuration('toolu_1', 'Skill');
+
+    // WHEN
+    const second = sut.resolveToolDuration('toolu_1', 'Skill');
+
+    // THEN
+    assert.equal(second, undefined);
+  });
+
+  it('evicts the oldest pending start when the cap is reached', () => {
+    // GIVEN — fill past the cap of 50
+    for (let i = 0; i < 55; i++) {
+      sut.noteToolStart(`toolu_${i}`, 'Skill');
+    }
+
+    // WHEN
+    const evicted = sut.resolveToolDuration('toolu_0', undefined);
+    const kept = sut.resolveToolDuration('toolu_54', undefined);
+
+    // THEN
+    assert.equal(evicted, undefined);
+    assert.equal(typeof kept, 'number');
+  });
+
+  function requireFreshPetContext() {
+    const resolved = require.resolve('../../../src/app/state-machine/pet-context');
+    delete require.cache[resolved];
+    const FreshPetContext = require('../../../src/app/state-machine/pet-context');
+    delete require.cache[resolved]; // keep the shared cached copy for other tests
+    return FreshPetContext;
+  }
+
+  it('honors CODE_PET_MAX_PENDING_TOOL_STARTS env override', () => {
+    // GIVEN
+    process.env.CODE_PET_MAX_PENDING_TOOL_STARTS = '2';
+    try {
+      const FreshPetContext = requireFreshPetContext();
+      const ctx = new FreshPetContext('proj', 'dog');
+
+      // WHEN — third insert must evict the first under a cap of 2
+      ctx.noteToolStart('toolu_a', 'Skill');
+      ctx.noteToolStart('toolu_b', 'Skill');
+      ctx.noteToolStart('toolu_c', 'Skill');
+
+      // THEN
+      assert.equal(ctx.resolveToolDuration('toolu_a', undefined), undefined);
+      assert.equal(typeof ctx.resolveToolDuration('toolu_c', undefined), 'number');
+    } finally {
+      delete process.env.CODE_PET_MAX_PENDING_TOOL_STARTS;
+    }
+  });
+
+  it('falls back to the default cap when the env override is not a positive integer', () => {
+    // GIVEN
+    process.env.CODE_PET_MAX_PENDING_TOOL_STARTS = 'notanumber';
+    try {
+      const FreshPetContext = requireFreshPetContext();
+      const ctx = new FreshPetContext('proj', 'dog');
+
+      // WHEN — 3 inserts stay well under the default cap of 50
+      ctx.noteToolStart('toolu_a', 'Skill');
+      ctx.noteToolStart('toolu_b', 'Skill');
+      ctx.noteToolStart('toolu_c', 'Skill');
+
+      // THEN — nothing was evicted
+      assert.equal(typeof ctx.resolveToolDuration('toolu_a', undefined), 'number');
+    } finally {
+      delete process.env.CODE_PET_MAX_PENDING_TOOL_STARTS;
+    }
+  });
 });

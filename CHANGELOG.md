@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Skill analytics in the Settings → Usage tab: per-skill summary with usage
+  count, average duration, last-used and an 8-week sparkline; overall weekly
+  activity chart; "often used together" skill pairs (same-session
+  co-occurrence); and dormant-skill detection (used before, but not in the
+  last 30 days) — all computed from the existing `usage.log`, no new data
+  collection (see `docs/usage-tracking.md`)
+- Exportable skill-usage optimization report (top skills, dormant candidates,
+  co-used pairs, common sequences, per-project breakdown, slowest skills) as
+  markdown or a self-contained HTML page with charts — the file type chosen in
+  the save dialog picks the format — plus raw NDJSON export
+- Per-skill/MCP-tool duration tracking: a new PreToolUse hook (scoped to the
+  Skill tool and `mcp__*` tools only) pairs with the tool's completion to
+  persist `durationMs` on usage events; tool calls made inside subagents are
+  attributed via `agentId`. Older log lines without these fields remain valid
+
 ## [0.1.2] - 2026-07-14
 
 ### Fixed

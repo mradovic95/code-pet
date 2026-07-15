@@ -621,6 +621,8 @@ async function renderUsageTab() {
     document.getElementById('filter-project').addEventListener('change', applyFilters);
     document.getElementById('filter-session').addEventListener('change', applyFilters);
     document.getElementById('export-csv-btn').addEventListener('click', exportCsv);
+    document.getElementById('export-ndjson-btn').addEventListener('click', exportNdjson);
+    document.getElementById('export-report-btn').addEventListener('click', exportReport);
     document.getElementById('page-prev').addEventListener('click', () => {
       if (_eventPage > 0) { _eventPage--; renderEventLog(_filteredEvents); }
     });
@@ -729,6 +731,47 @@ function exportCsv() {
   });
 }
 
+async function saveToFile(btnId, defaultLabel, content, defaultName, options = {}) {
+  const btn = document.getElementById(btnId);
+  try {
+    const result = await window.codePetSettings.saveUsageFile(content, defaultName, options);
+    if (result && result.saved) {
+      btn.textContent = 'Saved!';
+    } else if (result && result.canceled) {
+      btn.textContent = defaultLabel;
+      return;
+    } else {
+      btn.textContent = 'Failed';
+    }
+  } catch {
+    btn.textContent = 'Failed';
+  }
+  setTimeout(() => { btn.textContent = defaultLabel; }, 1500);
+}
+
+function exportNdjson() {
+  const sorted = _filteredEvents.slice().sort((a, b) => b.timestamp - a.timestamp);
+  const ndjson = sorted.map((e) => JSON.stringify(e)).join('\n') + (sorted.length ? '\n' : '');
+  saveToFile('export-ndjson-btn', 'Export NDJSON', ndjson, 'code-pet-usage.ndjson');
+}
+
+function exportReport() {
+  const analytics = window.usageAnalytics;
+  if (!analytics) return;
+  const report = analytics.buildReport(_filteredEvents);
+  // The extension picked in the save dialog decides the format.
+  saveToFile('export-report-btn', 'Export Report', null, 'code-pet-skill-report.html', {
+    contents: {
+      html: analytics.renderHtmlReport(report),
+      md: analytics.renderMarkdownReport(report),
+    },
+    filters: [
+      { name: 'HTML report', extensions: ['html'] },
+      { name: 'Markdown report', extensions: ['md'] },
+    ],
+  });
+}
+
 function applyFilters() {
   const dateRangeVal = document.getElementById('filter-date-range').value;
   const projectVal = document.getElementById('filter-project').value;
@@ -771,6 +814,11 @@ function applyFilters() {
   renderEventLog(filtered, emptyEventsMsg);
   renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
   renderUsageList('skill-usage-list', skillCounts, emptySkillsMsg);
+  renderWeeklyTrend(filtered, emptyEventsMsg);
+  renderSkillSummary(filtered, emptySkillsMsg);
+  renderCoUsage(filtered);
+  // Dormancy is relative to today, not the date filter — always over the full log.
+  renderDormant();
 }
 
 function renderEventLog(events, emptyMsg) {
@@ -857,6 +905,169 @@ function renderUsageList(containerId, data, emptyMsg) {
 
     row.appendChild(nameEl);
     row.appendChild(countEl);
+    container.appendChild(row);
+  }
+}
+
+// --- Usage analytics views (module loaded via <script>, see settings.html) ---
+
+function formatRelativeDays(ts) {
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function formatWeekLabel(weekStart) {
+  const d = new Date(weekStart);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}`;
+}
+
+function renderWeeklyTrend(events, emptyMsg) {
+  const container = document.getElementById('weekly-trend');
+  const analytics = window.usageAnalytics;
+  if (!container || !analytics) return;
+
+  if (!events || events.length === 0) {
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No events yet'}</div>`;
+    return;
+  }
+
+  const buckets = analytics.weeklyTrend(events, { weeks: 12 });
+  const max = Math.max(...buckets.map((b) => b.count), 1);
+
+  container.innerHTML = '';
+  for (const b of buckets) {
+    const bar = document.createElement('div');
+    bar.className = 'trend-bar' + (b.count === 0 ? ' trend-bar-empty' : '');
+    const pct = Math.round((b.count / max) * 100);
+    bar.style.height = `${Math.max(pct, 4)}%`;
+    bar.title = `Week of ${formatWeekLabel(b.weekStart)}: ${b.count} event${b.count === 1 ? '' : 's'}`;
+    container.appendChild(bar);
+  }
+}
+
+function renderSkillSummary(events, emptyMsg) {
+  const container = document.getElementById('skill-summary');
+  const analytics = window.usageAnalytics;
+  if (!container || !analytics) return;
+
+  const summary = analytics.summarizeByName(events || [], { type: 'skill' });
+  if (summary.length === 0) {
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No skill usage yet'}</div>`;
+    return;
+  }
+
+  const durationsByName = new Map(
+    analytics.durationStats(events || []).map((d) => [d.name, d])
+  );
+
+  container.innerHTML = '';
+  for (const s of summary) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name';
+    nameEl.textContent = s.name;
+    nameEl.title = `${s.name} — first used ${formatRelativeDays(s.firstUsed)}, ${s.sessionCount} session${s.sessionCount === 1 ? '' : 's'}`;
+
+    const spark = document.createElement('span');
+    spark.className = 'sparkline';
+    const buckets = analytics.weeklyTrend(events, { weeks: 8, name: s.name });
+    const max = Math.max(...buckets.map((b) => b.count), 1);
+    for (const b of buckets) {
+      const bar = document.createElement('span');
+      bar.className = 'spark-bar' + (b.count === 0 ? ' spark-bar-empty' : '');
+      bar.style.height = `${Math.max(Math.round((b.count / max) * 100), 12)}%`;
+      spark.appendChild(bar);
+    }
+
+    const lastEl = document.createElement('span');
+    lastEl.className = 'summary-last-used';
+    lastEl.textContent = formatRelativeDays(s.lastUsed);
+
+    const countEl = document.createElement('span');
+    countEl.className = 'usage-count';
+    countEl.textContent = s.count;
+
+    row.appendChild(nameEl);
+    row.appendChild(spark);
+    const dur = durationsByName.get(s.name);
+    if (dur) {
+      const avgEl = document.createElement('span');
+      avgEl.className = 'summary-avg';
+      avgEl.textContent = analytics.formatMs(dur.avgMs);
+      avgEl.title = `avg over ${dur.count} timed run${dur.count === 1 ? '' : 's'} (max ${analytics.formatMs(dur.maxMs)})`;
+      row.appendChild(avgEl);
+    }
+    row.appendChild(lastEl);
+    row.appendChild(countEl);
+    container.appendChild(row);
+  }
+}
+
+function renderCoUsage(events) {
+  const container = document.getElementById('co-usage-list');
+  const analytics = window.usageAnalytics;
+  if (!container || !analytics) return;
+
+  const pairs = analytics.coOccurrence(events || [], { minSessions: 2 }).slice(0, 8);
+  if (pairs.length === 0) {
+    container.innerHTML = '<div class="usage-empty">No recurring pairs yet</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const p of pairs) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name co-pair';
+    nameEl.textContent = `${p.a} + ${p.b}`;
+    nameEl.title = `${p.a} + ${p.b} — used together in ${p.sessions} sessions`;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'usage-count';
+    countEl.textContent = `${p.sessions}×`;
+
+    row.appendChild(nameEl);
+    row.appendChild(countEl);
+    container.appendChild(row);
+  }
+}
+
+function renderDormant() {
+  const container = document.getElementById('dormant-list');
+  const analytics = window.usageAnalytics;
+  if (!container || !analytics) return;
+
+  const entries = analytics.dormant(_allEvents);
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="usage-empty">Nothing dormant</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const d of entries) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name';
+    nameEl.textContent = d.name;
+    nameEl.title = d.name;
+
+    const daysEl = document.createElement('span');
+    daysEl.className = 'dormant-days';
+    daysEl.textContent = `${d.daysSince}d ago`;
+
+    row.appendChild(nameEl);
+    row.appendChild(daysEl);
     container.appendChild(row);
   }
 }

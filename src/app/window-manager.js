@@ -126,6 +126,32 @@ ipcMain.handle('get-all-usage-events', async () => {
   }
 });
 
+ipcMain.handle('save-usage-file', async (_event, { content, contents, defaultName, filters } = {}) => {
+  // Either a single `content` string, or a `contents` map of extension → string
+  // (e.g. { html, md }) where the extension the user picks in the dialog
+  // decides which variant is written.
+  const variants = contents && typeof contents === 'object' ? contents : null;
+  if (typeof content !== 'string' && !variants) return { saved: false, error: 'no content' };
+  try {
+    const { dialog } = require('electron');
+    const safeName = path.basename(String(defaultName || 'code-pet-export.txt'));
+    const options = { defaultPath: path.join(require('os').homedir(), safeName) };
+    if (Array.isArray(filters) && filters.length > 0) options.filters = filters;
+    const result = await dialog.showSaveDialog(settingsWindow, options);
+    if (result.canceled || !result.filePath) return { saved: false, canceled: true };
+    let output = content;
+    if (variants) {
+      const ext = path.extname(result.filePath).replace(/^\./, '').toLowerCase();
+      output = typeof variants[ext] === 'string' ? variants[ext] : Object.values(variants)[0];
+    }
+    await require('fs/promises').writeFile(result.filePath, output, 'utf8');
+    return { saved: true, path: result.filePath };
+  } catch (err) {
+    logger.warn(`save-usage-file handler failed: ${err.message}`);
+    return { saved: false, error: err.message };
+  }
+});
+
 ipcMain.on('get-sound-enabled', (event) => {
   const settingsStore = require('./settings-store');
   event.returnValue = settingsStore.getSoundEnabled();

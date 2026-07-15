@@ -3,6 +3,15 @@
 const { VALID_EVENTS, STATES } = require('./events');
 const { UsageTracker } = require('../../tracking');
 
+// Env-overridable (read once at app start); invalid or non-positive values fall back.
+function positiveIntEnv(name, fallback) {
+  const n = parseInt(process.env[name], 10);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+const TOOL_START_TTL_MS = positiveIntEnv('CODE_PET_TOOL_START_TTL_MS', 10 * 60 * 1000);
+const MAX_PENDING_TOOL_STARTS = positiveIntEnv('CODE_PET_MAX_PENDING_TOOL_STARTS', 50);
+
 class PetContext {
   constructor(projectName, petType, { store, projectPath } = {}) {
     this.lastActiveEvent = null;
@@ -18,6 +27,7 @@ class PetContext {
     this.projectPath = projectPath || null;
     this.createdAt = Date.now();
     this.tracker = new UsageTracker({ store, projectPath: this.projectPath });
+    this._pendingToolStarts = new Map(); // toolUseId/tool:<name> → startedAt
     this.changeState(STATES.IDLE);
   }
 
@@ -44,14 +54,48 @@ class PetContext {
     if (tty) this.tty = tty;
   }
 
-  recordToolUsage(toolName, toolInput) {
+  recordToolUsage(toolName, toolInput, extra = {}) {
     if (!toolName) return;
     if (toolName.startsWith('mcp__')) {
-      this.tracker.record('mcp_tool', toolName);
+      this.tracker.record('mcp_tool', toolName, extra);
     } else if (toolName === 'Skill') {
       const skillName = (toolInput && toolInput.skill) ? toolInput.skill : 'unknown';
-      this.tracker.record('skill', skillName);
+      this.tracker.record('skill', skillName, extra);
     }
+  }
+
+  // Duration pairing: PreToolUse (action_started) stamps a start time that the
+  // matching PostToolUse (action_completed) resolves into a durationMs.
+  _toolStartKey(toolUseId, toolName) {
+    return toolUseId || `tool:${toolName}`;
+  }
+
+  noteToolStart(toolUseId, toolName) {
+    if (!toolUseId && !toolName) return;
+    const now = Date.now();
+    // Prune expired entries and enforce the cap (Map preserves insertion order).
+    for (const [key, startedAt] of this._pendingToolStarts) {
+      if (now - startedAt > TOOL_START_TTL_MS) this._pendingToolStarts.delete(key);
+    }
+    while (this._pendingToolStarts.size >= MAX_PENDING_TOOL_STARTS) {
+      this._pendingToolStarts.delete(this._pendingToolStarts.keys().next().value);
+    }
+    this._pendingToolStarts.set(this._toolStartKey(toolUseId, toolName), now);
+  }
+
+  resolveToolDuration(toolUseId, toolName) {
+    const keys = [];
+    if (toolUseId) keys.push(toolUseId);
+    if (toolName) keys.push(`tool:${toolName}`);
+    for (const key of keys) {
+      const startedAt = this._pendingToolStarts.get(key);
+      if (startedAt === undefined) continue;
+      this._pendingToolStarts.delete(key);
+      const elapsed = Date.now() - startedAt;
+      if (elapsed <= TOOL_START_TTL_MS) return elapsed;
+      return undefined;
+    }
+    return undefined;
   }
 
   getUsageSnapshot() {
