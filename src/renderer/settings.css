@@ -726,6 +726,9 @@ body {
   font-size: 12px;
   font-weight: 700;
   color: #89b4fa;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
   margin-left: 12px;
   flex-shrink: 0;
 }
@@ -785,6 +788,8 @@ body {
 .summary-avg {
   font-size: 11px;
   color: #fab387;
+  width: 52px;
+  text-align: right;
   flex-shrink: 0;
   margin-left: 8px;
   font-variant-numeric: tabular-nums;

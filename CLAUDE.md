@@ -37,6 +37,8 @@ src/
     preload.js               # Context bridge: window.codePet.onPetEvent()
     settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
     settings-store.js        # Persistent user settings (~/.code-pet/settings.json) with sound + dismissed pets
+    report-window.js         # Usage report preview window + IPC (open-usage-report, get-report-html, save-report)
+    report-preload.js        # Context bridge for report preview window (window.codePetReport)
     terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
     http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
     marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
@@ -67,6 +69,8 @@ src/
     settings.html            # Settings window UI (opened on double-click)
     settings.js              # Settings window logic
     settings.css             # Settings window styling
+    report-preview.html      # Usage report preview shell: toolbar + sandboxed iframe (srcdoc)
+    report-preview.js        # Report preview logic: pulls report html via IPC, wires save buttons
     tabs/                    # Settings window tab partials
       general.html             # General settings tab
       store.html               # Marketplace / store tab
@@ -110,7 +114,7 @@ Claude Code hooks (stdin JSON)
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
 
-**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill` and `mcp_tool` events. The tracker holds a ring buffer in memory *and* writes each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`), constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code changes. Events optionally carry `durationMs` (PreToolUse→PostToolUse pairing via an in-memory map on `PetContext`; the `action_started` event is handled before the state machine and never changes pet state) and `agentId` (subagent attribution). `src/tracking/usage-analytics.js` provides pure aggregation (top skills, weekly trends, co-occurrence, dormant detection, markdown report) consumed by the settings Usage tab. See `docs/usage-tracking.md` for the data format and operator reference.
+**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill` and `mcp_tool` events. The tracker holds a ring buffer in memory *and* writes each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`), constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code changes. Events optionally carry `durationMs` (PreToolUse→PostToolUse pairing via an in-memory map on `PetContext`; the `action_started` event is handled before the state machine and never changes pet state) and `agentId` (subagent attribution). `src/tracking/usage-analytics.js` provides pure aggregation (top skills, weekly trends, co-occurrence, dormant detection, HTML/markdown report) consumed by the settings Usage tab; the "View Report" button there opens the rendered HTML report in a dedicated preview window (`src/app/report-window.js`) with explicit Save as HTML / Save as Markdown buttons — the pristine report strings stay in the main process so saved files never contain the preview toolbar. See `docs/usage-tracking.md` for the data format and operator reference.
 
 ## Marketplace Integration
 
@@ -270,6 +274,7 @@ test/
       memory-store.test.js
       filesystem-store.test.js
     pet-registry.test.js
+    report-window.test.js
     pet-catalog.test.js
     premium-store.test.js
     event-server.test.js

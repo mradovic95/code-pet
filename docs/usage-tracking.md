@@ -119,7 +119,7 @@ pure aggregation module over event arrays — no I/O, no Node APIs. It is
 settings renderer (as `window.usageAnalytics`), which is why it uses a
 dual-export guard. The Settings → Usage tab uses it for the Skill Insights,
 Weekly Activity, Often Used Together, and Dormant views, plus the
-"Export Report" markdown report.
+"View Report" preview window.
 
 Functions (all take an event array; time-dependent ones accept an
 injectable `now`):
@@ -133,9 +133,11 @@ injectable `now`):
 - `perProject(events)`, `buildReport(events)`, `renderMarkdownReport(report)`,
   `renderHtmlReport(report)` — the HTML variant is a fully self-contained
   document (inline CSS + SVG charts, no external requests, dark-mode aware).
-  The Export Report button offers both formats via the save dialog's file-type
-  filter — the extension the user picks (.html default, .md) decides which
-  renderer's output is written.
+  The View Report button opens the rendered HTML in a dedicated preview
+  window (`src/app/report-window.js`); its toolbar has explicit
+  "Save as HTML" / "Save as Markdown" buttons. Both rendered variants are
+  held in the main process while the window is open, so the saved file is
+  always the pristine renderer output — the preview toolbar can't leak in.
 
 Definitions worth knowing:
 

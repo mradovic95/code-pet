@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Code Pet — Skill Usage Report</title>
+<style>
+/* Palette mirrors the report document (usage-analytics.js renderHtmlReport). */
+:root {
+  --page: #f9f9f7; --surface: #fcfcfb;
+  --ink: #0b0b0b; --ink-2: #52514e;
+  --border: rgba(11,11,11,0.10); --series: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink-2: #c3c2b7;
+    --border: rgba(255,255,255,0.10); --series: #3987e5;
+  }
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--page);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.toolbar-title { color: var(--ink); font-weight: 600; margin-right: auto; }
+.toolbar-btn {
+  font: inherit;
+  color: var(--ink);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.toolbar-btn:hover { border-color: var(--series); }
+#report-frame { flex: 1; width: 100%; border: 0; }
+</style>
+</head>
+<body>
+<div class="report-toolbar">
+  <span class="toolbar-title">Skill Usage Report</span>
+  <button id="save-html-btn" class="toolbar-btn">Save as HTML</button>
+  <button id="save-md-btn" class="toolbar-btn">Save as Markdown</button>
+</div>
+<iframe id="report-frame" sandbox=""></iframe>
+<script src="report-preview.js"></script>
+</body>
+</html>

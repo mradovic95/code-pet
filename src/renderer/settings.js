@@ -622,7 +622,7 @@ async function renderUsageTab() {
     document.getElementById('filter-session').addEventListener('change', applyFilters);
     document.getElementById('export-csv-btn').addEventListener('click', exportCsv);
     document.getElementById('export-ndjson-btn').addEventListener('click', exportNdjson);
-    document.getElementById('export-report-btn').addEventListener('click', exportReport);
+    document.getElementById('view-report-btn').addEventListener('click', viewReport);
     document.getElementById('page-prev').addEventListener('click', () => {
       if (_eventPage > 0) { _eventPage--; renderEventLog(_filteredEvents); }
     });
@@ -755,20 +755,13 @@ function exportNdjson() {
   saveToFile('export-ndjson-btn', 'Export NDJSON', ndjson, 'code-pet-usage.ndjson');
 }
 
-function exportReport() {
+function viewReport() {
   const analytics = window.usageAnalytics;
   if (!analytics) return;
   const report = analytics.buildReport(_filteredEvents);
-  // The extension picked in the save dialog decides the format.
-  saveToFile('export-report-btn', 'Export Report', null, 'code-pet-skill-report.html', {
-    contents: {
-      html: analytics.renderHtmlReport(report),
-      md: analytics.renderMarkdownReport(report),
-    },
-    filters: [
-      { name: 'HTML report', extensions: ['html'] },
-      { name: 'Markdown report', extensions: ['md'] },
-    ],
+  window.codePetSettings.openUsageReport({
+    html: analytics.renderHtmlReport(report),
+    md: analytics.renderMarkdownReport(report),
   });
 }
 
@@ -996,14 +989,16 @@ function renderSkillSummary(events, emptyMsg) {
 
     row.appendChild(nameEl);
     row.appendChild(spark);
+    // Always append the avg cell — an empty fixed-width placeholder keeps the
+    // columns aligned for rows without duration data.
     const dur = durationsByName.get(s.name);
+    const avgEl = document.createElement('span');
+    avgEl.className = 'summary-avg';
     if (dur) {
-      const avgEl = document.createElement('span');
-      avgEl.className = 'summary-avg';
       avgEl.textContent = analytics.formatMs(dur.avgMs);
       avgEl.title = `avg over ${dur.count} timed run${dur.count === 1 ? '' : 's'} (max ${analytics.formatMs(dur.maxMs)})`;
-      row.appendChild(avgEl);
     }
+    row.appendChild(avgEl);
     row.appendChild(lastEl);
     row.appendChild(countEl);
     container.appendChild(row);
