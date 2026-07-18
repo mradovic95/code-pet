@@ -53,12 +53,13 @@ ipcMain.handle('save-report', async (_event, format) => {
 });
 
 function createReportWindow() {
-  const { nativeTheme } = require('electron');
   reportWindow = new BrowserWindow({
     width: 780,
     height: 820,
     resizable: true,
-    backgroundColor: nativeTheme && nativeTheme.shouldUseDarkColors ? '#0d0d0d' : '#f9f9f7',
+    // The toolbar and report content are always dark — keep the window shell
+    // dark too, regardless of OS theme, to avoid a light flash on load.
+    backgroundColor: '#0d0d0d',
     webPreferences: {
       preload: path.join(__dirname, 'report-preload.js'),
       contextIsolation: true,

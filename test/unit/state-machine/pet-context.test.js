@@ -220,6 +220,22 @@ describe('PetContext', () => {
     assert.equal(typeof durationMs, 'number');
   });
 
+  it('pairs overlapping same-name starts FIFO instead of clobbering the first', () => {
+    // GIVEN — two concurrent invocations of the same tool, neither with a toolUseId
+    sut.noteToolStart(undefined, 'Skill');
+    sut.noteToolStart(undefined, 'Skill');
+
+    // WHEN
+    const first = sut.resolveToolDuration(undefined, 'Skill');
+    const second = sut.resolveToolDuration(undefined, 'Skill');
+    const third = sut.resolveToolDuration(undefined, 'Skill');
+
+    // THEN
+    assert.equal(typeof first, 'number');
+    assert.equal(typeof second, 'number');
+    assert.equal(third, undefined);
+  });
+
   it('returns undefined when no matching start exists', () => {
     // GIVEN
     // no noteToolStart

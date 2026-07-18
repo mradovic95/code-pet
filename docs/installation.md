@@ -7,7 +7,7 @@ Claude Code. Source paths and line numbers are anchored to the current `main` br
 
 Code Pet uses a **two-phase install model**:
 
-1. **Plugin install** — Claude Code reads the plugin manifest and registers the six lifecycle hooks. Instant. No
+1. **Plugin install** — Claude Code reads the plugin manifest and registers the seven lifecycle hooks. Instant. No
    Electron, no `~/.code-pet/`, no running process.
 2. **First SessionStart** — the `SessionStart` hook lazily installs Electron (~85 MB) into the plugin's `node_modules/`,
    launches the overlay app, and starts an HTTP event server on `127.0.0.1:31425`. From then on, every Claude Code hook
@@ -36,16 +36,17 @@ Triggered by:
 
 ### What gets registered
 
-Six lifecycle hooks from `hooks/hooks.json`. All commands resolve `${CLAUDE_PLUGIN_ROOT}` to the plugin directory.
+Seven lifecycle hooks from `hooks/hooks.json`. All commands resolve `${CLAUDE_PLUGIN_ROOT}` to the plugin directory.
 
-| Hook event         | Matcher             | Script                              | Timeout |
-|--------------------|---------------------|-------------------------------------|---------|
-| `SessionStart`     | —                   | `hooks/scripts/on-session-start.js` | 15s     |
-| `Notification`     | `permission_prompt` | `hooks/scripts/on-notification.js`  | 5s      |
-| `UserPromptSubmit` | —                   | `hooks/scripts/on-prompt-submit.js` | 5s      |
-| `Stop`             | —                   | `hooks/scripts/on-stop.js`          | 5s      |
-| `SessionEnd`       | —                   | `hooks/scripts/on-session-end.js`   | 15s     |
-| `PostToolUse`      | —                   | `hooks/scripts/on-post-tool-use.js` | 5s      |
+| Hook event         | Matcher             | Script                               | Timeout |
+|--------------------|---------------------|--------------------------------------|---------|
+| `SessionStart`     | —                   | `hooks/scripts/on-session-start.js`  | 15s     |
+| `Notification`     | `permission_prompt` | `hooks/scripts/on-notification.js`   | 5s      |
+| `UserPromptSubmit` | —                   | `hooks/scripts/on-prompt-submit.js`  | 5s      |
+| `Stop`             | —                   | `hooks/scripts/on-stop.js`           | 5s      |
+| `SessionEnd`       | —                   | `hooks/scripts/on-session-end.js`    | 15s     |
+| `PreToolUse`       | `Skill\|mcp__.*`    | `hooks/scripts/on-pre-tool-use.js`   | 5s      |
+| `PostToolUse`      | —                   | `hooks/scripts/on-post-tool-use.js`  | 5s      |
 
 ### What does NOT happen yet
 
@@ -153,7 +154,7 @@ If not running, `pm.launchApp(PLUGIN_ROOT)` (`process-manager.js:106-141`):
 | Method | Path          | Purpose                                                                                                               |
 |--------|---------------|-----------------------------------------------------------------------------------------------------------------------|
 | `GET`  | `/health`     | `200 ok` if renderer ready, `503 waiting` otherwise. Used by `pm.healthCheck()`.                                      |
-| `POST` | `/event`      | Main event dispatch. Body: `{ event, project, projectName, claudePid, tty, permissionMode?, toolName?, toolInput? }`. |
+| `POST` | `/event`      | Main event dispatch. Body: `{ event, project, projectName, claudePid, tty, permissionMode?, toolName?, toolInput?, toolUseId?, agentId? }`. |
 | `GET`  | `/last-event` | Snapshot of session state (debugging). Query: `?session=KEY` or `?project=PATH`.                                      |
 | `POST` | `/shutdown`   | Graceful quit. Responds, then `app.quit()` after 100 ms.                                                              |
 
@@ -175,6 +176,7 @@ Once the Electron app is up, every other registered hook is a one-line HTTP POST
 |-----------------------|---------------------------------------------------------------------------|------------------------------------|
 | `on-prompt-submit.js` | `working_started` (or `planning_started` if `permission_mode === "plan"`) | `working` / `planning`             |
 | `on-notification.js`  | `action_requested` (only when `notification_type === permission_prompt`)  | `waiting_for_action`               |
+| `on-pre-tool-use.js`  | `action_started` (Skill and `mcp__*` tools only; stamps the start time for duration pairing) | no state change |
 | `on-post-tool-use.js` | `action_completed` (+ `agentId` for subagent tool calls)                  | restores previous active state; wakes an idle pet when agent-tagged (background subagent) |
 | `on-stop.js`          | `work_finished`                                                           | `idle`                             |
 | `on-session-end.js`   | `falling_asleep`                                                          | removes project (only from `idle`) |
@@ -369,7 +371,7 @@ claude plugin remove code-pet
 
 ### What Claude Code does
 
-Deregisters the six hooks. Subsequent sessions will not invoke any Code Pet script.
+Deregisters the seven hooks. Subsequent sessions will not invoke any Code Pet script.
 
 ### What is NOT cleaned automatically
 

@@ -73,14 +73,28 @@ class PetContext {
   noteToolStart(toolUseId, toolName) {
     if (!toolUseId && !toolName) return;
     const now = Date.now();
-    // Prune expired entries and enforce the cap (Map preserves insertion order).
-    for (const [key, startedAt] of this._pendingToolStarts) {
-      if (now - startedAt > TOOL_START_TTL_MS) this._pendingToolStarts.delete(key);
+    // Each key holds a FIFO queue of start times so overlapping calls that
+    // share a name-fallback key pair oldest-start-to-first-completion instead
+    // of the newest start clobbering the rest.
+    // Prune expired starts and enforce the cap over the total queued count
+    // (Map preserves insertion order, so the oldest keys evict first).
+    let total = 0;
+    for (const [key, starts] of this._pendingToolStarts) {
+      while (starts.length > 0 && now - starts[0] > TOOL_START_TTL_MS) starts.shift();
+      if (starts.length === 0) this._pendingToolStarts.delete(key);
+      else total += starts.length;
     }
-    while (this._pendingToolStarts.size >= MAX_PENDING_TOOL_STARTS) {
-      this._pendingToolStarts.delete(this._pendingToolStarts.keys().next().value);
+    while (total >= MAX_PENDING_TOOL_STARTS) {
+      const oldestKey = this._pendingToolStarts.keys().next().value;
+      const starts = this._pendingToolStarts.get(oldestKey);
+      starts.shift();
+      if (starts.length === 0) this._pendingToolStarts.delete(oldestKey);
+      total -= 1;
     }
-    this._pendingToolStarts.set(this._toolStartKey(toolUseId, toolName), now);
+    const key = this._toolStartKey(toolUseId, toolName);
+    const queue = this._pendingToolStarts.get(key);
+    if (queue) queue.push(now);
+    else this._pendingToolStarts.set(key, [now]);
   }
 
   resolveToolDuration(toolUseId, toolName) {
@@ -88,9 +102,10 @@ class PetContext {
     if (toolUseId) keys.push(toolUseId);
     if (toolName) keys.push(`tool:${toolName}`);
     for (const key of keys) {
-      const startedAt = this._pendingToolStarts.get(key);
-      if (startedAt === undefined) continue;
-      this._pendingToolStarts.delete(key);
+      const queue = this._pendingToolStarts.get(key);
+      if (!queue || queue.length === 0) continue;
+      const startedAt = queue.shift();
+      if (queue.length === 0) this._pendingToolStarts.delete(key);
       const elapsed = Date.now() - startedAt;
       if (elapsed <= TOOL_START_TTL_MS) return elapsed;
       return undefined;

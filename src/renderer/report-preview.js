@@ -4,6 +4,7 @@
   function wireSave(btnId, defaultLabel, format) {
     const btn = document.getElementById(btnId);
     btn.addEventListener('click', async () => {
+      btn.title = '';
       try {
         const result = await window.codePetReport.saveReport(format);
         if (result && result.saved) {
@@ -13,9 +14,11 @@
           return;
         } else {
           btn.textContent = 'Failed';
+          btn.title = (result && result.error) || 'Unknown error';
         }
-      } catch {
+      } catch (err) {
         btn.textContent = 'Failed';
+        btn.title = (err && err.message) || 'Unknown error';
       }
       setTimeout(() => { btn.textContent = defaultLabel; }, 1500);
     });

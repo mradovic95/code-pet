@@ -71,20 +71,13 @@
   }
 
   function weeklyTrend(events, { weeks = 12, now = Date.now(), name } = {}) {
-    const currentWeek = weekStartOf(now);
-    const buckets = [];
-    const index = new Map();
-    for (let i = weeks - 1; i >= 0; i--) {
-      const weekStart = currentWeek - i * WEEK_MS;
-      index.set(weekStartOf(weekStart), buckets.length);
-      buckets.push({ weekStart, count: 0 });
-    }
-    for (const e of events) {
-      if (name && e.name !== name) continue;
-      const i = index.get(weekStartOf(e.timestamp));
-      if (i !== undefined) buckets[i].count += 1;
-    }
-    return buckets;
+    const d = new Date(weekStartOf(now));
+    return bucketTrend(events, {
+      count: weeks,
+      name,
+      startOf: weekStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7 * (i - (weeks - 1))),
+    }).map((b) => ({ weekStart: b.bucketStart, count: b.count }));
   }
 
   // Shared calendar-period bucketing: `count` buckets seeded forward from a
@@ -95,7 +88,9 @@
     const index = new Map();
     for (let i = 0; i < count; i++) {
       const bucketStart = bucketAt(i).getTime();
-      index.set(bucketStart, buckets.length);
+      // First wins: DST can normalize two seeds to the same instant (e.g. the
+      // skipped spring-forward hour) — keep the duplicate as an empty bucket.
+      if (!index.has(bucketStart)) index.set(bucketStart, buckets.length);
       buckets.push({ bucketStart, count: 0 });
     }
     for (const e of events) {
@@ -306,14 +301,13 @@
 
   function formatMs(ms) {
     if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    let min = Math.floor(ms / 60000);
-    let sec = Math.round((ms % 60000) / 1000);
-    if (sec === 60) {
-      min += 1;
-      sec = 0;
-    }
-    return `${min}m ${sec}s`;
+    // Round before picking the unit so carries roll up (59.95s → 1m 0s, 59m 59.5s → 1h 0m).
+    const tenths = Math.round(ms / 100) / 10;
+    if (tenths < 60) return `${tenths.toFixed(1)}s`;
+    const totalSec = Math.round(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    if (min < 60) return `${min}m ${totalSec % 60}s`;
+    return `${Math.floor(min / 60)}h ${min % 60}m`;
   }
 
   function formatDate(ts) {
@@ -374,7 +368,7 @@
       lines.push('| Skill | Uses | Sessions | Last used |');
       lines.push('|---|---|---|---|');
       for (const s of report.topSkills) {
-        lines.push(`| ${s.name} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
+        lines.push(`| ${escapeMd(s.name)} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
       }
     }
     lines.push('');
@@ -387,7 +381,7 @@
       lines.push('| Tool | Uses | Sessions | Last used |');
       lines.push('|---|---|---|---|');
       for (const s of report.topMcp) {
-        lines.push(`| ${s.name} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
+        lines.push(`| ${escapeMd(s.name)} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
       }
     }
     lines.push('');
@@ -400,7 +394,7 @@
       lines.push('_Nothing dormant — everything logged was used recently._');
     } else {
       for (const d of report.dormant) {
-        lines.push(`- ${d.name} (${d.type}) — last used ${d.daysSince} days ago (${formatDate(d.lastUsed)})`);
+        lines.push(`- ${escapeMd(d.name)} (${d.type}) — last used ${d.daysSince} days ago (${formatDate(d.lastUsed)})`);
       }
     }
     lines.push('');
@@ -413,7 +407,7 @@
       lines.push('_No recurring pairs yet._');
     } else {
       for (const p of report.coUsed.slice(0, 15)) {
-        lines.push(`- ${p.a} + ${p.b} — ${p.sessions} sessions`);
+        lines.push(`- ${escapeMd(p.a)} + ${escapeMd(p.b)} — ${p.sessions} sessions`);
       }
     }
     lines.push('');
@@ -426,7 +420,7 @@
       lines.push('_No recurring sequences yet._');
     } else {
       for (const s of report.sequences.slice(0, 15)) {
-        lines.push(`- ${s.from} → ${s.to} — ${s.count}×`);
+        lines.push(`- ${escapeMd(s.from)} → ${escapeMd(s.to)} — ${s.count}×`);
       }
     }
     lines.push('');
@@ -437,7 +431,7 @@
       lines.push('_No events._');
     } else {
       for (const p of report.perProject) {
-        lines.push(`- ${projectLabel(p.projectPath)} — ${p.count} events (top: ${p.topNames.join(', ')})`);
+        lines.push(`- ${escapeMd(projectLabel(p.projectPath))} — ${p.count} events (top: ${p.topNames.map(escapeMd).join(', ')})`);
       }
     }
     lines.push('');
@@ -450,7 +444,7 @@
       lines.push('| Name | Runs timed | Avg | Max |');
       lines.push('|---|---|---|---|');
       for (const d of report.durations) {
-        lines.push(`| ${d.name} | ${d.count} | ${formatMs(d.avgMs)} | ${formatMs(d.maxMs)} |`);
+        lines.push(`| ${escapeMd(d.name)} | ${d.count} | ${formatMs(d.avgMs)} | ${formatMs(d.maxMs)} |`);
       }
     }
     lines.push('');
@@ -462,6 +456,14 @@
     return String(value).replace(/[&<>"']/g, (c) => (
       { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
     ));
+  }
+
+  // Names come from third-party MCP servers — neutralize Markdown/HTML syntax
+  // so a weird tool name can't break tables or smuggle markup into the export.
+  function escapeMd(value) {
+    return String(value)
+      .replace(/[\\`*_{}[\]<>|]/g, '\\$&')
+      .replace(/\r?\n/g, ' ');
   }
 
   // Vertical bar with only the top corners rounded (data-end), flat at the baseline.
@@ -706,6 +708,19 @@ td:first-child { color: var(--ink); }
 .dormant-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
 .days-badge { color: #f9e2af; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; background: rgba(249, 226, 175, 0.2); border-radius: 8px; padding: 2px 8px; }
 footer { color: var(--muted); font-size: 11px; text-align: center; margin-top: 24px; }
+@media print {
+  :root {
+    --surface: #ffffff; --page: #ffffff;
+    --ink: #1a1a2e; --ink-2: #3a3a4e; --muted: #666a75;
+    --grid: #c9ccd4; --baseline: #c9ccd4; --series: #3b5bdb;
+    --border: #c9ccd4;
+  }
+  body { background: #ffffff; color: #22222e; }
+  section { break-inside: avoid; }
+  .seg { display: none; }
+  .view { display: block; }
+  .days-badge { color: #7a5d00; background: rgba(122, 93, 0, 0.12); }
+}
 </style>
 </head>
 <body>

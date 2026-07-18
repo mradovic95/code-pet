@@ -150,6 +150,7 @@ if (!gotLock) {
   app.on('before-quit', async () => {
     logger.info('Shutting down...');
     closeSettingsWindow();
+    require('./report-window').closeReportWindow();
     await stopServer();
     try {
       await usageStore.flush();

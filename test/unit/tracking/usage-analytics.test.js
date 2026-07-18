@@ -126,6 +126,21 @@ describe('usageAnalytics.weeklyTrend', () => {
     // THEN
     assert.equal(result.reduce((sum, b) => sum + b.count, 0), 1);
   });
+
+  it('labels every bucket with a distinct normalized local Monday midnight', () => {
+    // GIVEN — calendar-stepped seeding must stay on true week boundaries (DST-safe)
+    // WHEN
+    const result = sut.weeklyTrend([], { weeks: 12, now: NOW });
+
+    // THEN
+    assert.equal(new Set(result.map((b) => b.weekStart)).size, 12);
+    for (const b of result) {
+      const d = new Date(b.weekStart);
+      assert.equal(d.getDay(), 1, 'weekStart is not a Monday');
+      assert.equal(d.getHours(), 0, 'weekStart is not midnight');
+      assert.equal(d.getMinutes(), 0, 'weekStart is not midnight');
+    }
+  });
 });
 
 describe('usageAnalytics.dayTrend', () => {
@@ -490,6 +505,28 @@ describe('usageAnalytics.renderMarkdownReport', () => {
     assert.ok(md.includes('_No skill usage recorded._'));
     assert.ok(md.includes('_No duration data yet'));
   });
+
+  it('escapes Markdown syntax in names', () => {
+    // GIVEN
+    const hostile = 'evil|name <img src=x onerror=alert(1)>';
+    const events = [
+      event({ name: hostile, sessionId: 's1', timestamp: NOW, durationMs: 100 }),
+      event({ name: 'other', sessionId: 's1', timestamp: NOW - 1 }),
+      event({ name: hostile, sessionId: 's2', timestamp: NOW - 60 * DAY_MS, projectPath: 'a|b' }),
+    ];
+    const report = sut.buildReport(events, { now: NOW });
+
+    // WHEN
+    const md = sut.renderMarkdownReport(report);
+
+    // THEN
+    assert.ok(!md.includes(hostile), 'raw hostile name leaked into markdown');
+    assert.ok(md.includes('evil\\|name'), 'pipe not escaped');
+    assert.ok(md.includes('\\<img'), 'angle bracket not escaped');
+    const row = md.split('\n').find((l) => l.startsWith('| evil'));
+    assert.ok(row, 'top-skills table row missing');
+    assert.equal(row.split(/(?<!\\)\|/).length, 6, 'unescaped pipe broke the table row');
+  });
 });
 
 describe('usageAnalytics.renderHtmlReport', () => {
@@ -619,6 +656,19 @@ describe('usageAnalytics.renderHtmlReport', () => {
     assert.ok(html.includes('#89b4fa'), 'app accent color missing');
   });
 
+  it('includes a print stylesheet while staying script-free', () => {
+    // GIVEN
+    const events = [event({ name: 'commit', sessionId: 's1', timestamp: NOW, durationMs: 100 })];
+    const report = sut.buildReport(events, { now: NOW });
+
+    // WHEN
+    const html = sut.renderHtmlReport(report);
+
+    // THEN
+    assert.ok(html.includes('@media print'), 'print stylesheet missing');
+    assert.ok(!html.includes('<script'), 'print support must not introduce scripts');
+  });
+
   it('escapes HTML in names', () => {
     // GIVEN
     const hostile = '<img src=x onerror=alert(1)>';
@@ -660,6 +710,21 @@ describe('usageAnalytics.formatMs', () => {
       [2500, '2.5s'],
       [130000, '2m 10s'],
       [179800, '3m 0s'],
+    ];
+
+    // WHEN / THEN
+    for (const [ms, expected] of cases) {
+      assert.equal(sut.formatMs(ms), expected);
+    }
+  });
+
+  it('carries rounding across unit boundaries and rolls minutes into hours', () => {
+    // GIVEN — 59.95s must round up into the minute tier, not render "60.0s"
+    const cases = [
+      [59949, '59.9s'],
+      [59950, '1m 0s'],
+      [3599500, '1h 0m'],
+      [3900000, '1h 5m'],
     ];
 
     // WHEN / THEN

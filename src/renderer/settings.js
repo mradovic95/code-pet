@@ -733,6 +733,7 @@ function exportCsv() {
 
 async function saveToFile(btnId, defaultLabel, content, defaultName, options = {}) {
   const btn = document.getElementById(btnId);
+  btn.title = '';
   try {
     const result = await window.codePetSettings.saveUsageFile(content, defaultName, options);
     if (result && result.saved) {
@@ -742,9 +743,11 @@ async function saveToFile(btnId, defaultLabel, content, defaultName, options = {
       return;
     } else {
       btn.textContent = 'Failed';
+      btn.title = (result && result.error) || 'Unknown error';
     }
-  } catch {
+  } catch (err) {
     btn.textContent = 'Failed';
+    btn.title = (err && err.message) || 'Unknown error';
   }
   setTimeout(() => { btn.textContent = defaultLabel; }, 1500);
 }
