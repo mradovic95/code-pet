@@ -18,6 +18,18 @@
     return new Date(d.getFullYear(), d.getMonth(), d.getDate() - daysSinceMonday).getTime();
   }
 
+  // Local midnight of the day containing ts.
+  function dayStartOf(ts) {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+
+  // Local start of the hour containing ts.
+  function hourStartOf(ts) {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()).getTime();
+  }
+
   function summarizeByName(events, { type } = {}) {
     const byName = new Map();
     for (const e of events) {
@@ -73,6 +85,59 @@
       if (i !== undefined) buckets[i].count += 1;
     }
     return buckets;
+  }
+
+  // Shared calendar-period bucketing: `count` buckets seeded forward from a
+  // period start via bucketAt(i) (Date constructor stepping, so DST shifts
+  // keep bucket starts aligned to local hour/day boundaries).
+  function bucketTrend(events, { count, name, startOf, bucketAt }) {
+    const buckets = [];
+    const index = new Map();
+    for (let i = 0; i < count; i++) {
+      const bucketStart = bucketAt(i).getTime();
+      index.set(bucketStart, buckets.length);
+      buckets.push({ bucketStart, count: 0 });
+    }
+    for (const e of events) {
+      if (name && e.name !== name) continue;
+      const i = index.get(startOf(e.timestamp));
+      if (i !== undefined) buckets[i].count += 1;
+    }
+    return buckets;
+  }
+
+  // The current day, 00:00–24:00, one bucket per hour.
+  function dayTrend(events, { now = Date.now(), name } = {}) {
+    const d = new Date(dayStartOf(now));
+    return bucketTrend(events, {
+      count: 24,
+      name,
+      startOf: hourStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), i),
+    });
+  }
+
+  // The current week, Monday–Sunday, one bucket per day.
+  function weekTrend(events, { now = Date.now(), name } = {}) {
+    const d = new Date(weekStartOf(now));
+    return bucketTrend(events, {
+      count: 7,
+      name,
+      startOf: dayStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + i),
+    });
+  }
+
+  // The current month, 1st–last day, one bucket per day.
+  function monthTrend(events, { now = Date.now(), name } = {}) {
+    const d = new Date(now);
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return bucketTrend(events, {
+      count: daysInMonth,
+      name,
+      startOf: dayStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), 1 + i),
+    });
   }
 
   function dormant(events, { thresholdDays = DEFAULT_DORMANT_DAYS, now = Date.now() } = {}) {
@@ -152,20 +217,30 @@
       if (typeof e.durationMs !== 'number' || !isFinite(e.durationMs)) continue;
       let s = byName.get(e.name);
       if (!s) {
-        s = { name: e.name, count: 0, totalMs: 0, maxMs: 0 };
+        s = { name: e.name, totalMs: 0, maxMs: 0, minMs: Infinity, durations: [] };
         byName.set(e.name, s);
       }
-      s.count += 1;
       s.totalMs += e.durationMs;
+      s.durations.push(e.durationMs);
       if (e.durationMs > s.maxMs) s.maxMs = e.durationMs;
+      if (e.durationMs < s.minMs) s.minMs = e.durationMs;
     }
     return [...byName.values()]
-      .map((s) => ({
-        name: s.name,
-        count: s.count,
-        avgMs: Math.round(s.totalMs / s.count),
-        maxMs: s.maxMs,
-      }))
+      .map((s) => {
+        const sorted = s.durations.sort((a, b) => a - b);
+        const mid = sorted.length >> 1;
+        const medianMs = sorted.length % 2
+          ? sorted[mid]
+          : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+        return {
+          name: s.name,
+          count: sorted.length,
+          avgMs: Math.round(s.totalMs / sorted.length),
+          medianMs,
+          maxMs: s.maxMs,
+          minMs: s.minMs,
+        };
+      })
       .sort((a, b) => b.avgMs - a.avgMs || a.name.localeCompare(b.name));
   }
 
@@ -220,6 +295,11 @@
       sequences: sequences(events),
       perProject: perProject(events),
       weekly: weeklyTrend(events, { now }),
+      activity: {
+        day: dayTrend(events, { now }),
+        week: weekTrend(events, { now }),
+        month: monthTrend(events, { now }),
+      },
       durations: durationStats(events),
     };
   }
@@ -227,8 +307,12 @@
   function formatMs(ms) {
     if (ms < 1000) return `${ms}ms`;
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    const min = Math.floor(ms / 60000);
-    const sec = Math.round((ms % 60000) / 1000);
+    let min = Math.floor(ms / 60000);
+    let sec = Math.round((ms % 60000) / 1000);
+    if (sec === 60) {
+      min += 1;
+      sec = 0;
+    }
     return `${min}m ${sec}s`;
   }
 
@@ -237,6 +321,30 @@
     const d = new Date(ts);
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function formatHour(ts) {
+    if (ts == null) return 'n/a';
+    const d = new Date(ts);
+    return `${formatDate(ts)} ${String(d.getHours()).padStart(2, '0')}:00`;
+  }
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Short axis-tick formats: hour "16:00", weekday "Mon 13", month-day "Jul 12".
+  function tickHour(ts) {
+    return `${String(new Date(ts).getHours()).padStart(2, '0')}:00`;
+  }
+
+  function tickWeekday(ts) {
+    const d = new Date(ts);
+    return `${WEEKDAYS[d.getDay()]} ${d.getDate()}`;
+  }
+
+  function tickMonthDay(ts) {
+    const d = new Date(ts);
+    return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
   }
 
   function projectLabel(projectPath) {
@@ -362,29 +470,36 @@
     return `M${x},${baseline} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${baseline} Z`;
   }
 
-  function weeklySvg(weekly) {
+  // buckets: [{ bucketStart, count }]; labelFor(bucketStart) renders the full
+  // tooltip time label; tickLabel(bucketStart) the short axis label, drawn
+  // under every tickEvery-th bar anchored to the newest one.
+  function trendSvg(buckets, { ariaLabel, labelFor, tickLabel, tickEvery = 1 }) {
     const W = 640;
     const H = 120;
-    const PAD = 2;
-    const max = Math.max(...weekly.map((b) => b.count), 1);
-    const slot = W / weekly.length;
-    const barW = Math.min(28, slot - 6);
-    const bars = weekly.map((b, i) => {
+    const AXIS_H = 18;
+    const max = Math.max(...buckets.map((b) => b.count), 1);
+    const slot = W / buckets.length;
+    const barW = Math.max(2, Math.min(28, slot - 6));
+    const parts = buckets.map((b, i) => {
       const h = Math.round((b.count / max) * (H - 8));
       const x = Math.round(i * slot + (slot - barW) / 2);
       const y = H - h;
-      const label = `Week of ${formatDate(b.weekStart)}: ${b.count} event${b.count === 1 ? '' : 's'}`;
-      if (b.count === 0) {
-        return `<rect x="${x}" y="${H - 2}" width="${barW}" height="2" class="bar-empty"><title>${escapeHtml(label)}</title></rect>`;
-      }
-      return `<path d="${svgBarPath(x, y, barW, h, H)}" class="bar"><title>${escapeHtml(label)}</title></path>`;
+      const label = `${labelFor(b.bucketStart)}: ${b.count} event${b.count === 1 ? '' : 's'}`;
+      const bar = b.count === 0
+        ? `<rect x="${x}" y="${H - 2}" width="${barW}" height="2" class="bar-empty"><title>${escapeHtml(label)}</title></rect>`
+        : `<path d="${svgBarPath(x, y, barW, h, H)}" class="bar"><title>${escapeHtml(label)}</title></path>`;
+      if (i % tickEvery !== 0) return bar;
+      const cx = x + barW / 2;
+      // Keep edge labels inside the viewBox: anchor outward near either end.
+      const anchor = cx > W - 20 ? 'end' : cx < 20 ? 'start' : 'middle';
+      const tx = anchor === 'end' ? W : anchor === 'start' ? 0 : cx;
+      return bar +
+        `<line x1="${cx}" y1="${H}" x2="${cx}" y2="${H + 3}" class="tick-mark"/>` +
+        `<text x="${tx}" y="${H + 14}" text-anchor="${anchor}" class="tick">${escapeHtml(tickLabel(b.bucketStart))}</text>`;
     }).join('');
-    const first = weekly.length ? formatDate(weekly[0].weekStart) : '';
-    const last = weekly.length ? formatDate(weekly[weekly.length - 1].weekStart) : '';
     return (
-      `<svg viewBox="0 0 ${W} ${H + PAD}" role="img" aria-label="Events per week">${bars}` +
-      `<line x1="0" y1="${H}" x2="${W}" y2="${H}" class="baseline"/></svg>` +
-      `<div class="axis-row"><span>${escapeHtml(first)}</span><span>${escapeHtml(last)}</span></div>`
+      `<svg viewBox="0 0 ${W} ${H + AXIS_H}" role="img" aria-label="${escapeHtml(ariaLabel)}">${parts}` +
+      `<line x1="0" y1="${H}" x2="${W}" y2="${H}" class="baseline"/></svg>`
     );
   }
 
@@ -416,7 +531,23 @@
     const t = report.totals;
     const sections = [];
 
-    sections.push(`<section><h2>Weekly Activity</h2>${weeklySvg(report.weekly)}</section>`);
+    const activity = report.activity;
+    sections.push(
+      `<section class="toggle-section">` +
+      `<input type="radio" name="activity-view" id="view-daily" class="view-radio">` +
+      `<input type="radio" name="activity-view" id="view-weekly" class="view-radio" checked>` +
+      `<input type="radio" name="activity-view" id="view-monthly" class="view-radio">` +
+      `<div class="toggle-head"><h2>Activity</h2>` +
+      `<div class="seg">` +
+      `<label for="view-daily">Today</label>` +
+      `<label for="view-weekly">This Week</label>` +
+      `<label for="view-monthly">This Month</label>` +
+      `</div></div>` +
+      `<div class="view view-d">${trendSvg(activity.day, { ariaLabel: 'Events per hour today', labelFor: formatHour, tickLabel: tickHour, tickEvery: 4 })}</div>` +
+      `<div class="view view-w">${trendSvg(activity.week, { ariaLabel: 'Events per day this week', labelFor: formatDate, tickLabel: tickWeekday })}</div>` +
+      `<div class="view view-m">${trendSvg(activity.month, { ariaLabel: 'Events per day this month', labelFor: formatDate, tickLabel: tickMonthDay, tickEvery: 5 })}</div>` +
+      `</section>`
+    );
 
     sections.push(`<section><h2>Top Skills</h2>${
       report.topSkills.length === 0
@@ -471,16 +602,41 @@
             [projectLabel(p.projectPath), `${p.count}`, p.topNames.join(', ')]))
     }</section>`);
 
-    sections.push(`<section><h2>Slowest Skills / Tools</h2>${
-      report.durations.length === 0
-        ? emptyHtml('No duration data yet — durations are recorded for new invocations once duration tracking is active.')
-        : barListHtml(report.durations.map((d) => ({
+    if (report.durations.length === 0) {
+      sections.push(`<section><h2>Slowest Skills / Tools</h2>${
+        emptyHtml('No duration data yet — durations are recorded for new invocations once duration tracking is active.')
+      }</section>`);
+    } else {
+      const durationView = (metric) => barListHtml(
+        [...report.durations]
+          .sort((a, b) => b[metric] - a[metric] || a.name.localeCompare(b.name))
+          .map((d) => ({
             name: d.name,
-            value: d.avgMs,
-            valueLabel: formatMs(d.avgMs),
-            title: `${d.name} — avg ${formatMs(d.avgMs)} over ${d.count} timed runs (max ${formatMs(d.maxMs)})`,
-          })))
-    }</section>`);
+            value: d[metric],
+            valueLabel: formatMs(d[metric]),
+            title: `${d.name} — avg ${formatMs(d.avgMs)}, median ${formatMs(d.medianMs)}, min ${formatMs(d.minMs)}, max ${formatMs(d.maxMs)} over ${d.count} timed runs`,
+          }))
+      );
+      sections.push(
+        `<section class="toggle-section">` +
+        `<input type="radio" name="duration-view" id="dur-avg" class="view-radio" checked>` +
+        `<input type="radio" name="duration-view" id="dur-med" class="view-radio">` +
+        `<input type="radio" name="duration-view" id="dur-max" class="view-radio">` +
+        `<input type="radio" name="duration-view" id="dur-min" class="view-radio">` +
+        `<div class="toggle-head"><h2>Slowest Skills / Tools</h2>` +
+        `<div class="seg">` +
+        `<label for="dur-avg">Average</label>` +
+        `<label for="dur-med">Median</label>` +
+        `<label for="dur-max">Max</label>` +
+        `<label for="dur-min">Min</label>` +
+        `</div></div>` +
+        `<div class="view view-avg">${durationView('avgMs')}</div>` +
+        `<div class="view view-med">${durationView('medianMs')}</div>` +
+        `<div class="view view-max">${durationView('maxMs')}</div>` +
+        `<div class="view view-min">${durationView('minMs')}</div>` +
+        `</section>`
+      );
+    }
 
     const subtitle =
       `${t.events} events (${t.skills} skill, ${t.mcpTools} MCP) · ${t.sessions} sessions · ${t.projects} projects` +
@@ -494,47 +650,61 @@
 <title>Code Pet — Skill Usage Report</title>
 <style>
 :root {
-  --surface: #fcfcfb; --page: #f9f9f7;
-  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
-  --grid: #e1e0d9; --baseline: #c3c2b7; --series: #2a78d6;
-  --border: rgba(11,11,11,0.10);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #1a1a19; --page: #0d0d0d;
-    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --baseline: #383835; --series: #3987e5;
-    --border: rgba(255,255,255,0.10);
-  }
+  --surface: #313244; --page: #1e1e2e;
+  --ink: #cdd6f4; --ink-2: #a6adc8; --muted: #6c7086;
+  --grid: #45475a; --baseline: #45475a; --series: #89b4fa;
+  --border: #45475a;
 }
 * { box-sizing: border-box; margin: 0; }
-body { background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 32px 16px; }
+body { background: var(--page); color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.5; padding: 32px 16px; }
 main { max-width: 720px; margin: 0 auto; }
-h1 { font-size: 20px; }
-.subtitle { color: var(--ink-2); font-size: 13px; margin: 4px 0 24px; }
-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
-h2 { font-size: 14px; margin-bottom: 10px; }
-.h-note { color: var(--muted); font-weight: 400; font-size: 12px; }
+h1 { font-size: 16px; color: var(--ink); }
+.subtitle { color: var(--ink-2); font-size: 12px; margin: 4px 0 24px; }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; }
+h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); margin-bottom: 10px; }
+.h-note { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: none; letter-spacing: normal; }
 .note { color: var(--ink-2); font-size: 12px; margin-bottom: 10px; }
 .empty { color: var(--muted); font-size: 13px; }
 svg { display: block; width: 100%; height: auto; }
 .bar { fill: var(--series); }
 .bar-empty { fill: var(--grid); }
 .baseline { stroke: var(--baseline); stroke-width: 1; }
-.axis-row { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.tick { fill: var(--muted); font-size: 10px; }
+.tick-mark { stroke: var(--baseline); stroke-width: 1; }
+.view-radio { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); overflow: hidden; }
+.toggle-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.toggle-head h2 { margin-bottom: 0; }
+.seg { display: inline-flex; border: 1px solid var(--grid); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg label { font-size: 12px; color: var(--ink-2); padding: 2px 10px; border-radius: 6px; cursor: pointer; user-select: none; }
+.view-radio:focus-visible ~ .toggle-head .seg { outline: 2px solid var(--series); outline-offset: 2px; }
+#view-daily:checked ~ .toggle-head label[for="view-daily"],
+#view-weekly:checked ~ .toggle-head label[for="view-weekly"],
+#view-monthly:checked ~ .toggle-head label[for="view-monthly"],
+#dur-avg:checked ~ .toggle-head label[for="dur-avg"],
+#dur-med:checked ~ .toggle-head label[for="dur-med"],
+#dur-max:checked ~ .toggle-head label[for="dur-max"],
+#dur-min:checked ~ .toggle-head label[for="dur-min"] { background: var(--series); color: #1e1e2e; }
+.view { display: none; }
+#view-daily:checked ~ .view-d,
+#view-weekly:checked ~ .view-w,
+#view-monthly:checked ~ .view-m,
+#dur-avg:checked ~ .view-avg,
+#dur-med:checked ~ .view-med,
+#dur-max:checked ~ .view-max,
+#dur-min:checked ~ .view-min { display: block; }
 .bar-list { display: grid; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: minmax(120px, 38%) 1fr auto; gap: 10px; align-items: center; }
 .bar-label { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { display: block; height: 10px; }
 .bar-fill { display: block; height: 100%; background: var(--series); border-radius: 0 4px 4px 0; min-width: 2px; }
-.bar-value { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bar-value { font-size: 12px; color: var(--series); font-weight: 700; font-variant-numeric: tabular-nums; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; padding: 4px 8px 4px 0; }
 td { padding: 5px 8px 5px 0; border-top: 1px solid var(--grid); color: var(--ink-2); }
 td:first-child { color: var(--ink); }
 .dormant-list { display: grid; gap: 6px; }
 .dormant-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-.days-badge { color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; background: var(--page); border: 1px solid var(--grid); border-radius: 10px; padding: 1px 8px; }
+.days-badge { color: #f9e2af; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; background: rgba(249, 226, 175, 0.2); border-radius: 8px; padding: 2px 8px; }
 footer { color: var(--muted); font-size: 11px; text-align: center; margin-top: 24px; }
 </style>
 </head>
@@ -554,6 +724,9 @@ ${sections.join('\n')}
     summarizeByName,
     topN,
     weeklyTrend,
+    dayTrend,
+    weekTrend,
+    monthTrend,
     dormant,
     coOccurrence,
     sequences,
