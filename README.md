@@ -128,6 +128,16 @@ visible in **Settings → Usage** (double-click the pet). Find out:
 <img src="./assets/docs/settings-usage.png" width="480" alt="Settings — Usage tab">
 </div>
 
+Click **View Report** for the full picture: activity by day, week, or month,
+top skills and MCP tools, dormant candidates, tools that are often used
+together, and duration stats switchable between average, median, max, and
+min. Save it as a self-contained HTML page — charts and toggles keep working
+offline — or as markdown.
+
+<div align="center">
+<img src="./assets/docs/usage-report.png" width="480" alt="Usage report — activity chart and top skills">
+</div>
+
 The data lives at `~/.code-pet/usage.log` (NDJSON, append-only) and never
 leaves your machine. Disable with `USAGE_STORE_TYPE=memory`. See
 [docs/usage-tracking.md](docs/usage-tracking.md) for the data format and
