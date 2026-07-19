@@ -153,9 +153,20 @@ function startServer() {
 
           const pet = registry.getOrCreate(sessionKey, projectPath, projectName);
           pet.updateProcessInfo(body.claudePid, body.tty);
+
+          // Duration pairing only — never reaches the state machine.
+          if (eventName === 'action_started') {
+            pet.noteToolStart(body.toolUseId, body.toolName);
+            sendJson(res, 200, { received: 'action_started' });
+            return;
+          }
+
           if (body.permissionMode) pet.permissionMode = body.permissionMode;
           pet.lastAgentId = body.agentId || null;
-          if (body.toolName) pet.recordToolUsage(body.toolName, body.toolInput);
+          if (body.toolName) {
+            const durationMs = pet.resolveToolDuration(body.toolUseId, body.toolName);
+            pet.recordToolUsage(body.toolName, body.toolInput, { durationMs, agentId: body.agentId });
+          }
 
           const result = dispatchEvent(sessionKey, projectPath, projectName, eventName);
 

@@ -16,8 +16,8 @@ class UsageTracker {
     this._events = [];
   }
 
-  record(type, name) {
-    const event = new UsageEvent(type, name, this.sessionId, this.projectPath);
+  record(type, name, extra = {}) {
+    const event = new UsageEvent(type, name, this.sessionId, this.projectPath, extra);
     this._events.push(event);
     if (this._events.length > this.maxEvents) {
       const drop = Math.floor(this.maxEvents * EVICTION_FRACTION);

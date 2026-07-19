@@ -280,6 +280,93 @@ describe('event-server', () => {
       assert.equal(res.body.ignored, true);
     });
 
+    it('handles action_started without touching the state machine', async () => {
+      // GIVEN
+      const projectPath = uniqueProjectPath();
+      const base = { project: projectPath, projectName: 'pre-tool-test', claudePid: 99007 };
+      mockWindowManager._calls = [];
+
+      // WHEN
+      const res = await request(port, 'POST', '/event', {
+        event: 'action_started',
+        toolName: 'Skill',
+        ...base,
+      });
+
+      // THEN — 200 (not the 400 an unknown event would get), no renderer dispatch
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.received, 'action_started');
+      const petEventCalls = mockWindowManager._calls.filter((c) => c.channel === 'pet-event');
+      assert.equal(petEventCalls.length, 0);
+    });
+
+    it('records durationMs when action_completed follows a matching action_started', async () => {
+      // GIVEN
+      const projectPath = uniqueProjectPath();
+      const base = { project: projectPath, projectName: 'duration-test', claudePid: 99008 };
+      await request(port, 'POST', '/event', {
+        event: 'action_started',
+        toolName: 'Skill',
+        toolUseId: 'toolu_dur_1',
+        ...base,
+      });
+
+      // WHEN
+      await request(port, 'POST', '/event', {
+        event: 'action_completed',
+        toolName: 'Skill',
+        toolInput: { skill: 'commit' },
+        toolUseId: 'toolu_dur_1',
+        ...base,
+      });
+
+      // THEN
+      const events = sut.getToolEventsForSession(`${projectPath}::99008`);
+      assert.equal(events.length, 1);
+      assert.equal(events[0].name, 'commit');
+      assert.equal(typeof events[0].durationMs, 'number');
+      assert.ok(events[0].durationMs >= 0);
+    });
+
+    it('records no durationMs when action_completed has no prior action_started', async () => {
+      // GIVEN
+      const projectPath = uniqueProjectPath();
+      const base = { project: projectPath, projectName: 'no-duration-test', claudePid: 99009 };
+
+      // WHEN
+      await request(port, 'POST', '/event', {
+        event: 'action_completed',
+        toolName: 'Skill',
+        toolInput: { skill: 'commit' },
+        ...base,
+      });
+
+      // THEN
+      const events = sut.getToolEventsForSession(`${projectPath}::99009`);
+      assert.equal(events.length, 1);
+      assert.ok(!('durationMs' in events[0]));
+    });
+
+    it('persists agentId on the usage event when the tool ran in a subagent', async () => {
+      // GIVEN
+      const projectPath = uniqueProjectPath();
+      const base = { project: projectPath, projectName: 'agent-attribution-test', claudePid: 99010 };
+      await request(port, 'POST', '/event', { event: 'working_started', ...base });
+
+      // WHEN
+      await request(port, 'POST', '/event', {
+        event: 'action_completed',
+        toolName: 'mcp__db__query',
+        agentId: 'agent-xyz',
+        ...base,
+      });
+
+      // THEN
+      const events = sut.getToolEventsForSession(`${projectPath}::99010`);
+      assert.equal(events.length, 1);
+      assert.equal(events[0].agentId, 'agent-xyz');
+    });
+
     it('aborts the connection when body exceeds 1MB (current behavior)', async () => {
       // GIVEN
       const huge = 'x'.repeat(1024 * 1024 + 10);

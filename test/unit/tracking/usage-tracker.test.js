@@ -61,6 +61,37 @@ describe('UsageTracker', () => {
     assert.equal(event.projectPath, null);
   });
 
+  it('threads extra fields into the recorded event and the store sink', () => {
+    // GIVEN
+    const appended = [];
+    const tracker = new UsageTracker({
+      sessionId: 's',
+      store: { append: (e) => appended.push(e) },
+    });
+
+    // WHEN
+    const event = tracker.record('skill', 'commit', { durationMs: 500, agentId: 'agent-1' });
+
+    // THEN
+    assert.equal(event.durationMs, 500);
+    assert.equal(event.agentId, 'agent-1');
+    assert.equal(appended.length, 1);
+    assert.equal(appended[0].durationMs, 500);
+    assert.equal(appended[0].agentId, 'agent-1');
+  });
+
+  it('records without extra fields when extra is omitted', () => {
+    // GIVEN
+    // sut is empty
+
+    // WHEN
+    const event = sut.record('skill', 'commit');
+
+    // THEN
+    assert.equal(event.durationMs, undefined);
+    assert.equal(event.agentId, undefined);
+  });
+
   it('returns aggregated counts by type', () => {
     // GIVEN
     sut.record('mcp_tool', 'mcp__db__query');

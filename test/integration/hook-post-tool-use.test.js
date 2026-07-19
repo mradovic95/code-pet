@@ -63,6 +63,23 @@ describe('on-post-tool-use hook', () => {
     assert.equal(requests[0].body.permissionMode, 'auto-edit');
   });
 
+  it('forwards tool_use_id from stdin as toolUseId', async () => {
+    // GIVEN
+    const input = {
+      tool_name: 'Skill',
+      tool_input: { skill: 'commit' },
+      tool_use_id: 'toolu_xyz789',
+    };
+
+    // WHEN
+    await spawnHook(input);
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.event, 'action_completed');
+    assert.equal(requests[0].body.toolUseId, 'toolu_xyz789');
+  });
+
   it('forwards agent_id from stdin as agentId', async () => {
     // GIVEN
     const input = {

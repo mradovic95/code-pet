@@ -1,0 +1,762 @@
+'use strict';
+
+/**
+ * Pure aggregation functions over persisted usage events
+ * ({ type, name, timestamp, sessionId, projectPath, durationMs?, agentId? }).
+ * No I/O, no Node APIs — loadable both via require() (main process, tests)
+ * and via <script> in the settings renderer (window.usageAnalytics).
+ */
+(function () {
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const DEFAULT_DORMANT_DAYS = 30;
+
+  // Local Monday 00:00 of the week containing ts.
+  function weekStartOf(ts) {
+    const d = new Date(ts);
+    const daysSinceMonday = (d.getDay() + 6) % 7;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - daysSinceMonday).getTime();
+  }
+
+  // Local midnight of the day containing ts.
+  function dayStartOf(ts) {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+
+  // Local start of the hour containing ts.
+  function hourStartOf(ts) {
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()).getTime();
+  }
+
+  function summarizeByName(events, { type } = {}) {
+    const byName = new Map();
+    for (const e of events) {
+      if (type && e.type !== type) continue;
+      let s = byName.get(e.name);
+      if (!s) {
+        s = {
+          name: e.name,
+          type: e.type,
+          count: 0,
+          firstUsed: e.timestamp,
+          lastUsed: e.timestamp,
+          projects: new Set(),
+          sessions: new Set(),
+        };
+        byName.set(e.name, s);
+      }
+      s.count += 1;
+      if (e.timestamp < s.firstUsed) s.firstUsed = e.timestamp;
+      if (e.timestamp > s.lastUsed) s.lastUsed = e.timestamp;
+      if (e.projectPath) s.projects.add(e.projectPath);
+      if (e.sessionId) s.sessions.add(e.sessionId);
+    }
+    return [...byName.values()]
+      .map((s) => ({
+        name: s.name,
+        type: s.type,
+        count: s.count,
+        firstUsed: s.firstUsed,
+        lastUsed: s.lastUsed,
+        projects: [...s.projects].sort(),
+        sessionCount: s.sessions.size,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }
+
+  function topN(events, { type, n = 5 } = {}) {
+    return summarizeByName(events, { type }).slice(0, n);
+  }
+
+  function weeklyTrend(events, { weeks = 12, now = Date.now(), name } = {}) {
+    const d = new Date(weekStartOf(now));
+    return bucketTrend(events, {
+      count: weeks,
+      name,
+      startOf: weekStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7 * (i - (weeks - 1))),
+    }).map((b) => ({ weekStart: b.bucketStart, count: b.count }));
+  }
+
+  // Shared calendar-period bucketing: `count` buckets seeded forward from a
+  // period start via bucketAt(i) (Date constructor stepping, so DST shifts
+  // keep bucket starts aligned to local hour/day boundaries).
+  function bucketTrend(events, { count, name, startOf, bucketAt }) {
+    const buckets = [];
+    const index = new Map();
+    for (let i = 0; i < count; i++) {
+      const bucketStart = bucketAt(i).getTime();
+      // First wins: DST can normalize two seeds to the same instant (e.g. the
+      // skipped spring-forward hour) — keep the duplicate as an empty bucket.
+      if (!index.has(bucketStart)) index.set(bucketStart, buckets.length);
+      buckets.push({ bucketStart, count: 0 });
+    }
+    for (const e of events) {
+      if (name && e.name !== name) continue;
+      const i = index.get(startOf(e.timestamp));
+      if (i !== undefined) buckets[i].count += 1;
+    }
+    return buckets;
+  }
+
+  // The current day, 00:00–24:00, one bucket per hour.
+  function dayTrend(events, { now = Date.now(), name } = {}) {
+    const d = new Date(dayStartOf(now));
+    return bucketTrend(events, {
+      count: 24,
+      name,
+      startOf: hourStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), i),
+    });
+  }
+
+  // The current week, Monday–Sunday, one bucket per day.
+  function weekTrend(events, { now = Date.now(), name } = {}) {
+    const d = new Date(weekStartOf(now));
+    return bucketTrend(events, {
+      count: 7,
+      name,
+      startOf: dayStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + i),
+    });
+  }
+
+  // The current month, 1st–last day, one bucket per day.
+  function monthTrend(events, { now = Date.now(), name } = {}) {
+    const d = new Date(now);
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    return bucketTrend(events, {
+      count: daysInMonth,
+      name,
+      startOf: dayStartOf,
+      bucketAt: (i) => new Date(d.getFullYear(), d.getMonth(), 1 + i),
+    });
+  }
+
+  function dormant(events, { thresholdDays = DEFAULT_DORMANT_DAYS, now = Date.now() } = {}) {
+    return summarizeByName(events)
+      .filter((s) => now - s.lastUsed > thresholdDays * DAY_MS)
+      .map((s) => ({
+        name: s.name,
+        type: s.type,
+        lastUsed: s.lastUsed,
+        daysSince: Math.floor((now - s.lastUsed) / DAY_MS),
+      }))
+      .sort((a, b) => b.daysSince - a.daysSince || a.name.localeCompare(b.name));
+  }
+
+  function groupBySession(events) {
+    const sessions = new Map();
+    for (const e of events) {
+      if (!e.sessionId) continue;
+      let list = sessions.get(e.sessionId);
+      if (!list) {
+        list = [];
+        sessions.set(e.sessionId, list);
+      }
+      list.push(e);
+    }
+    return sessions;
+  }
+
+  // Unordered distinct-name pairs, counted once per session they co-occur in.
+  function coOccurrence(events, { minSessions = 2 } = {}) {
+    const pairCounts = new Map();
+    for (const list of groupBySession(events).values()) {
+      const names = [...new Set(list.map((e) => e.name))].sort();
+      for (let i = 0; i < names.length; i++) {
+        for (let j = i + 1; j < names.length; j++) {
+          const key = `${names[i]}\u0000${names[j]}`;
+          pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
+        }
+      }
+    }
+    return [...pairCounts.entries()]
+      .filter(([, sessions]) => sessions >= minSessions)
+      .map(([key, sessions]) => {
+        const [a, b] = key.split('\u0000');
+        return { a, b, sessions };
+      })
+      .sort((x, y) => y.sessions - x.sessions || x.a.localeCompare(y.a));
+  }
+
+  // Consecutive same-session transitions A→B (A≠B), timestamp order.
+  // Only tracked events are visible, so "consecutive" means consecutive
+  // *tracked* invocations — untracked tools in between are invisible.
+  function sequences(events, { minCount = 2 } = {}) {
+    const transitionCounts = new Map();
+    for (const list of groupBySession(events).values()) {
+      const ordered = [...list].sort((a, b) => a.timestamp - b.timestamp);
+      for (let i = 1; i < ordered.length; i++) {
+        const from = ordered[i - 1].name;
+        const to = ordered[i].name;
+        if (from === to) continue;
+        const key = `${from}\u0000${to}`;
+        transitionCounts.set(key, (transitionCounts.get(key) || 0) + 1);
+      }
+    }
+    return [...transitionCounts.entries()]
+      .filter(([, count]) => count >= minCount)
+      .map(([key, count]) => {
+        const [from, to] = key.split('\u0000');
+        return { from, to, count };
+      })
+      .sort((x, y) => y.count - x.count || x.from.localeCompare(y.from));
+  }
+
+  function durationStats(events) {
+    const byName = new Map();
+    for (const e of events) {
+      if (typeof e.durationMs !== 'number' || !isFinite(e.durationMs)) continue;
+      let s = byName.get(e.name);
+      if (!s) {
+        s = { name: e.name, totalMs: 0, maxMs: 0, minMs: Infinity, durations: [] };
+        byName.set(e.name, s);
+      }
+      s.totalMs += e.durationMs;
+      s.durations.push(e.durationMs);
+      if (e.durationMs > s.maxMs) s.maxMs = e.durationMs;
+      if (e.durationMs < s.minMs) s.minMs = e.durationMs;
+    }
+    return [...byName.values()]
+      .map((s) => {
+        const sorted = s.durations.sort((a, b) => a - b);
+        const mid = sorted.length >> 1;
+        const medianMs = sorted.length % 2
+          ? sorted[mid]
+          : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+        return {
+          name: s.name,
+          count: sorted.length,
+          avgMs: Math.round(s.totalMs / sorted.length),
+          medianMs,
+          maxMs: s.maxMs,
+          minMs: s.minMs,
+        };
+      })
+      .sort((a, b) => b.avgMs - a.avgMs || a.name.localeCompare(b.name));
+  }
+
+  function perProject(events, { topNames = 3 } = {}) {
+    const byProject = new Map();
+    for (const e of events) {
+      const key = e.projectPath || '(unknown)';
+      let p = byProject.get(key);
+      if (!p) {
+        p = { projectPath: key, count: 0, events: [] };
+        byProject.set(key, p);
+      }
+      p.count += 1;
+      p.events.push(e);
+    }
+    return [...byProject.values()]
+      .map((p) => ({
+        projectPath: p.projectPath,
+        count: p.count,
+        topNames: topN(p.events, { n: topNames }).map((s) => s.name),
+      }))
+      .sort((a, b) => b.count - a.count || a.projectPath.localeCompare(b.projectPath));
+  }
+
+  function buildReport(events, { now = Date.now(), dormantDays = DEFAULT_DORMANT_DAYS } = {}) {
+    const sessions = new Set();
+    const projects = new Set();
+    let firstEvent = null;
+    let lastEvent = null;
+    for (const e of events) {
+      if (e.sessionId) sessions.add(e.sessionId);
+      if (e.projectPath) projects.add(e.projectPath);
+      if (firstEvent === null || e.timestamp < firstEvent) firstEvent = e.timestamp;
+      if (lastEvent === null || e.timestamp > lastEvent) lastEvent = e.timestamp;
+    }
+    return {
+      generatedAt: now,
+      totals: {
+        events: events.length,
+        skills: events.filter((e) => e.type === 'skill').length,
+        mcpTools: events.filter((e) => e.type === 'mcp_tool').length,
+        sessions: sessions.size,
+        projects: projects.size,
+        firstEvent,
+        lastEvent,
+      },
+      topSkills: topN(events, { type: 'skill', n: 10 }),
+      topMcp: topN(events, { type: 'mcp_tool', n: 10 }),
+      dormant: dormant(events, { thresholdDays: dormantDays, now }),
+      dormantDays,
+      coUsed: coOccurrence(events),
+      sequences: sequences(events),
+      perProject: perProject(events),
+      weekly: weeklyTrend(events, { now }),
+      activity: {
+        day: dayTrend(events, { now }),
+        week: weekTrend(events, { now }),
+        month: monthTrend(events, { now }),
+      },
+      durations: durationStats(events),
+    };
+  }
+
+  function formatMs(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    // Round before picking the unit so carries roll up (59.95s → 1m 0s, 59m 59.5s → 1h 0m).
+    const tenths = Math.round(ms / 100) / 10;
+    if (tenths < 60) return `${tenths.toFixed(1)}s`;
+    const totalSec = Math.round(ms / 1000);
+    const min = Math.floor(totalSec / 60);
+    if (min < 60) return `${min}m ${totalSec % 60}s`;
+    return `${Math.floor(min / 60)}h ${min % 60}m`;
+  }
+
+  function formatDate(ts) {
+    if (ts == null) return 'n/a';
+    const d = new Date(ts);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function formatHour(ts) {
+    if (ts == null) return 'n/a';
+    const d = new Date(ts);
+    return `${formatDate(ts)} ${String(d.getHours()).padStart(2, '0')}:00`;
+  }
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Short axis-tick formats: hour "16:00", weekday "Mon 13", month-day "Jul 12".
+  function tickHour(ts) {
+    return `${String(new Date(ts).getHours()).padStart(2, '0')}:00`;
+  }
+
+  function tickWeekday(ts) {
+    const d = new Date(ts);
+    return `${WEEKDAYS[d.getDay()]} ${d.getDate()}`;
+  }
+
+  function tickMonthDay(ts) {
+    const d = new Date(ts);
+    return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  function projectLabel(projectPath) {
+    if (!projectPath || projectPath === '(unknown)') return '(unknown)';
+    const parts = projectPath.split(/[\\/]/).filter(Boolean);
+    return parts[parts.length - 1] || projectPath;
+  }
+
+  function renderMarkdownReport(report) {
+    const t = report.totals;
+    const lines = [];
+    lines.push('# Code Pet — Skill Usage Report');
+    lines.push('');
+    lines.push(`Generated: ${formatDate(report.generatedAt)}`);
+    lines.push(
+      `Events: ${t.events} (${t.skills} skill, ${t.mcpTools} MCP) across ` +
+        `${t.sessions} sessions and ${t.projects} projects` +
+        (t.firstEvent != null ? `, from ${formatDate(t.firstEvent)} to ${formatDate(t.lastEvent)}` : '')
+    );
+    lines.push('');
+
+    lines.push('## Top Skills');
+    lines.push('');
+    if (report.topSkills.length === 0) {
+      lines.push('_No skill usage recorded._');
+    } else {
+      lines.push('| Skill | Uses | Sessions | Last used |');
+      lines.push('|---|---|---|---|');
+      for (const s of report.topSkills) {
+        lines.push(`| ${escapeMd(s.name)} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
+      }
+    }
+    lines.push('');
+
+    lines.push('## Top MCP Tools');
+    lines.push('');
+    if (report.topMcp.length === 0) {
+      lines.push('_No MCP tool usage recorded._');
+    } else {
+      lines.push('| Tool | Uses | Sessions | Last used |');
+      lines.push('|---|---|---|---|');
+      for (const s of report.topMcp) {
+        lines.push(`| ${escapeMd(s.name)} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
+      }
+    }
+    lines.push('');
+
+    lines.push(`## Dormant (not used in ${report.dormantDays}+ days)`);
+    lines.push('');
+    lines.push('Candidates to prune, update, or re-surface.');
+    lines.push('');
+    if (report.dormant.length === 0) {
+      lines.push('_Nothing dormant — everything logged was used recently._');
+    } else {
+      for (const d of report.dormant) {
+        lines.push(`- ${escapeMd(d.name)} (${d.type}) — last used ${d.daysSince} days ago (${formatDate(d.lastUsed)})`);
+      }
+    }
+    lines.push('');
+
+    lines.push('## Often Used Together');
+    lines.push('');
+    lines.push('Pairs invoked in the same session — candidates for chaining or combining into one flow.');
+    lines.push('');
+    if (report.coUsed.length === 0) {
+      lines.push('_No recurring pairs yet._');
+    } else {
+      for (const p of report.coUsed.slice(0, 15)) {
+        lines.push(`- ${escapeMd(p.a)} + ${escapeMd(p.b)} — ${p.sessions} sessions`);
+      }
+    }
+    lines.push('');
+
+    lines.push('## Common Sequences');
+    lines.push('');
+    lines.push('Consecutive tracked invocations within a session (untracked tools in between are invisible).');
+    lines.push('');
+    if (report.sequences.length === 0) {
+      lines.push('_No recurring sequences yet._');
+    } else {
+      for (const s of report.sequences.slice(0, 15)) {
+        lines.push(`- ${escapeMd(s.from)} → ${escapeMd(s.to)} — ${s.count}×`);
+      }
+    }
+    lines.push('');
+
+    lines.push('## Per-Project Breakdown');
+    lines.push('');
+    if (report.perProject.length === 0) {
+      lines.push('_No events._');
+    } else {
+      for (const p of report.perProject) {
+        lines.push(`- ${escapeMd(projectLabel(p.projectPath))} — ${p.count} events (top: ${p.topNames.map(escapeMd).join(', ')})`);
+      }
+    }
+    lines.push('');
+
+    lines.push('## Slowest Skills / Tools');
+    lines.push('');
+    if (report.durations.length === 0) {
+      lines.push('_No duration data yet — durations are recorded for new invocations once duration tracking is active._');
+    } else {
+      lines.push('| Name | Runs timed | Avg | Max |');
+      lines.push('|---|---|---|---|');
+      for (const d of report.durations) {
+        lines.push(`| ${escapeMd(d.name)} | ${d.count} | ${formatMs(d.avgMs)} | ${formatMs(d.maxMs)} |`);
+      }
+    }
+    lines.push('');
+
+    return lines.join('\n');
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  // Names come from third-party MCP servers — neutralize Markdown/HTML syntax
+  // so a weird tool name can't break tables or smuggle markup into the export.
+  function escapeMd(value) {
+    return String(value)
+      .replace(/[\\`*_{}[\]<>|]/g, '\\$&')
+      .replace(/\r?\n/g, ' ');
+  }
+
+  // Vertical bar with only the top corners rounded (data-end), flat at the baseline.
+  function svgBarPath(x, y, w, h, baseline) {
+    const r = Math.min(4, w / 2, h);
+    return `M${x},${baseline} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${baseline} Z`;
+  }
+
+  // buckets: [{ bucketStart, count }]; labelFor(bucketStart) renders the full
+  // tooltip time label; tickLabel(bucketStart) the short axis label, drawn
+  // under every tickEvery-th bar anchored to the newest one.
+  function trendSvg(buckets, { ariaLabel, labelFor, tickLabel, tickEvery = 1 }) {
+    const W = 640;
+    const H = 120;
+    const AXIS_H = 18;
+    const max = Math.max(...buckets.map((b) => b.count), 1);
+    const slot = W / buckets.length;
+    const barW = Math.max(2, Math.min(28, slot - 6));
+    const parts = buckets.map((b, i) => {
+      const h = Math.round((b.count / max) * (H - 8));
+      const x = Math.round(i * slot + (slot - barW) / 2);
+      const y = H - h;
+      const label = `${labelFor(b.bucketStart)}: ${b.count} event${b.count === 1 ? '' : 's'}`;
+      const bar = b.count === 0
+        ? `<rect x="${x}" y="${H - 2}" width="${barW}" height="2" class="bar-empty"><title>${escapeHtml(label)}</title></rect>`
+        : `<path d="${svgBarPath(x, y, barW, h, H)}" class="bar"><title>${escapeHtml(label)}</title></path>`;
+      if (i % tickEvery !== 0) return bar;
+      const cx = x + barW / 2;
+      // Keep edge labels inside the viewBox: anchor outward near either end.
+      const anchor = cx > W - 20 ? 'end' : cx < 20 ? 'start' : 'middle';
+      const tx = anchor === 'end' ? W : anchor === 'start' ? 0 : cx;
+      return bar +
+        `<line x1="${cx}" y1="${H}" x2="${cx}" y2="${H + 3}" class="tick-mark"/>` +
+        `<text x="${tx}" y="${H + 14}" text-anchor="${anchor}" class="tick">${escapeHtml(tickLabel(b.bucketStart))}</text>`;
+    }).join('');
+    return (
+      `<svg viewBox="0 0 ${W} ${H + AXIS_H}" role="img" aria-label="${escapeHtml(ariaLabel)}">${parts}` +
+      `<line x1="0" y1="${H}" x2="${W}" y2="${H}" class="baseline"/></svg>`
+    );
+  }
+
+  function barListHtml(rows) {
+    // rows: [{ name, value, valueLabel, title }] — a bar-table: label | bar | value.
+    const max = Math.max(...rows.map((r) => r.value), 1);
+    return `<div class="bar-list">${rows.map((r) => {
+      const pct = Math.max(Math.round((r.value / max) * 100), 2);
+      return (
+        `<div class="bar-row" title="${escapeHtml(r.title || r.name)}">` +
+        `<span class="bar-label">${escapeHtml(r.name)}</span>` +
+        `<span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span>` +
+        `<span class="bar-value">${escapeHtml(r.valueLabel)}</span></div>`
+      );
+    }).join('')}</div>`;
+  }
+
+  function tableHtml(headers, rows) {
+    const head = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+    const body = rows.map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+    return `<table>${head}${body}</table>`;
+  }
+
+  function emptyHtml(text) {
+    return `<p class="empty">${escapeHtml(text)}</p>`;
+  }
+
+  function renderHtmlReport(report) {
+    const t = report.totals;
+    const sections = [];
+
+    const activity = report.activity;
+    sections.push(
+      `<section class="toggle-section">` +
+      `<input type="radio" name="activity-view" id="view-daily" class="view-radio">` +
+      `<input type="radio" name="activity-view" id="view-weekly" class="view-radio" checked>` +
+      `<input type="radio" name="activity-view" id="view-monthly" class="view-radio">` +
+      `<div class="toggle-head"><h2>Activity</h2>` +
+      `<div class="seg">` +
+      `<label for="view-daily">Today</label>` +
+      `<label for="view-weekly">This Week</label>` +
+      `<label for="view-monthly">This Month</label>` +
+      `</div></div>` +
+      `<div class="view view-d">${trendSvg(activity.day, { ariaLabel: 'Events per hour today', labelFor: formatHour, tickLabel: tickHour, tickEvery: 4 })}</div>` +
+      `<div class="view view-w">${trendSvg(activity.week, { ariaLabel: 'Events per day this week', labelFor: formatDate, tickLabel: tickWeekday })}</div>` +
+      `<div class="view view-m">${trendSvg(activity.month, { ariaLabel: 'Events per day this month', labelFor: formatDate, tickLabel: tickMonthDay, tickEvery: 5 })}</div>` +
+      `</section>`
+    );
+
+    sections.push(`<section><h2>Top Skills</h2>${
+      report.topSkills.length === 0
+        ? emptyHtml('No skill usage recorded.')
+        : barListHtml(report.topSkills.map((s) => ({
+            name: s.name,
+            value: s.count,
+            valueLabel: `${s.count}`,
+            title: `${s.name} — ${s.count} uses in ${s.sessionCount} sessions, last used ${formatDate(s.lastUsed)}`,
+          })))
+    }</section>`);
+
+    sections.push(`<section><h2>Top MCP Tools</h2>${
+      report.topMcp.length === 0
+        ? emptyHtml('No MCP tool usage recorded.')
+        : barListHtml(report.topMcp.map((s) => ({
+            name: s.name,
+            value: s.count,
+            valueLabel: `${s.count}`,
+            title: `${s.name} — ${s.count} uses in ${s.sessionCount} sessions, last used ${formatDate(s.lastUsed)}`,
+          })))
+    }</section>`);
+
+    sections.push(`<section><h2>Dormant <span class="h-note">(not used in ${report.dormantDays}+ days)</span></h2>` +
+      `<p class="note">Candidates to prune, update, or re-surface.</p>${
+      report.dormant.length === 0
+        ? emptyHtml('Nothing dormant — everything logged was used recently.')
+        : `<div class="dormant-list">${report.dormant.map((d) =>
+            `<div class="dormant-row"><span>${escapeHtml(d.name)} <span class="h-note">(${escapeHtml(d.type)})</span></span>` +
+            `<span class="days-badge">${d.daysSince}d ago</span></div>`
+          ).join('')}</div>`
+    }</section>`);
+
+    sections.push(`<section><h2>Often Used Together</h2>` +
+      `<p class="note">Pairs invoked in the same session — candidates for chaining or combining into one flow.</p>${
+      report.coUsed.length === 0
+        ? emptyHtml('No recurring pairs yet.')
+        : tableHtml(['Pair', 'Sessions'], report.coUsed.slice(0, 15).map((p) => [`${p.a} + ${p.b}`, `${p.sessions}`]))
+    }</section>`);
+
+    sections.push(`<section><h2>Common Sequences</h2>` +
+      `<p class="note">Consecutive tracked invocations within a session (untracked tools in between are invisible).</p>${
+      report.sequences.length === 0
+        ? emptyHtml('No recurring sequences yet.')
+        : tableHtml(['From', 'To', 'Count'], report.sequences.slice(0, 15).map((s) => [s.from, s.to, `${s.count}×`]))
+    }</section>`);
+
+    sections.push(`<section><h2>Per-Project Breakdown</h2>${
+      report.perProject.length === 0
+        ? emptyHtml('No events.')
+        : tableHtml(['Project', 'Events', 'Top usage'], report.perProject.map((p) =>
+            [projectLabel(p.projectPath), `${p.count}`, p.topNames.join(', ')]))
+    }</section>`);
+
+    if (report.durations.length === 0) {
+      sections.push(`<section><h2>Slowest Skills / Tools</h2>${
+        emptyHtml('No duration data yet — durations are recorded for new invocations once duration tracking is active.')
+      }</section>`);
+    } else {
+      const durationView = (metric) => barListHtml(
+        [...report.durations]
+          .sort((a, b) => b[metric] - a[metric] || a.name.localeCompare(b.name))
+          .map((d) => ({
+            name: d.name,
+            value: d[metric],
+            valueLabel: formatMs(d[metric]),
+            title: `${d.name} — avg ${formatMs(d.avgMs)}, median ${formatMs(d.medianMs)}, min ${formatMs(d.minMs)}, max ${formatMs(d.maxMs)} over ${d.count} timed runs`,
+          }))
+      );
+      sections.push(
+        `<section class="toggle-section">` +
+        `<input type="radio" name="duration-view" id="dur-avg" class="view-radio" checked>` +
+        `<input type="radio" name="duration-view" id="dur-med" class="view-radio">` +
+        `<input type="radio" name="duration-view" id="dur-max" class="view-radio">` +
+        `<input type="radio" name="duration-view" id="dur-min" class="view-radio">` +
+        `<div class="toggle-head"><h2>Slowest Skills / Tools</h2>` +
+        `<div class="seg">` +
+        `<label for="dur-avg">Average</label>` +
+        `<label for="dur-med">Median</label>` +
+        `<label for="dur-max">Max</label>` +
+        `<label for="dur-min">Min</label>` +
+        `</div></div>` +
+        `<div class="view view-avg">${durationView('avgMs')}</div>` +
+        `<div class="view view-med">${durationView('medianMs')}</div>` +
+        `<div class="view view-max">${durationView('maxMs')}</div>` +
+        `<div class="view view-min">${durationView('minMs')}</div>` +
+        `</section>`
+      );
+    }
+
+    const subtitle =
+      `${t.events} events (${t.skills} skill, ${t.mcpTools} MCP) · ${t.sessions} sessions · ${t.projects} projects` +
+      (t.firstEvent != null ? ` · ${formatDate(t.firstEvent)} — ${formatDate(t.lastEvent)}` : '');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Pet — Skill Usage Report</title>
+<style>
+:root {
+  --surface: #313244; --page: #1e1e2e;
+  --ink: #cdd6f4; --ink-2: #a6adc8; --muted: #6c7086;
+  --grid: #45475a; --baseline: #45475a; --series: #89b4fa;
+  --border: #45475a;
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--page); color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.5; padding: 32px 16px; }
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 16px; color: var(--ink); }
+.subtitle { color: var(--ink-2); font-size: 12px; margin: 4px 0 24px; }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; }
+h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); margin-bottom: 10px; }
+.h-note { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: none; letter-spacing: normal; }
+.note { color: var(--ink-2); font-size: 12px; margin-bottom: 10px; }
+.empty { color: var(--muted); font-size: 13px; }
+svg { display: block; width: 100%; height: auto; }
+.bar { fill: var(--series); }
+.bar-empty { fill: var(--grid); }
+.baseline { stroke: var(--baseline); stroke-width: 1; }
+.tick { fill: var(--muted); font-size: 10px; }
+.tick-mark { stroke: var(--baseline); stroke-width: 1; }
+.view-radio { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); overflow: hidden; }
+.toggle-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.toggle-head h2 { margin-bottom: 0; }
+.seg { display: inline-flex; border: 1px solid var(--grid); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg label { font-size: 12px; color: var(--ink-2); padding: 2px 10px; border-radius: 6px; cursor: pointer; user-select: none; }
+.view-radio:focus-visible ~ .toggle-head .seg { outline: 2px solid var(--series); outline-offset: 2px; }
+#view-daily:checked ~ .toggle-head label[for="view-daily"],
+#view-weekly:checked ~ .toggle-head label[for="view-weekly"],
+#view-monthly:checked ~ .toggle-head label[for="view-monthly"],
+#dur-avg:checked ~ .toggle-head label[for="dur-avg"],
+#dur-med:checked ~ .toggle-head label[for="dur-med"],
+#dur-max:checked ~ .toggle-head label[for="dur-max"],
+#dur-min:checked ~ .toggle-head label[for="dur-min"] { background: var(--series); color: #1e1e2e; }
+.view { display: none; }
+#view-daily:checked ~ .view-d,
+#view-weekly:checked ~ .view-w,
+#view-monthly:checked ~ .view-m,
+#dur-avg:checked ~ .view-avg,
+#dur-med:checked ~ .view-med,
+#dur-max:checked ~ .view-max,
+#dur-min:checked ~ .view-min { display: block; }
+.bar-list { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(120px, 38%) 1fr auto; gap: 10px; align-items: center; }
+.bar-label { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { display: block; height: 10px; }
+.bar-fill { display: block; height: 100%; background: var(--series); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-value { font-size: 12px; color: var(--series); font-weight: 700; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; padding: 4px 8px 4px 0; }
+td { padding: 5px 8px 5px 0; border-top: 1px solid var(--grid); color: var(--ink-2); }
+td:first-child { color: var(--ink); }
+.dormant-list { display: grid; gap: 6px; }
+.dormant-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.days-badge { color: #f9e2af; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; background: rgba(249, 226, 175, 0.2); border-radius: 8px; padding: 2px 8px; }
+footer { color: var(--muted); font-size: 11px; text-align: center; margin-top: 24px; }
+@media print {
+  :root {
+    --surface: #ffffff; --page: #ffffff;
+    --ink: #1a1a2e; --ink-2: #3a3a4e; --muted: #666a75;
+    --grid: #c9ccd4; --baseline: #c9ccd4; --series: #3b5bdb;
+    --border: #c9ccd4;
+  }
+  body { background: #ffffff; color: #22222e; }
+  section { break-inside: avoid; }
+  .seg { display: none; }
+  .view { display: block; }
+  .days-badge { color: #7a5d00; background: rgba(122, 93, 0, 0.12); }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Code Pet — Skill Usage Report</h1>
+<p class="subtitle">${escapeHtml(subtitle)}</p>
+${sections.join('\n')}
+<footer>Generated ${escapeHtml(formatDate(report.generatedAt))} by Code Pet · data from ~/.code-pet/usage.log · never leaves this machine</footer>
+</main>
+</body>
+</html>
+`;
+  }
+
+  const api = {
+    summarizeByName,
+    topN,
+    weeklyTrend,
+    dayTrend,
+    weekTrend,
+    monthTrend,
+    dormant,
+    coOccurrence,
+    sequences,
+    durationStats,
+    perProject,
+    buildReport,
+    renderMarkdownReport,
+    renderHtmlReport,
+    formatMs,
+    DEFAULT_DORMANT_DAYS,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  } else if (typeof window !== 'undefined') {
+    window.usageAnalytics = api;
+  }
+})();

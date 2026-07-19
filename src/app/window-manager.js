@@ -494,6 +494,8 @@ function createSettingsWindow() {
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
+    // The report preview is opened from Settings — don't let it outlive it.
+    require('./report-window').closeReportWindow();
   });
 
   logger.info('Settings window created');

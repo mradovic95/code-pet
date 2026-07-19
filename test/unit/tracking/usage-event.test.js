@@ -40,6 +40,51 @@ describe('UsageEvent', () => {
     assert.throws(() => { sut.type = 'changed'; }, TypeError);
   });
 
+  it('stores durationMs and agentId when provided via extra', () => {
+    // GIVEN
+    const extra = { durationMs: 1234, agentId: 'agent-1' };
+
+    // WHEN
+    const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p', extra);
+
+    // THEN
+    assert.equal(sut.durationMs, 1234);
+    assert.equal(sut.agentId, 'agent-1');
+    const json = sut.toJSON();
+    assert.equal(json.durationMs, 1234);
+    assert.equal(json.agentId, 'agent-1');
+  });
+
+  it('omits extra fields from toJSON when not provided', () => {
+    // GIVEN / WHEN
+    const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p');
+
+    // THEN
+    const json = sut.toJSON();
+    assert.ok(!('durationMs' in json));
+    assert.ok(!('agentId' in json));
+  });
+
+  it('ignores non-finite durationMs and empty agentId', () => {
+    // GIVEN
+    const extra = { durationMs: NaN, agentId: '' };
+
+    // WHEN
+    const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p', extra);
+
+    // THEN
+    assert.equal(sut.durationMs, undefined);
+    assert.equal(sut.agentId, undefined);
+  });
+
+  it('is frozen with extra fields present', () => {
+    // GIVEN
+    const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p', { durationMs: 10 });
+
+    // WHEN / THEN
+    assert.throws(() => { sut.durationMs = 99; }, TypeError);
+  });
+
   it('returns correct shape from toJSON', () => {
     // GIVEN
     const sut = new UsageEvent('mcp_tool', 'mcp__slack__send', 'sess-1', '/home/user/proj');

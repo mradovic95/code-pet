@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Skill analytics in the Settings → Usage tab: per-skill summary with usage
+  count, average duration, last-used and an 8-week sparkline; overall weekly
+  activity chart; "often used together" skill pairs (same-session
+  co-occurrence); and dormant-skill detection (used before, but not in the
+  last 30 days) — all computed from the existing `usage.log`, no new data
+  collection (see `docs/usage-tracking.md`)
+- Skill-usage optimization report (top skills, dormant candidates, co-used
+  pairs, common sequences, per-project breakdown, slowest skills) opened in a
+  dedicated preview window via **View Report** in Settings → Usage, with
+  explicit **Save as HTML** / **Save as Markdown** buttons — the saved HTML
+  page is fully self-contained (no scripts, no external resources) and keeps
+  its interactive toggles
+- Interactive Activity chart in the HTML report with a Today / This Week /
+  This Month toggle over calendar periods (current day 00–24 by hour, current
+  week Mon–Sun, current month 1st–last day), per-bar tooltips, and axis tick
+  labels aligned under the bars. The toggle is pure CSS (hidden radios), so it
+  works inside the sandboxed preview iframe and in saved HTML files
+- Average / Median / Max / Min toggle on the Slowest Skills / Tools section —
+  each view re-sorts by its own metric; duration stats now include median and
+  minimum alongside average and max
+- Report and preview window restyled to match the app's dark theme (same
+  palette, typography, and section styling as the Settings window)
+- Per-skill/MCP-tool duration tracking: a new PreToolUse hook (scoped to the
+  Skill tool and `mcp__*` tools only) pairs with the tool's completion to
+  persist `durationMs` on usage events; tool calls made inside subagents are
+  attributed via `agentId`. Older log lines without these fields remain valid
+
+### Removed
+- **Export NDJSON** button from Settings → Usage — it duplicated data already
+  on disk: the raw event log lives at `~/.code-pet/usage.log` in the same
+  NDJSON format. Copy CSV and View Report remain for filtered/derived views
+
+### Fixed
+- Durations of almost-whole minutes no longer format as "2m 60s" — the
+  seconds remainder now rolls over into the minute ("3m 0s")
+
 ## [0.1.2] - 2026-07-14
 
 ### Fixed
