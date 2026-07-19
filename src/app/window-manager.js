@@ -126,23 +126,6 @@ ipcMain.handle('get-all-usage-events', async () => {
   }
 });
 
-ipcMain.handle('save-usage-file', async (_event, { content, defaultName, filters } = {}) => {
-  if (typeof content !== 'string') return { saved: false, error: 'no content' };
-  try {
-    const { dialog } = require('electron');
-    const safeName = path.basename(String(defaultName || 'code-pet-export.txt'));
-    const options = { defaultPath: path.join(require('os').homedir(), safeName) };
-    if (Array.isArray(filters) && filters.length > 0) options.filters = filters;
-    const result = await dialog.showSaveDialog(settingsWindow, options);
-    if (result.canceled || !result.filePath) return { saved: false, canceled: true };
-    await require('fs/promises').writeFile(result.filePath, content, 'utf8');
-    return { saved: true, path: result.filePath };
-  } catch (err) {
-    logger.warn(`save-usage-file handler failed: ${err.message}`);
-    return { saved: false, error: err.message };
-  }
-});
-
 ipcMain.on('get-sound-enabled', (event) => {
   const settingsStore = require('./settings-store');
   event.returnValue = settingsStore.getSoundEnabled();

@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dedicated preview window via **View Report** in Settings → Usage, with
   explicit **Save as HTML** / **Save as Markdown** buttons — the saved HTML
   page is fully self-contained (no scripts, no external resources) and keeps
-  its interactive toggles; raw NDJSON export remains available
+  its interactive toggles
 - Interactive Activity chart in the HTML report with a Today / This Week /
   This Month toggle over calendar periods (current day 00–24 by hour, current
   week Mon–Sun, current month 1st–last day), per-bar tooltips, and axis tick
@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Skill tool and `mcp__*` tools only) pairs with the tool's completion to
   persist `durationMs` on usage events; tool calls made inside subagents are
   attributed via `agentId`. Older log lines without these fields remain valid
+
+### Removed
+- **Export NDJSON** button from Settings → Usage — it duplicated data already
+  on disk: the raw event log lives at `~/.code-pet/usage.log` in the same
+  NDJSON format. Copy CSV and View Report remain for filtered/derived views
 
 ### Fixed
 - Durations of almost-whole minutes no longer format as "2m 60s" — the

@@ -621,7 +621,6 @@ async function renderUsageTab() {
     document.getElementById('filter-project').addEventListener('change', applyFilters);
     document.getElementById('filter-session').addEventListener('change', applyFilters);
     document.getElementById('export-csv-btn').addEventListener('click', exportCsv);
-    document.getElementById('export-ndjson-btn').addEventListener('click', exportNdjson);
     document.getElementById('view-report-btn').addEventListener('click', viewReport);
     document.getElementById('page-prev').addEventListener('click', () => {
       if (_eventPage > 0) { _eventPage--; renderEventLog(_filteredEvents); }
@@ -729,33 +728,6 @@ function exportCsv() {
     btn.textContent = 'Failed';
     setTimeout(() => { btn.textContent = 'Copy CSV'; }, 1500);
   });
-}
-
-async function saveToFile(btnId, defaultLabel, content, defaultName, options = {}) {
-  const btn = document.getElementById(btnId);
-  btn.title = '';
-  try {
-    const result = await window.codePetSettings.saveUsageFile(content, defaultName, options);
-    if (result && result.saved) {
-      btn.textContent = 'Saved!';
-    } else if (result && result.canceled) {
-      btn.textContent = defaultLabel;
-      return;
-    } else {
-      btn.textContent = 'Failed';
-      btn.title = (result && result.error) || 'Unknown error';
-    }
-  } catch (err) {
-    btn.textContent = 'Failed';
-    btn.title = (err && err.message) || 'Unknown error';
-  }
-  setTimeout(() => { btn.textContent = defaultLabel; }, 1500);
-}
-
-function exportNdjson() {
-  const sorted = _filteredEvents.slice().sort((a, b) => b.timestamp - a.timestamp);
-  const ndjson = sorted.map((e) => JSON.stringify(e)).join('\n') + (sorted.length ? '\n' : '');
-  saveToFile('export-ndjson-btn', 'Export NDJSON', ndjson, 'code-pet-usage.ndjson');
 }
 
 function viewReport() {

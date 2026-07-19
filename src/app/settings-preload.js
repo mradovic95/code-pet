@@ -16,8 +16,6 @@ contextBridge.exposeInMainWorld('codePetSettings', {
   getToolUsage: () => ipcRenderer.sendSync('get-tool-usage'),
   getToolEvents: () => ipcRenderer.sendSync('get-tool-events'),
   getAllUsageEvents: () => ipcRenderer.invoke('get-all-usage-events'),
-  saveUsageFile: (content, defaultName, options = {}) =>
-    ipcRenderer.invoke('save-usage-file', { content, defaultName, ...options }),
   openUsageReport: (contents) => ipcRenderer.invoke('open-usage-report', contents),
   // Marketplace
   activateLicense: (key) => ipcRenderer.invoke('activate-license', key),
