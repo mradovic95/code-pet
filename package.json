@@ -1,6 +1,6 @@
 {
 	"name": "code-pet",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"description": "Animated desktop pet companion that reacts to Claude Code activity",
 	"main": "src/app/main.js",
 	"author": {

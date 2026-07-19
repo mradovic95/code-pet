@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-19
+
 ### Added
 - Skill analytics in the Settings → Usage tab: per-skill summary with usage
   count, average duration, last-used and an 8-week sparkline; overall weekly
