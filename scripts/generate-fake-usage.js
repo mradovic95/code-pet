@@ -2,8 +2,11 @@
 'use strict';
 
 /**
- * Dev utility: append fake skill / MCP tool usage events to usage.log so the
- * settings Usage tab and the exportable report have realistic data to render.
+ * Dev utility: append fake usage events to usage.log so the settings Usage
+ * tab and the exportable report have realistic data to render. Covers the
+ * three tracked event types: skill, mcp_tool, and subagent (spawns with
+ * durations). Subagent runs tag their inner events with agentId+agentType,
+ * with a small share left untyped to emulate older CLI versions.
  *
  * Usage:
  *   node scripts/generate-fake-usage.js                        # ~1000 events, last 90 days
@@ -12,7 +15,7 @@
  *   node scripts/generate-fake-usage.js --path /tmp/usage.log  # custom target file
  *
  * Appends (never truncates) NDJSON lines matching UsageEvent.toJSON():
- *   { type, name, timestamp, sessionId, projectPath, durationMs?, agentId? }
+ *   { type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType? }
  * Safe to run multiple times — each run adds another batch.
  */
 
@@ -57,6 +60,14 @@ const MCP_TOOLS = [
   { name: 'mcp__plugin_leanpay_playwright__browser_snapshot', weight: 10, minMs: 500, maxMs: 10000 },
   { name: 'mcp__plugin_leanpay_playwright__browser_click', weight: 8, minMs: 100, maxMs: 3000 },
   { name: 'mcp__plugin_leanpay_database__list_connections', weight: 5, minMs: 100, maxMs: 1500 },
+];
+
+const AGENTS = [
+  { name: 'Explore', weight: 30, minMs: 10000, maxMs: 180000 },
+  { name: 'general-purpose', weight: 20, minMs: 20000, maxMs: 240000 },
+  { name: 'Plan', weight: 15, minMs: 30000, maxMs: 300000 },
+  { name: 'leanpay:code-reviewer', weight: 10, minMs: 60000, maxMs: 300000 },
+  { name: 'claude-code-guide', weight: 8, minMs: 10000, maxMs: 60000 },
 ];
 
 // Only ever emitted with timestamps older than the dormant threshold (30+ days)
@@ -129,9 +140,44 @@ function makeEvent(entry, timestamp, sessionId, projectPath, agentId) {
     sessionId,
     projectPath,
   };
-  if (Math.random() < 0.7) event.durationMs = randInt(entry.minMs, entry.maxMs);
+  if (entry.minMs != null && Math.random() < 0.7) event.durationMs = randInt(entry.minMs, entry.maxMs);
   if (agentId) event.agentId = agentId;
   return event;
+}
+
+// One subagent run: inner events (what the agent did) tagged with the run's
+// agentId/agentType, then the spawn's own `subagent` event at run end —
+// matching real recording semantics, where everything lands at PostToolUse
+// and the spawn completes after the calls made inside it.
+function generateSubagentRun(startTs, sessionId, project) {
+  const agent = pickWeighted(AGENTS);
+  const agentId = fakeId('agent');
+  const durationMs = randInt(agent.minMs, agent.maxMs);
+  // A small share of runs emulates an older CLI that sends agent_id but not
+  // agent_type — those inner events group under 'unknown' in the analytics.
+  const agentType = Math.random() < 0.1 ? null : agent.name;
+  const events = [];
+
+  const innerCount = randInt(2, 6);
+  let ts = startTs + Math.floor(durationMs / (innerCount + 1));
+  for (let i = 0; i < innerCount; i++) {
+    const pool = Math.random() < 0.4 ? SKILLS : MCP_TOOLS;
+    const entry = NAME_TO_ENTRY.get(pickWeighted(pool).name);
+    const event = makeEvent(entry, ts, sessionId, project, agentId);
+    if (agentType) event.agentType = agentType;
+    events.push(event);
+    ts += Math.floor(durationMs / (innerCount + 1));
+  }
+
+  events.push({
+    type: 'subagent',
+    name: agent.name,
+    timestamp: startTs + durationMs,
+    sessionId,
+    projectPath: project,
+    durationMs,
+  });
+  return events;
 }
 
 function generateSession(now, days) {
@@ -141,7 +187,6 @@ function generateSession(now, days) {
   const events = [];
 
   let ts = workdayTimestamp(now, 0, days - 1);
-  const agentId = Math.random() < 0.15 ? fakeId('agent') : null;
 
   // Ordered list of names for this session: maybe a recurring pattern first,
   // then weighted random picks.
@@ -157,10 +202,18 @@ function generateSession(now, days) {
 
   for (const name of names) {
     const entry = NAME_TO_ENTRY.get(name);
-    // Each event only gets the agentId sometimes — subagents do part of a session.
-    const eventAgent = agentId && Math.random() < 0.6 ? agentId : null;
-    events.push(makeEvent(entry, ts, sessionId, project, eventAgent));
+    events.push(makeEvent(entry, ts, sessionId, project, null));
     ts += randInt(5, 300) * 1000; // 5s–5min between tracked invocations
+  }
+
+  // Some sessions delegate part of the work to subagents.
+  if (Math.random() < 0.4) {
+    const runs = randInt(1, 2);
+    for (let i = 0; i < runs; i++) {
+      const run = generateSubagentRun(ts, sessionId, project);
+      events.push(...run);
+      ts = run[run.length - 1].timestamp + randInt(60, 600) * 1000;
+    }
   }
   return events;
 }

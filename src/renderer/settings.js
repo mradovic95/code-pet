@@ -592,6 +592,11 @@ let _filtersWired = false;        // event listeners attached once
 let _lastProjectFilter = '';      // track project changes to reset session dropdown
 let _eventPage = 0;               // current page in event log
 const EVENT_PAGE_SIZE = 50;
+const EVENT_TYPE_BADGES = {
+  mcp_tool: { label: 'MCP', className: 'badge-mcp' },
+  skill: { label: 'Skill', className: 'badge-skill' },
+  subagent: { label: 'Agent', className: 'badge-agent' },
+};
 
 function basename(p) {
   if (!p) return '(unknown)';
@@ -763,11 +768,14 @@ function applyFilters() {
 
   const mcpCounts = {};
   const skillCounts = {};
+  const agentCounts = {};
   for (const e of filtered) {
     if (e.type === 'mcp_tool') {
       mcpCounts[e.name] = (mcpCounts[e.name] || 0) + 1;
     } else if (e.type === 'skill') {
       skillCounts[e.name] = (skillCounts[e.name] || 0) + 1;
+    } else if (e.type === 'subagent') {
+      agentCounts[e.name] = (agentCounts[e.name] || 0) + 1;
     }
   }
 
@@ -775,6 +783,7 @@ function applyFilters() {
   const emptyEventsMsg = hasAnyFilter ? 'No events match current filters' : 'No events yet';
   const emptyMcpMsg = hasAnyFilter ? 'No MCP tool usage for this filter' : 'No MCP tool usage yet';
   const emptySkillsMsg = hasAnyFilter ? 'No skill usage for this filter' : 'No skill usage yet';
+  const emptyAgentsMsg = hasAnyFilter ? 'No subagent runs for this filter' : 'No subagent runs yet';
 
   _filteredEvents = filtered;
   _eventPage = 0;
@@ -782,6 +791,7 @@ function applyFilters() {
   renderEventLog(filtered, emptyEventsMsg);
   renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
   renderUsageList('skill-usage-list', skillCounts, emptySkillsMsg);
+  renderUsageList('agent-usage-list', agentCounts, emptyAgentsMsg);
   renderWeeklyTrend(filtered, emptyEventsMsg);
   renderSkillSummary(filtered, emptySkillsMsg);
   renderCoUsage(filtered);
@@ -821,8 +831,9 @@ function renderEventLog(events, emptyMsg) {
     timeEl.textContent = `${dd}.${mm}.${yy} ${time}`;
 
     const badge = document.createElement('span');
-    badge.className = 'event-type-badge ' + (evt.type === 'mcp_tool' ? 'badge-mcp' : 'badge-skill');
-    badge.textContent = evt.type === 'mcp_tool' ? 'MCP' : 'Skill';
+    const badgeStyle = EVENT_TYPE_BADGES[evt.type] || EVENT_TYPE_BADGES.skill;
+    badge.className = 'event-type-badge ' + badgeStyle.className;
+    badge.textContent = badgeStyle.label;
 
     const nameEl = document.createElement('span');
     nameEl.className = 'event-name';

@@ -59,7 +59,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Skill|mcp__.*",
+        "matcher": "Skill|Task|Agent|mcp__.*",
         "hooks": [
           {
             "type": "command",

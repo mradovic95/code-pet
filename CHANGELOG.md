@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Subagent spawn tracking: `Task`/`Agent` tool calls are now recorded as
+  `subagent` usage events with the agent type as name (e.g. `Explore`,
+  `code-reviewer`) and paired durations (PreToolUse matcher widened to
+  `Skill|Task|Agent|mcp__.*`). The report gains a **Top Agents** section
+  (runs, sessions, average duration) and a main-vs-subagent split — the
+  share of tracked calls that ran inside subagents
+- **Agents** section in Settings → Usage: per-agent-type run counts alongside
+  the existing MCP Tools and Skills lists, narrowed by the same
+  period/project/session filters. The Event Log now carries a distinct badge
+  per tracked event type (MCP, Skill, Agent) so the new subagent events are
+  labelled correctly
+- Agent-type attribution: usage events for tool calls made inside a subagent
+  now record `agentType` (e.g. `Explore`, `my-plugin:reviewer`) from the hook
+  payload's documented `agent_type` field; the report's Top Agents table gains
+  a **Calls inside** column and the main-vs-subagent split a per-type
+  breakdown. On Claude Code versions that don't send the field, events simply
+  stay untyped as before (see `docs/agent-type-attribution-investigation.md`)
+
 ## [0.2.0] - 2026-07-19
 
 ### Added

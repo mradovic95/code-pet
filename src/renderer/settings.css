@@ -690,6 +690,11 @@ body {
   color: #a6e3a1;
 }
 
+.event-type-badge.badge-agent {
+  background: rgba(203, 166, 247, 0.2);
+  color: #cba6f7;
+}
+
 .event-name {
   font-size: 12px;
   color: #cdd6f4;

@@ -165,7 +165,7 @@ function startServer() {
           pet.lastAgentId = body.agentId || null;
           if (body.toolName) {
             const durationMs = pet.resolveToolDuration(body.toolUseId, body.toolName);
-            pet.recordToolUsage(body.toolName, body.toolInput, { durationMs, agentId: body.agentId });
+            pet.recordToolUsage(body.toolName, body.toolInput, { durationMs, agentId: body.agentId, agentType: body.agentType });
           }
 
           const result = dispatchEvent(sessionKey, projectPath, projectName, eventName);

@@ -28,7 +28,7 @@ function setupMocks() {
   }
 }
 
-function mockSettingsStore() {
+function mockSettingsStore(overrides = {}) {
   const settingsPath = require.resolve('../../src/app/settings-store');
   delete require.cache[settingsPath];
   require.cache[settingsPath] = {
@@ -40,6 +40,7 @@ function mockSettingsStore() {
       getDefaultPetType: () => 'dog',
       load: () => {},
       save: () => {},
+      ...overrides,
     },
   };
 }

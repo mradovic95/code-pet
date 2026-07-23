@@ -1,9 +1,11 @@
 # Usage Tracking
 
-Code Pet records every `Skill` invocation and every `mcp__*` tool call into a
-local, append-only log so the Settings → Usage tab can show counts that
-survive Electron restarts. This document is the operator / contributor
-reference for the persistence layer.
+Code Pet records every `Skill` invocation, every `mcp__*` tool call, and
+every subagent spawn (`Task`/`Agent` tool) into a local, append-only log so
+the Settings → Usage tab can show counts that survive Electron restarts.
+Other built-in tools (Read, Bash, Edit, …) are deliberately not recorded —
+they are high volume and add little analytical value. This document is the
+operator / contributor reference for the persistence layer.
 
 Code lives in [`src/tracking/`](../src/tracking/) — a self-contained
 package with no Electron dependency.
@@ -29,13 +31,14 @@ Each line is a JSON object. Defined in
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `type` | `"skill" \| "mcp_tool"` | Event category |
-| `name` | string | Skill name (e.g. `"commit"`) or full MCP tool name (e.g. `"mcp__database__query"`) |
+| `type` | `"skill" \| "mcp_tool" \| "subagent"` | Event category (`subagent` = Task/Agent tool spawn). Old logs may also contain `"builtin"` lines from a prior opt-in tracking feature; these are ignored by the insight sections. |
+| `name` | string | Skill name (e.g. `"commit"`), full MCP tool name (e.g. `"mcp__database__query"`), or subagent type (e.g. `"Explore"`, `"code-reviewer"`; `"unknown"` when the payload has no `subagent_type`) |
 | `timestamp` | number | `Date.now()` at record time, UTC milliseconds |
 | `sessionId` | string (UUID) | Identifies one `PetContext` lifetime — usually one Claude Code session |
 | `projectPath` | string \| null | Absolute path of the project the event originated from. `null` when the project context was not yet bound (e.g. older lines written before this field existed). |
 | `durationMs` | number *(optional)* | Wall-clock time from the tool's PreToolUse to its PostToolUse. Absent on lines written before duration tracking, and whenever no matching start was found. **Includes human wait time** on permission prompts (PreToolUse fires before the prompt). |
 | `agentId` | string *(optional)* | Present only when the tool ran inside a subagent — distinguishes main-agent from subagent usage. |
+| `agentType` | string *(optional)* | Type of the subagent the tool ran inside (e.g. `"Explore"`, plugin-scoped like `"my-plugin:reviewer"`), from the hook payload's `agent_type` field. Absent on main-agent events, on lines written before this field existed, and on Claude Code versions that don't send it (those events group under `unknown` in the analytics breakdown). See [`agent-type-attribution-investigation.md`](agent-type-attribution-investigation.md). |
 
 Example line:
 
@@ -45,8 +48,10 @@ Example line:
 
 ## Duration pairing
 
-`hooks/scripts/on-pre-tool-use.js` (PreToolUse, matcher `Skill|mcp__.*`)
-sends an `action_started` event. The server handles it **before** the state
+`hooks/scripts/on-pre-tool-use.js` (PreToolUse, matcher
+`Skill|Task|Agent|mcp__.*`) sends an `action_started` event. Built-in tools
+are excluded from the matcher (and are not tracked at all). The server
+handles it **before** the state
 machine (early return in `event-server.js`) — it never changes pet state.
 `PetContext.noteToolStart()` stamps a start time in an in-memory map, and
 the matching PostToolUse `action_completed` resolves it via
@@ -54,10 +59,13 @@ the matching PostToolUse `action_completed` resolves it via
 usage event.
 
 Pairing key: `tool_use_id` when the hook payload carries one, otherwise
-`tool:<toolName>` (last-write-wins). As of 2026-07 the official hooks docs
-do **not** document a `tool_use_id` field, so the name-keyed fallback is the
-effective path — concurrent same-name tool calls in one session can
-therefore mis-attribute a duration. Leak controls: entries expire after 10
+`tool:<toolName>`. Each key holds a FIFO queue of start times, so overlapping
+calls that share a name-fallback key pair oldest-start-to-first-completion
+rather than the newest start clobbering the rest. As of 2026-07 the official
+hooks docs do **not** document a `tool_use_id` field, so the name-keyed
+fallback is the effective path — concurrent same-name tool calls in one
+session can still mis-attribute a duration to the wrong call, but no start is
+silently dropped. Leak controls: entries expire after 10
 minutes and the map is capped at 50 pending starts per pet — both overridable
 via the `CODE_PET_TOOL_START_TTL_MS` and `CODE_PET_MAX_PENDING_TOOL_STARTS`
 env vars (read once at app start in `src/app/state-machine/pet-context.js`;
@@ -127,10 +135,12 @@ injectable `now`):
 - `summarizeByName(events, {type})` — count, first/last used, distinct projects, session count per name
 - `weeklyTrend(events, {weeks, now, name})` — zero-filled weekly buckets (weeks start Monday, local time)
 - `topN(events, {type, n})`, `dormant(events, {thresholdDays, now})`
+- `dayTrend(events, {now, name})`, `weekTrend(events, {now, name})`, `monthTrend(events, {now, name})` — calendar-bucketed activity for the current day / week / month (hourly, daily, daily respectively)
 - `coOccurrence(events, {minSessions})` — unordered name pairs counted **once per session** they co-occur in
 - `sequences(events, {minCount})` — consecutive same-session transitions A→B
-- `durationStats(events)` — avg/max `durationMs` per name (events without the field are ignored)
-- `perProject(events)`, `buildReport(events)`, `renderMarkdownReport(report)`,
+- `durationStats(events)` — avg/median/max/min `durationMs` per name (events without the field are ignored)
+- `agentSplit(events)` — `{ total, tagged, pct, byType }` share of events carrying an `agentId` (ran inside a subagent); `byType` counts tagged events per `agentType` (`unknown` when untyped)
+- `perProject(events)`, `buildReport(events)` — `buildReport` bundles the above into one object (including `topAgents`, the top-10 `subagent` names with run/session counts and durations, plus `agentSplit`); `renderMarkdownReport(report)`,
   `renderHtmlReport(report)` — the HTML variant is a fully self-contained
   document (inline CSS + SVG charts, no external requests, dark-mode aware).
   The View Report button opens the rendered HTML in a dedicated preview
@@ -145,9 +155,10 @@ Definitions worth knowing:
   30 days. Code Pet has no inventory of *installed* skills, so a skill that
   was never invoked at all is invisible — dormant ≠ never-used.
 - **Co-occurrence / sequences** are proxies for "skill flow", not a call
-  graph: only tracked events (skills + MCP tools) are visible, so
-  "consecutive" means consecutive *tracked* invocations — any untracked
-  tools in between are invisible.
+  graph: only workflow events (skills, MCP tools, subagent spawns) are
+  visible, so "consecutive" means consecutive *tracked* invocations — any
+  built-in tools (Read, Bash, Edit, …) in between are invisible because they
+  are not tracked.
 
 ## Concurrency model
 

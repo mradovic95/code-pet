@@ -22,8 +22,9 @@ async function main() {
   const input = await readStdin();
   debugLog(`on-pre-tool-use stdin: ${JSON.stringify(input)}`);
 
-  // Fires only for Skill and mcp__* tools (matcher in hooks.json). The server
-  // pairs this with the PostToolUse action_completed to compute a duration.
+  // Fires only for Skill, subagent (Task/Agent), and mcp__* tools (matcher in
+  // hooks.json). The server pairs this with the PostToolUse action_completed
+  // to compute a duration.
   await sendEvent('action_started', {
     toolName: input.tool_name,
     toolUseId: input.tool_use_id,

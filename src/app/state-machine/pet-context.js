@@ -12,6 +12,11 @@ function positiveIntEnv(name, fallback) {
 const TOOL_START_TTL_MS = positiveIntEnv('CODE_PET_TOOL_START_TTL_MS', 10 * 60 * 1000);
 const MAX_PENDING_TOOL_STARTS = positiveIntEnv('CODE_PET_MAX_PENDING_TOOL_STARTS', 50);
 
+// The subagent tool is named "Task" in Claude Code hook payloads; "Agent" is
+// matched too in case newer versions rename it. Exact equality, so this can't
+// swallow other tools.
+const SUBAGENT_TOOL_NAMES = new Set(['Task', 'Agent']);
+
 class PetContext {
   constructor(projectName, petType, { store, projectPath } = {}) {
     this.lastActiveEvent = null;
@@ -61,7 +66,12 @@ class PetContext {
     } else if (toolName === 'Skill') {
       const skillName = (toolInput && toolInput.skill) ? toolInput.skill : 'unknown';
       this.tracker.record('skill', skillName, extra);
+    } else if (SUBAGENT_TOOL_NAMES.has(toolName)) {
+      const agentType = (toolInput && toolInput.subagent_type) ? toolInput.subagent_type : 'unknown';
+      this.tracker.record('subagent', agentType, extra);
     }
+    // Other built-in tools (Read, Bash, Edit, …) are not recorded — they are
+    // high volume and add little analytical value.
   }
 
   // Duration pairing: PreToolUse (action_started) stamps a start time that the
