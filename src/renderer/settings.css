@@ -806,6 +806,10 @@ body {
   color: #cdd6f4;
   flex: 1;
   min-width: 0;
+  /* Long MCP tool names truncate instead of breaking column alignment; the
+     full name stays available via the row's title tooltip. */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .usage-count {

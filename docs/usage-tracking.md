@@ -134,7 +134,10 @@ columns: skill name, an 8-week sparkline (`weeklyTrend`), average duration
 **Agent Insights** table does the same for subagents (`type: 'subagent'`), with
 a **calls-inside** column from `agentSplit(events).byType[name]` and a delegation
 headline from `agentSplit(events).pct` — the same metrics the report's Top Agents
-section shows.
+section shows. An **MCP Insights** table (`type: 'mcp_tool'`) shares the exact
+layout as Skill Insights (both render via the same `renderNameSummary` helper).
+These three rich tables replaced the earlier plain name+count MCP/Skills/Agents
+lists, which they supersede.
 
 Functions (all take an event array; time-dependent ones accept an
 injectable `now`):

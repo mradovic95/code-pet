@@ -766,19 +766,6 @@ function applyFilters() {
     return true;
   });
 
-  const mcpCounts = {};
-  const skillCounts = {};
-  const agentCounts = {};
-  for (const e of filtered) {
-    if (e.type === 'mcp_tool') {
-      mcpCounts[e.name] = (mcpCounts[e.name] || 0) + 1;
-    } else if (e.type === 'skill') {
-      skillCounts[e.name] = (skillCounts[e.name] || 0) + 1;
-    } else if (e.type === 'subagent') {
-      agentCounts[e.name] = (agentCounts[e.name] || 0) + 1;
-    }
-  }
-
   const hasAnyFilter = Boolean(dateRangeVal || projectVal || sessionAfter);
   const emptyEventsMsg = hasAnyFilter ? 'No events match current filters' : 'No events yet';
   const emptyMcpMsg = hasAnyFilter ? 'No MCP tool usage for this filter' : 'No MCP tool usage yet';
@@ -789,11 +776,9 @@ function applyFilters() {
   _eventPage = 0;
 
   renderEventLog(filtered, emptyEventsMsg);
-  renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
-  renderUsageList('skill-usage-list', skillCounts, emptySkillsMsg);
-  renderUsageList('agent-usage-list', agentCounts, emptyAgentsMsg);
   renderWeeklyTrend(filtered, emptyEventsMsg);
-  renderSkillSummary(filtered, emptySkillsMsg);
+  renderNameSummary('skill-summary', filtered, { type: 'skill', emptyMsg: emptySkillsMsg });
+  renderNameSummary('mcp-summary', filtered, { type: 'mcp_tool', emptyMsg: emptyMcpMsg });
   renderAgentSummary(filtered, emptyAgentsMsg);
   renderCoUsage(filtered);
   // Dormancy is relative to today, not the date filter — always over the full log.
@@ -860,35 +845,6 @@ function renderEventLog(events, emptyMsg) {
   }
 }
 
-function renderUsageList(containerId, data, emptyMsg) {
-  const container = document.getElementById(containerId);
-  const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
-
-  if (entries.length === 0) {
-    container.innerHTML = `<div class="usage-empty">${emptyMsg}</div>`;
-    return;
-  }
-
-  container.innerHTML = '';
-  for (const [name, count] of entries) {
-    const row = document.createElement('div');
-    row.className = 'usage-row';
-
-    const nameEl = document.createElement('span');
-    nameEl.className = 'usage-name';
-    nameEl.textContent = name;
-    nameEl.title = name;
-
-    const countEl = document.createElement('span');
-    countEl.className = 'usage-count';
-    countEl.textContent = count;
-
-    row.appendChild(nameEl);
-    row.appendChild(countEl);
-    container.appendChild(row);
-  }
-}
-
 // --- Usage analytics views (module loaded via <script>, see settings.html) ---
 
 function formatRelativeDays(ts) {
@@ -930,14 +886,17 @@ function renderWeeklyTrend(events, emptyMsg) {
   }
 }
 
-function renderSkillSummary(events, emptyMsg) {
-  const container = document.getElementById('skill-summary');
+// Shared renderer for the name+trend+avg+used+count Insights tables (Skill and
+// MCP — identical columns, only the event `type` differs). Agent Insights has an
+// extra column and is rendered separately by renderAgentSummary.
+function renderNameSummary(containerId, events, { type, emptyMsg } = {}) {
+  const container = document.getElementById(containerId);
   const analytics = window.usageAnalytics;
   if (!container || !analytics) return;
 
-  const summary = analytics.summarizeByName(events || [], { type: 'skill' });
+  const summary = analytics.summarizeByName(events || [], { type });
   if (summary.length === 0) {
-    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No skill usage yet'}</div>`;
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No usage yet'}</div>`;
     return;
   }
 
@@ -992,7 +951,7 @@ function renderSkillSummary(events, emptyMsg) {
   }
 }
 
-// Subagent counterpart of renderSkillSummary: per-agent-type run count, spawn
+// Subagent counterpart of renderNameSummary: per-agent-type run count, spawn
 // duration and 8-week trend, plus the "calls inside" metric (skill/MCP calls
 // tagged with this agentType) and a delegation headline — surfacing the report's
 // Top Agents / agentSplit data in the live tab.

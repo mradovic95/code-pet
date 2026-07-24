@@ -64,10 +64,14 @@ surfaces the new data in the settings Usage tab and the report.
 ### Usage tab: Agents section + typed badges
 
 - `src/renderer/tabs/usage.html` + `settings.js` + `settings.css` — an
-  **Agents** section (per-agent-type run counts) alongside MCP Tools and
-  Skills, narrowed by the same period/project/session filters. Event Log
-  badges map each event type to its own pill (MCP / Skill / Agent) instead
-  of labeling everything non-MCP as Skill.
+  **Agent Insights** table (per-agent-type run counts, trend, avg duration,
+  calls-inside, delegation headline), narrowed by the same
+  period/project/session filters. It sits alongside the **Skill Insights** and
+  **MCP Insights** tables — the three rich Insights tables replaced the earlier
+  plain name+count MCP Tools / Skills / Agents lists, which they supersede
+  (Skill and MCP share the `renderNameSummary` helper). Event Log badges map
+  each event type to its own pill (MCP / Skill / Agent) instead of labeling
+  everything non-MCP as Skill.
 
 ### Dev scripts
 

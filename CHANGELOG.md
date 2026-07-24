@@ -31,14 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headline (`N% of tracked calls ran inside subagents`). Surfaces the report's
   Top Agents / `agentSplit` metrics in the live tab, at parity with Skill
   Insights, narrowed by the same period/project/session filters
+- **MCP Insights** table in Settings → Usage: MCP tools get the same rich view
+  as Skill Insights (8-week trend, average duration, last-used, call count),
+  with long tool names truncated (full name on hover)
 
 ### Changed
 - The **Skill Insights** table in Settings → Usage is now a framed table with a
   fixed column header (`Skill`, `Trend`, `Avg`, `Used`, `Runs`) so the five
   columns — name, 8-week sparkline, average duration, last-used and invocation
   count — are labelled instead of distinguished only by colour. The header stays
-  fixed while the rows scroll beneath it; the sibling MCP Tools / Skills / Agents
-  lists are unchanged
+  fixed while the rows scroll beneath it
+- Consolidated the Usage tab: the three plain name+count lists (MCP Tools,
+  Skills, Agents) are replaced by the three rich Insights tables (Skill, MCP,
+  Agent), which are supersets of them — removing duplicate listings
 - Event Log type badges (`AGENT` / `MCP` / `SKILL`) in Settings → Usage now share
   a uniform width, so the tool-name column lines up across rows instead of
   shifting with each badge's label length
