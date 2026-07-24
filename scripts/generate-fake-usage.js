@@ -55,18 +55,18 @@ const SKILLS = [
 ];
 
 const MCP_TOOLS = [
-  { name: 'mcp__plugin_leanpay_database__execute_query', weight: 28, minMs: 100, maxMs: 8000 },
-  { name: 'mcp__plugin_leanpay_bitbucket__bb_get', weight: 14, minMs: 200, maxMs: 4000 },
-  { name: 'mcp__plugin_leanpay_playwright__browser_snapshot', weight: 10, minMs: 500, maxMs: 10000 },
-  { name: 'mcp__plugin_leanpay_playwright__browser_click', weight: 8, minMs: 100, maxMs: 3000 },
-  { name: 'mcp__plugin_leanpay_database__list_connections', weight: 5, minMs: 100, maxMs: 1500 },
+  { name: 'mcp__plugin_acme_database__execute_query', weight: 28, minMs: 100, maxMs: 8000 },
+  { name: 'mcp__plugin_acme_bitbucket__bb_get', weight: 14, minMs: 200, maxMs: 4000 },
+  { name: 'mcp__plugin_acme_playwright__browser_snapshot', weight: 10, minMs: 500, maxMs: 10000 },
+  { name: 'mcp__plugin_acme_playwright__browser_click', weight: 8, minMs: 100, maxMs: 3000 },
+  { name: 'mcp__plugin_acme_database__list_connections', weight: 5, minMs: 100, maxMs: 1500 },
 ];
 
 const AGENTS = [
   { name: 'Explore', weight: 30, minMs: 10000, maxMs: 180000 },
   { name: 'general-purpose', weight: 20, minMs: 20000, maxMs: 240000 },
   { name: 'Plan', weight: 15, minMs: 30000, maxMs: 300000 },
-  { name: 'leanpay:code-reviewer', weight: 10, minMs: 60000, maxMs: 300000 },
+  { name: 'acme:code-reviewer', weight: 10, minMs: 60000, maxMs: 300000 },
   { name: 'claude-code-guide', weight: 8, minMs: 10000, maxMs: 60000 },
 ];
 
@@ -74,14 +74,14 @@ const AGENTS = [
 // so the Dormant section always has entries.
 const DORMANT = [
   { name: 'prd-language-check', type: 'skill', minMs: 5000, maxMs: 60000 },
-  { name: 'mcp__plugin_leanpay_figma__authenticate', type: 'mcp_tool', minMs: 500, maxMs: 5000 },
+  { name: 'mcp__plugin_acme_figma__authenticate', type: 'mcp_tool', minMs: 500, maxMs: 5000 },
 ];
 
 const HOME = os.homedir();
 const PROJECTS = [
   { path: path.join(HOME, 'my_projects', 'code-pet'), weight: 30 },
-  { path: path.join(HOME, 'my_projects', 'leanpay-core'), weight: 25 },
-  { path: path.join(HOME, 'my_projects', 'leanpay-admin'), weight: 20 },
+  { path: path.join(HOME, 'my_projects', 'acme-core'), weight: 25 },
+  { path: path.join(HOME, 'my_projects', 'acme-admin'), weight: 20 },
   { path: path.join(HOME, 'my_projects', 'marketplace-api'), weight: 15 },
   { path: path.join(HOME, 'my_projects', 'infra-scripts'), weight: 10 },
 ];
@@ -90,7 +90,7 @@ const PROJECTS = [
 // have clear winners. Each entry is an ordered run of names.
 const SEQUENCE_PATTERNS = [
   ['er-diagram', 'update-schema'],
-  ['run-local', 'mcp__plugin_leanpay_database__execute_query'],
+  ['run-local', 'mcp__plugin_acme_database__execute_query'],
   ['data-dictionary', 'ubiquitous-language'],
 ];
 
