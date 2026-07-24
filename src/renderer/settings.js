@@ -794,6 +794,7 @@ function applyFilters() {
   renderUsageList('agent-usage-list', agentCounts, emptyAgentsMsg);
   renderWeeklyTrend(filtered, emptyEventsMsg);
   renderSkillSummary(filtered, emptySkillsMsg);
+  renderAgentSummary(filtered, emptyAgentsMsg);
   renderCoUsage(filtered);
   // Dormancy is relative to today, not the date filter — always over the full log.
   renderDormant();
@@ -986,6 +987,81 @@ function renderSkillSummary(events, emptyMsg) {
     }
     row.appendChild(avgEl);
     row.appendChild(lastEl);
+    row.appendChild(countEl);
+    container.appendChild(row);
+  }
+}
+
+// Subagent counterpart of renderSkillSummary: per-agent-type run count, spawn
+// duration and 8-week trend, plus the "calls inside" metric (skill/MCP calls
+// tagged with this agentType) and a delegation headline — surfacing the report's
+// Top Agents / agentSplit data in the live tab.
+function renderAgentSummary(events, emptyMsg) {
+  const container = document.getElementById('agent-summary');
+  const noteEl = document.getElementById('agent-split-note');
+  const analytics = window.usageAnalytics;
+  if (!container || !analytics) return;
+
+  const summary = analytics.summarizeByName(events || [], { type: 'subagent' });
+  if (summary.length === 0) {
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No subagent runs yet'}</div>`;
+    if (noteEl) noteEl.textContent = '';
+    return;
+  }
+
+  const durationsByName = new Map(
+    analytics.durationStats(events || []).map((d) => [d.name, d])
+  );
+  const split = analytics.agentSplit(events || []);
+  if (noteEl) {
+    noteEl.textContent = split.tagged > 0
+      ? `${split.pct}% of tracked calls ran inside subagents`
+      : '';
+  }
+
+  container.innerHTML = '';
+  for (const s of summary) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name';
+    nameEl.textContent = s.name;
+    nameEl.title = `${s.name} — first used ${formatRelativeDays(s.firstUsed)}, ${s.sessionCount} session${s.sessionCount === 1 ? '' : 's'}`;
+
+    const spark = document.createElement('span');
+    spark.className = 'sparkline';
+    const buckets = analytics.weeklyTrend(events, { weeks: 8, name: s.name });
+    const max = Math.max(...buckets.map((b) => b.count), 1);
+    for (const b of buckets) {
+      const bar = document.createElement('span');
+      bar.className = 'spark-bar' + (b.count === 0 ? ' spark-bar-empty' : '');
+      bar.style.height = `${Math.max(Math.round((b.count / max) * 100), 12)}%`;
+      spark.appendChild(bar);
+    }
+
+    const dur = durationsByName.get(s.name);
+    const avgEl = document.createElement('span');
+    avgEl.className = 'summary-avg';
+    if (dur) {
+      avgEl.textContent = analytics.formatMs(dur.avgMs);
+      avgEl.title = `avg over ${dur.count} timed run${dur.count === 1 ? '' : 's'} (max ${analytics.formatMs(dur.maxMs)})`;
+    }
+
+    const insideCount = (split.byType && split.byType[s.name]) || 0;
+    const insideEl = document.createElement('span');
+    insideEl.className = 'summary-last-used';
+    insideEl.textContent = insideCount;
+    insideEl.title = `${insideCount} skill/MCP call${insideCount === 1 ? '' : 's'} ran inside this agent`;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'usage-count';
+    countEl.textContent = s.count;
+
+    row.appendChild(nameEl);
+    row.appendChild(spark);
+    row.appendChild(avgEl);
+    row.appendChild(insideEl);
     row.appendChild(countEl);
     container.appendChild(row);
   }

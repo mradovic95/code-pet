@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a **Calls inside** column and the main-vs-subagent split a per-type
   breakdown. On Claude Code versions that don't send the field, events simply
   stay untyped as before (see `docs/agent-type-attribution-investigation.md`)
+- **Agent Insights** table in Settings → Usage: a rich per-agent-type view
+  (8-week trend, average spawn duration, a **calls-inside** count of the
+  skill/MCP calls that ran inside each agent, and run count) plus a delegation
+  headline (`N% of tracked calls ran inside subagents`). Surfaces the report's
+  Top Agents / `agentSplit` metrics in the live tab, at parity with Skill
+  Insights, narrowed by the same period/project/session filters
 
 ### Changed
 - The **Skill Insights** table in Settings → Usage is now a framed table with a

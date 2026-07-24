@@ -717,6 +717,17 @@ body {
  * body. The frame owns the card background + rounding; the inner .usage-list is
  * made transparent so only the rows scroll, under the fixed header.
  */
+/* Muted one-line subtitle under a section title (e.g. the delegation headline). */
+.usage-note {
+  font-size: 11px;
+  color: #6c7086;
+  margin: 0 0 6px;
+}
+
+.usage-note:empty {
+  display: none;
+}
+
 .usage-table {
   background: #313244;
   border-radius: 8px;
