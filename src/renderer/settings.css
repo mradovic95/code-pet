@@ -678,6 +678,11 @@ body {
   flex-shrink: 0;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  /* Uniform width so the tool-name column lines up regardless of label
+     (AGENT/SKILL are wider than MCP); box-sizing keeps padding inside it. */
+  min-width: 52px;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .event-type-badge.badge-mcp {

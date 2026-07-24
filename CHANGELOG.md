@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   count — are labelled instead of distinguished only by colour. The header stays
   fixed while the rows scroll beneath it; the sibling MCP Tools / Skills / Agents
   lists are unchanged
+- Event Log type badges (`AGENT` / `MCP` / `SKILL`) in Settings → Usage now share
+  a uniform width, so the tool-name column lines up across rows instead of
+  shifting with each badge's label length
 
 ## [0.2.0] - 2026-07-19
 
