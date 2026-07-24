@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   breakdown. On Claude Code versions that don't send the field, events simply
   stay untyped as before (see `docs/agent-type-attribution-investigation.md`)
 
+### Changed
+- The **Skill Insights** table in Settings → Usage is now a framed table with a
+  fixed column header (`Skill`, `Trend`, `Avg`, `Used`, `Runs`) so the five
+  columns — name, 8-week sparkline, average duration, last-used and invocation
+  count — are labelled instead of distinguished only by colour. The header stays
+  fixed while the rows scroll beneath it; the sibling MCP Tools / Skills / Agents
+  lists are unchanged
+
 ## [0.2.0] - 2026-07-19
 
 ### Added

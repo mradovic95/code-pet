@@ -127,7 +127,10 @@ pure aggregation module over event arrays — no I/O, no Node APIs. It is
 settings renderer (as `window.usageAnalytics`), which is why it uses a
 dual-export guard. The Settings → Usage tab uses it for the Skill Insights,
 Weekly Activity, Often Used Together, and Dormant views, plus the
-"View Report" preview window.
+"View Report" preview window. The Skill Insights table is a framed table with a
+fixed column header (`Skill`, `Trend`, `Avg`, `Used`, `Runs`) over its five
+columns: skill name, an 8-week sparkline (`weeklyTrend`), average duration
+(`durationStats`), last-used relative time, and invocation count.
 
 Functions (all take an event array; time-dependent ones accept an
 injectable `now`):
