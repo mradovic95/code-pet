@@ -42,6 +42,7 @@ src/
     report-preload.js        # Context bridge for report preview window (window.codePetReport)
     terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
     http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
+    transcript-reader.js     # Reads/parses Claude Code session transcripts (~/.claude/projects/*.jsonl) into file-touch events on demand (Files tab)
     marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
     marketplace-catalog.js   # Catalog fetch + productId↔petId mapping (cached to product-map.json)
     marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
@@ -76,10 +77,12 @@ src/
       general.html             # General settings tab
       store.html               # Marketplace / store tab
       usage.html               # Usage analytics tab
+      file-activity.html       # Files tab: on-demand file/directory activity from session transcripts
   tracking/                  # Skill / MCP tool / subagent usage tracking (self-contained)
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
+    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session) — dual-export: require() + window.fileActivity in the settings renderer
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -134,6 +137,18 @@ contain the preview toolbar. The report HTML must stay script-free: the preview 
 duration toggle) is pure CSS via hidden radio inputs + `:checked` selectors, and the report/preview styling mirrors the
 settings window's dark palette rather than defining its own theme. See `docs/usage-tracking.md` for the data format and
 operator reference.
+
+**Separate view: File Activity (transcript-sourced, on-demand).** The settings **Files** tab answers "which files and
+directories did this project's sessions touch most" — deliberately *not* via hooks (recording every Read/Edit would
+bloat `usage.log` and add a per-file privacy footprint). Instead `src/app/transcript-reader.js` parses the Claude Code
+session transcripts (`~/.claude/projects/<encoded-project>/<session-id>.jsonl`, one file per session) only when the tab
+is opened/refreshed — nothing is persisted. It extracts `Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only
+tools that carry one) into `{tool, filePath, sessionId, cwd, timestamp}` events, crossing the renderer boundary via the
+`get-file-activity` IPC channel (main-only, since the renderer can't read the filesystem). `src/tracking/file-activity.js`
+is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
+project-relative paths) — dual-exported like `usage-analytics.js`. The renderer defaults to the most-recent session with
+a toggle to aggregate the whole project. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
+complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md`.
 
 ## Marketplace Integration
 

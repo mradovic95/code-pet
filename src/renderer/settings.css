@@ -823,6 +823,16 @@ body {
   flex-shrink: 0;
 }
 
+/* Files tab: per-file read/edit/write breakdown between path and total. */
+.fa-breakdown {
+  font-size: 11px;
+  color: #7f849c;
+  margin-left: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
 /* --- Usage analytics views --- */
 
 .usage-list-tall {

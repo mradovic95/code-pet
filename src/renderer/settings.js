@@ -4,6 +4,7 @@
 const FEATURE_FLAGS = {
   STORE_TAB: false,   // v1: hidden until marketplace ships publicly
   USAGE_TAB: true,
+  FILES_TAB: true,    // on-demand transcript-sourced file activity view
 };
 
 const PREVIEW_STATES = ['idle', 'working', 'planning', 'waiting_for_action', 'waking_up'];
@@ -25,6 +26,9 @@ async function init() {
   }
   if (FEATURE_FLAGS.USAGE_TAB) {
     tabs.push(loadTab('tab-usage', 'usage.html'));
+  }
+  if (FEATURE_FLAGS.FILES_TAB) {
+    tabs.push(loadTab('tab-files', 'file-activity.html'));
   }
   await Promise.all(tabs);
 
@@ -82,9 +86,13 @@ async function init() {
     document.getElementById('tab-btn-usage').style.display = '';
   }
 
+  if (FEATURE_FLAGS.FILES_TAB) {
+    document.getElementById('tab-btn-files').style.display = '';
+  }
+
   // --- Tabs (with fade transition) ---
 
-  const TAB_IDS = ['tab-general', 'tab-store', 'tab-usage'];
+  const TAB_IDS = ['tab-general', 'tab-store', 'tab-usage', 'tab-files'];
   let _activeTabId = 'tab-general';
   let _tabTransitioning = false;
 
@@ -114,6 +122,7 @@ async function init() {
         // Trigger lazy loads before fade-in
         if (tab.dataset.tab === 'usage') renderUsageTab();
         if (tab.dataset.tab === 'store') renderMarketplace();
+        if (tab.dataset.tab === 'files') renderFileActivityTab();
 
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -591,6 +600,11 @@ let _filteredEvents = [];         // last filtered result (for CSV export)
 let _filtersWired = false;        // event listeners attached once
 let _lastProjectFilter = '';      // track project changes to reset session dropdown
 let _eventPage = 0;               // current page in event log
+let _faEvents = [];               // transcript-derived file events (all sessions of the project)
+let _faProjectPath = '';          // project the file events belong to
+let _faWired = false;             // Files tab listeners attached once
+const FA_TOP_FILES = 50;
+const FA_TOP_DIRS = 30;
 const EVENT_PAGE_SIZE = 50;
 const EVENT_TYPE_BADGES = {
   mcp_tool: { label: 'MCP', className: 'badge-mcp' },
@@ -638,6 +652,135 @@ async function renderUsageTab() {
   }
 
   applyFilters();
+}
+
+// --- Files tab (on-demand transcript-sourced file activity) ---
+
+async function renderFileActivityTab() {
+  const analytics = window.fileActivity;
+  const filesEl = document.getElementById('fa-top-files');
+  if (!analytics || !filesEl) return;
+
+  _faProjectPath = window.codePetSettings.getProjectPath() || '';
+  filesEl.innerHTML = '<div class="usage-empty">Reading transcripts…</div>';
+
+  try {
+    _faEvents = await window.codePetSettings.getFileActivity(_faProjectPath);
+  } catch {
+    _faEvents = [];
+  }
+  if (!Array.isArray(_faEvents)) _faEvents = [];
+
+  const all = analytics.aggregate(_faEvents, { projectPath: _faProjectPath });
+  populateFaSessions(all.sessions);
+
+  if (!_faWired) {
+    document.getElementById('fa-scope').addEventListener('change', renderFaView);
+    document.getElementById('fa-session').addEventListener('change', renderFaView);
+    document.getElementById('fa-refresh').addEventListener('click', renderFileActivityTab);
+    _faWired = true;
+  }
+
+  renderFaView();
+}
+
+function populateFaSessions(sessions) {
+  const select = document.getElementById('fa-session');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = '';
+  for (const s of sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.sessionId;
+    const when = s.endedAt ? new Date(s.endedAt).toLocaleString() : 'unknown date';
+    const shortId = String(s.sessionId).slice(0, 8);
+    opt.textContent = `${when} · ${shortId} (${s.files} files)`;
+    select.appendChild(opt);
+  }
+  // Keep the prior pick if it still exists, else default to most recent (first).
+  if (current && sessions.some((s) => s.sessionId === current)) select.value = current;
+}
+
+function renderFaView() {
+  const analytics = window.fileActivity;
+  if (!analytics) return;
+  const scope = document.getElementById('fa-scope').value;
+  const sessionSelect = document.getElementById('fa-session');
+  sessionSelect.disabled = scope !== 'session';
+
+  let events = _faEvents;
+  if (scope === 'session') {
+    const sid = sessionSelect.value;
+    events = _faEvents.filter((e) => (e.sessionId || 'unknown') === sid);
+  }
+
+  const agg = analytics.aggregate(events, { projectPath: _faProjectPath });
+  const t = agg.totals;
+  document.getElementById('fa-totals').textContent =
+    `${t.files} files · ${t.reads} reads · ${t.edits} edits · ${t.writes} writes` +
+    (scope === 'project' ? ` · ${t.sessions} sessions` : '');
+
+  renderFaFiles('fa-top-files', agg.topFiles.slice(0, FA_TOP_FILES));
+  renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
+}
+
+function renderFaFiles(containerId, files) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!files.length) {
+    c.innerHTML = '<div class="usage-empty">No file activity for this scope</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = f.path;
+    name.title = f.path;
+
+    const breakdown = document.createElement('span');
+    breakdown.className = 'fa-breakdown';
+    breakdown.textContent = `R ${f.reads} · E ${f.edits} · W ${f.writes}`;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = f.total;
+
+    row.appendChild(name);
+    row.appendChild(breakdown);
+    row.appendChild(count);
+    c.appendChild(row);
+  }
+}
+
+function renderFaDirs(containerId, dirs) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!dirs.length) {
+    c.innerHTML = '<div class="usage-empty">No file activity for this scope</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const d of dirs) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = d.dir;
+    name.title = d.dir;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = d.total;
+
+    row.appendChild(name);
+    row.appendChild(count);
+    c.appendChild(row);
+  }
 }
 
 function populateProjectOptions() {

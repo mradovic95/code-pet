@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Files** tab in Settings: an on-demand view of which files and directories
+  a project's Claude Code sessions read and edited most. Sourced by parsing the
+  session transcripts (`~/.claude/projects/<project>/*.jsonl`) on request — no
+  hooks, no new persistence, nothing recorded to `usage.log`. Defaults to the
+  current session with a toggle to aggregate across the whole project (plus a
+  session picker), showing Top Files (read/edit/write breakdown) and Top
+  Directories. Complements the hook-based Usage tab; see
+  `docs/file-directory-metrics-investigation.md`
 - Subagent spawn tracking: `Task`/`Agent` tool calls are now recorded as
   `subagent` usage events with the agent type as name (e.g. `Explore`,
   `code-reviewer`) and paired durations (PreToolUse matcher widened to

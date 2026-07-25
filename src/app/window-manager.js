@@ -126,6 +126,18 @@ ipcMain.handle('get-all-usage-events', async () => {
   }
 });
 
+// On-demand: parse the project's Claude Code session transcripts into file-touch
+// events for the Files tab. Nothing is persisted — reads happen only on request.
+ipcMain.handle('get-file-activity', async (_event, projectPath) => {
+  if (!projectPath) return [];
+  try {
+    return await require('./transcript-reader').readFileEvents(projectPath);
+  } catch (err) {
+    logger.warn(`get-file-activity handler failed: ${err.message}`);
+    return [];
+  }
+});
+
 ipcMain.on('get-sound-enabled', (event) => {
   const settingsStore = require('./settings-store');
   event.returnValue = settingsStore.getSoundEnabled();
