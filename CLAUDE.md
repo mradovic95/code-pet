@@ -27,40 +27,45 @@ hooks/
     on-post-tool-use.js      # PostToolUse: sends action_completed for all tool completions
     on-stop.js               # Stop: send work_finished (+stop_reason)
 src/
-  app/                       # Electron main process
-    main.js                  # Entry point: PID → server → overlay window
-    event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
-    pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
-    pet-catalog.js           # Scans shipped + downloaded pet manifests, merges by id
-    process-manager.js       # PID file, app launch/stop, health checks
-    window-manager.js        # Transparent click-through BrowserWindow + marketplace IPC handlers
-    logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
-    preload.js               # Context bridge: window.codePet.onPetEvent()
-    settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
-    settings-store.js        # Persistent user settings (~/.code-pet/settings.json) with sound + dismissed pets
-    report-window.js         # Usage report preview window + IPC (open-usage-report, get-report-html, save-report)
-    report-preload.js        # Context bridge for report preview window (window.codePetReport)
-    terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
-    http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
-    transcript-reader.js     # Reads/parses Claude Code session transcripts (~/.claude/projects/*.jsonl) into file-touch events on demand (Files tab)
-    marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
-    marketplace-catalog.js   # Catalog fetch + productId↔petId mapping (cached to product-map.json)
-    marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
-    marketplace-constants.js # DEFAULT_BASE_URL, DEFAULT_MARKETPLACE_ID; consulted when no override
-    license-api.js           # MockLicenseAPI (dev/test fallback when MARKETPLACE_MOCK=true)
-    license-manager.js       # License activation, revalidation, offline grace period
-    premium-store.js         # Downloads premium pet manifests + sprites to ~/.code-pet/pets/{id}/
-    state-machine/             # Server-side state machine (whitelist pattern)
-      states.js                # STATES enum
-      events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
-      base-state.js            # BaseState: ignore-all defaults, helpers
-      state-factory.js         # createState(): state name → class instance
-      pet-context.js           # PetContext: orchestrator, mutable state per project
-      idle-state.js            # IdleState
-      active-state.js          # ActiveState: shared working/planning base
-      working-state.js         # WorkingState (extends ActiveState)
-      planning-state.js        # PlanningState (extends ActiveState)
-      waiting-for-action-state.js # WaitingForActionState
+  app/                       # Electron main process — grouped by subsystem; only the entry point sits at the root
+    main.js                  # Entry point: PID → server → overlay window (package.json "main"; must stay here)
+    windows/                 # Everything that owns a BrowserWindow or bridges into a renderer, plus the helpers only that layer uses
+      window-manager.js        # Transparent click-through overlay + settings window + most IPC handlers
+      report-window.js         # Usage report preview window + IPC (open-usage-report, get-report-html, save-report)
+      preload.js               # Context bridge: window.codePet.onPetEvent()
+      settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
+      report-preload.js        # Context bridge for report preview window (window.codePetReport)
+      terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
+      transcript-reader.js     # Reads/parses Claude Code session transcripts (~/.claude/projects/*.jsonl) into file-touch events on demand (Files tab)
+    pet/                     # The pet domain: what a pet is and how it reacts to events
+      pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
+      pet-catalog.js           # Scans shipped + downloaded pet manifests, merges by id
+      state-machine/           # Server-side state machine (whitelist pattern)
+        states.js                # STATES enum
+        events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
+        base-state.js            # BaseState: ignore-all defaults, helpers
+        state-factory.js         # createState(): state name → class instance
+        pet-context.js           # PetContext: orchestrator, mutable state per project
+        idle-state.js            # IdleState
+        active-state.js          # ActiveState: shared working/planning base
+        working-state.js         # WorkingState (extends ActiveState)
+        planning-state.js        # PlanningState (extends ActiveState)
+        waiting-for-action-state.js # WaitingForActionState
+    server/                  # HTTP transport only — owns the port, not the domain
+      event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
+    marketplace/             # Purchase → license → download stack (see Marketplace Integration below)
+      marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
+      marketplace-catalog.js   # Catalog fetch + productId↔petId mapping (cached to product-map.json)
+      marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
+      marketplace-constants.js # DEFAULT_BASE_URL, DEFAULT_MARKETPLACE_ID; consulted when no override
+      license-api.js           # MockLicenseAPI (dev/test fallback when MARKETPLACE_MOCK=true)
+      license-manager.js       # License activation, revalidation, offline grace period
+      premium-store.js         # Downloads premium pet manifests + sprites to ~/.code-pet/pets/{id}/
+      http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
+    core/                    # Genuinely shared, dependency-light utilities — every folder above requires these
+      logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
+      process-manager.js       # PID file, app launch/stop, health checks (also required by the hooks)
+      settings-store.js        # Persistent user settings (~/.code-pet/settings.json) with sound + dismissed pets
   renderer/                  # Chromium renderer (the visible overlay)
     index.html               # Shell: <div id="pets-container">, loads pet.js + pet-manager.js + ipc.js
     pet.js                   # Sprite state machine + interaction (Pet class)
@@ -130,7 +135,7 @@ field — see `docs/agent-type-attribution-investigation.md`). `src/tracking/usa
 aggregation (top skills, top agents with durations, main-vs-subagent split via `agentSplit`, weekly trends, calendar
 activity views — current day/week/month via `dayTrend`/`weekTrend`/`monthTrend` — co-occurrence, dormant detection,
 duration stats with avg/median/max/min, HTML/markdown report) consumed by the settings Usage tab; the "View Report"
-button there opens the rendered HTML report in a dedicated preview window (`src/app/report-window.js`) with explicit
+button there opens the rendered HTML report in a dedicated preview window (`src/app/windows/report-window.js`) with explicit
 Save as HTML / Save as Markdown buttons — the pristine report strings stay in the main process so saved files never
 contain the preview toolbar. The report HTML must stay script-free: the preview iframe uses `sandbox=""` (no
 `allow-scripts`), so all interactivity (the Today/This Week/This Month activity toggle, the Average/Median/Max/Min
@@ -140,7 +145,7 @@ operator reference.
 
 **Separate view: File Activity (transcript-sourced, on-demand).** The settings **Files** tab answers "which files and
 directories did this project's sessions touch most" — deliberately *not* via hooks (recording every Read/Edit would
-bloat `usage.log` and add a per-file privacy footprint). Instead `src/app/transcript-reader.js` parses the Claude Code
+bloat `usage.log` and add a per-file privacy footprint). Instead `src/app/windows/transcript-reader.js` parses the Claude Code
 session transcripts (`~/.claude/projects/<encoded-project>/<session-id>.jsonl`, one file per session) only when the tab
 is opened/refreshed — nothing is persisted. It extracts `Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only
 tools that carry one) into `{tool, filePath, sessionId, cwd, timestamp}` events, crossing the renderer boundary via the
@@ -153,7 +158,7 @@ complementary to the hook tracker, not a replacement. See `docs/file-directory-m
 ## Marketplace Integration
 
 Premium pets are purchased and downloaded from the deployed marketplace module (Spring Boot API backed by AWS API
-Gateway + EC2). Defaults live in `src/app/marketplace-constants.js` — `DEFAULT_BASE_URL` and
+Gateway + EC2). Defaults live in `src/app/marketplace/marketplace-constants.js` — `DEFAULT_BASE_URL` and
 `DEFAULT_MARKETPLACE_ID = 1`.
 
 - **Real mode** (default): `MarketplaceAPI` calls the deployed REST API. No configuration required out of the box.
@@ -272,6 +277,16 @@ renderer, which plays the one-shot animation and auto-transitions to idle CSS.
 
 ## Key Conventions
 
+- **`src/app` layout**: five subsystem folders — `pet/`, `server/`, `windows/`, `marketplace/`, `core/` — with
+  `main.js` alone at the root. Dependencies point *inward*, `server/`/`windows/` → `pet/` → `core/`: everything may
+  require `core/`, `server/` and `windows/` may require `pet/`, and neither `pet/` nor `core/` may require outward.
+  `pet/` is the domain (registry, catalog, state machine) and holds no I/O transport — that is why `event-server.js`
+  stays in `server/` despite owning the registry singleton: it binds the port and serves `/health` + `/shutdown`,
+  which are process lifecycle, not pet. A new file belongs in the folder whose subsystem owns it; if three subsystems
+  would all want it, it belongs in `core/`. Two paths are load-bearing and must not drift: `main.js`
+  stays at `src/app/main.js` (referenced by `package.json` `"main"` and by `process-manager.js`'s launch path), and
+  `core/process-manager.js` is required by absolute join from `on-session-start.js` / `on-session-end.js`, so moving it
+  silently breaks app launch outside the test suite.
 - All hook scripts exit with `process.stdout.write('{}')` and code 0 — never block Claude Code
 - Project identity in hook payloads comes from `CLAUDE_PROJECT_DIR` (fallback: `process.cwd()`) via `getProjectRoot()`
   in `send-event.js` — never from the hook's cwd alone, which drifts when a Bash tool call runs `cd` mid-session and
@@ -289,7 +304,7 @@ renderer, which plays the one-shot animation and auto-transitions to idle CSS.
 - `CODE_PET_TOOL_START_TTL_MS` (default 600000) and `CODE_PET_MAX_PENDING_TOOL_STARTS` (default 50) env vars tune the
   duration-pairing map in `pet-context.js`; read once at app start, invalid values fall back.
 - `CODE_PET_IDLE_CLEANUP=true` enables the 60 s stale-project sweep that removes projects idle > 3 h (
-  `src/app/pet-registry.js:151`, gated in `src/app/event-server.js`). Default off — projects persist in the registry
+  `src/app/pet/pet-registry.js:151`, gated in `src/app/server/event-server.js`). Default off — projects persist in the registry
   until the app exits, which can delay the 5 s idle-shutdown trigger on multi-project users.
 - `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables
   it. Logging is off by default.
@@ -334,8 +349,13 @@ test/
     mock-modules.js         # Require cache mocking for logger, settings-store
     mock-context.js         # Mock PetContext for testing states in isolation
     test-http-server.js     # Records HTTP requests for hook contract tests
-  unit/
-    state-machine/          # One test file per state class
+  unit/                     # mirrors the src/app subsystem folders
+    pet/
+      pet-registry.test.js
+      pet-catalog.test.js
+    server/
+      event-server.test.js
+    state-machine/          # One test file per state class (kept at unit/ root, not nested under pet/)
       idle-state.test.js
       working-state.test.js
       planning-state.test.js
@@ -343,22 +363,25 @@ test/
       active-state.test.js
       state-factory.test.js
       pet-context.test.js
+    windows/
+      report-window.test.js
+      transcript-reader.test.js
+    marketplace/
+      marketplace-api.test.js
+      marketplace-config.test.js
+      premium-store.test.js
+      http-client.test.js
     tracking/
       usage-event.test.js
       usage-tracker.test.js
       usage-store.test.js
       memory-store.test.js
       filesystem-store.test.js
-    pet-registry.test.js
-    report-window.test.js
-    pet-catalog.test.js
-    premium-store.test.js
-    event-server.test.js
-    http-client.test.js
-    marketplace-api.test.js
-    marketplace-config.test.js
+      usage-analytics.test.js
+      file-activity.test.js
   integration/
     hook-prompt-submit.test.js
+    hook-pre-tool-use.test.js
     hook-post-tool-use.test.js
     hook-stop.test.js
     hook-notification.test.js

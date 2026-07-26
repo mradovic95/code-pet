@@ -44,6 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with long tool names truncated (full name on hover)
 
 ### Changed
+- Reorganized `src/app/` from 21 flat files into five subsystem folders —
+  `pet/` (registry, catalog, state machine), `server/` (the HTTP event server),
+  `windows/` (BrowserWindows, preloads, and the helpers only they use),
+  `marketplace/` (purchase/license/download, including its HTTP client) and
+  `core/` (utilities every subsystem shares: logger, process manager, settings
+  store) — with `main.js` alone at the root. Pure relocation: no behavior
+  change, no renames, no file splitting. `test/unit/` mirrors the new layout.
+  Dependencies point inward, `server/`/`windows/` → `pet/` → `core/`, so the pet
+  domain stays free of transport and `core/` depends on nothing above it
 - The **Skill Insights** table in Settings → Usage is now a framed table with a
   fixed column header (`Skill`, `Trend`, `Avg`, `Used`, `Runs`) so the five
   columns — name, 8-week sparkline, average duration, last-used and invocation

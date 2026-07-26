@@ -11,7 +11,7 @@ subagent run, or does it wait for the subagent to finish?
 ## Method
 
 - Read the hook scripts (`hooks/scripts/*.js`, `hooks/hooks.json`) and the server state machine (
-  `src/app/state-machine/`).
+  `src/app/pet/state-machine/`).
 - Mined real hook traffic from `~/.code-pet/hooks-debug.log` (debug sentinel enabled).
 - Ran a live experiment: launched an actual background subagent from a Claude Code session in this repo and observed
   which hooks fired, when, and with what payloads.
@@ -28,12 +28,12 @@ subagent does afterwards is invisible to it.**
 2. **Background agent launches** → `PostToolUse` for the `Agent` tool fires **immediately at launch** (verified live),
    not at completion → `action_completed` → `ActiveState.onActionCompleted()` re-affirms `working`. No visible change.
 3. **Main agent ends its turn while the subagent still runs** → `Stop` fires immediately (background work does not defer
-   it) → `work_finished` → `ActiveState.onWorkFinished()` (`src/app/state-machine/active-state.js:18`) clears
+   it) → `work_finished` → `ActiveState.onWorkFinished()` (`src/app/pet/state-machine/active-state.js:18`) clears
    `lastActiveEvent` and transitions to **`idle`**.
 4. **Subagent keeps working** → its inner tool calls **do** fire the parent session's `PostToolUse` hook, tagged with
    `agent_id`/`agent_type` in the stdin JSON (verified in live payloads for both background and foreground agents). Each
    sends `action_completed` → but `IdleState` doesn't override `onActionCompleted`, so `BaseState.ignore()` swallows
-   them (`src/app/state-machine/base-state.js:37`). **Pet stays idle while real work happens.**
+   them (`src/app/pet/state-machine/base-state.js:37`). **Pet stays idle while real work happens.**
 5. **Subagent finishes** → Claude Code fires `SubagentStop` (docs: "Stop hooks automatically convert to SubagentStop for
    subagents") — code-pet does not register `SubagentStop` in `hooks/hooks.json`, so nothing reaches the pet.
 6. **Task-notification wrap-up turn**: the subagent's completion re-invokes the main agent. This does **not** fire
@@ -74,12 +74,12 @@ Deliberately **not** registering `SubagentStop`: it fires for foreground subagen
 
 1. **`hooks/scripts/on-post-tool-use.js`** — forward the subagent marker:
    `sendEvent('action_completed', { permissionMode: input.permission_mode, toolName: input.tool_name, toolInput: input.tool_input, agentId: input.agent_id })`
-2. **`src/app/event-server.js`** (~line 156) — mirror the existing `permissionMode` pattern: set
+2. **`src/app/server/event-server.js`** (~line 156) — mirror the existing `permissionMode` pattern: set
    `pet.lastAgentId = body.agentId || null` on every `/event` before dispatch (reset to null when absent, so a stale
    flag can't linger).
-3. **`src/app/state-machine/pet-context.js`** — add `this.lastAgentId = null;` to the constructor (alongside
+3. **`src/app/pet/state-machine/pet-context.js`** — add `this.lastAgentId = null;` to the constructor (alongside
    `permissionMode`).
-4. **`src/app/state-machine/idle-state.js`** — add `onActionCompleted()`:
+4. **`src/app/pet/state-machine/idle-state.js`** — add `onActionCompleted()`:
     - if `!this.context.lastAgentId` → `return this.ignore()` (preserve current behavior for main-agent events);
     - else reuse the mode logic from `WaitingForActionState.onActionCompleted()` (`waiting-for-action-state.js:24-39`):
       `permissionMode === 'plan'` → set `lastActiveEvent = EVENTS.PLANNING_STARTED`, transition to `PLANNING`; otherwise

@@ -47,7 +47,7 @@ class FilesystemStore extends UsageStore {
         // Lazy-require logger to avoid a hard coupling from the tracking
         // package to src/app/. Tracking should be importable in isolation.
         try {
-          const logger = require('../../app/logger');
+          const logger = require('../../app/core/logger');
           logger.warn(`usage-store append failed: ${err.message}`);
         } catch { /* logger unavailable in test env — silently drop */ }
       });

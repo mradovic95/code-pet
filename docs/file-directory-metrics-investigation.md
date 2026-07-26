@@ -21,7 +21,7 @@ transcript-based design — see **Decision** at the end.
 | `mcp_tool`    | `mcp__*`       | full tool name            |
 | `subagent`    | `Task`/`Agent` | `toolInput.subagent_type` |
 
-(`src/app/state-machine/pet-context.js:62` — `recordToolUsage`.) A grep across
+(`src/app/pet/state-machine/pet-context.js:62` — `recordToolUsage`.) A grep across
 `src/tracking/` finds no file/directory/hotspot/path aggregation anywhere. The analytics
 module (`usage-analytics.js`) produces top-skills, top-MCP, agent split, weekly/day/week/month
 trends, co-occurrence, dormant detection, and duration stats — none of them file-aware.
@@ -195,7 +195,7 @@ contains every `Read`/`Edit`/`Write`/`NotebookEdit` with its `file_path`, plus `
 - **Cardinality** handled by top-N + directory rollup, as §4 required.
 - **"Cited" dropped**, as §5 recommended — only tool-touched files are observable.
 
-Shape (see CLAUDE.md for the full trace): `src/app/transcript-reader.js` (main-only fs read) →
+Shape (see CLAUDE.md for the full trace): `src/app/windows/transcript-reader.js` (main-only fs read) →
 `get-file-activity` IPC → `src/tracking/file-activity.js` (pure aggregation) → a dedicated
 **Files** settings tab (`tabs/file-activity.html`), defaulting to the current session with a
 toggle to the whole project. Verified against `jq` ground truth: reader output (Edit 838 / Read

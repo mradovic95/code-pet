@@ -51,9 +51,9 @@ describe('marketplace end-to-end flow', () => {
       fs.rmSync(TEST_PETS_DIR, { recursive: true, force: true });
     }
 
-    delete require.cache[require.resolve('../../src/app/marketplace-api')];
-    delete require.cache[require.resolve('../../src/app/license-manager')];
-    delete require.cache[require.resolve('../../src/app/premium-store')];
+    delete require.cache[require.resolve('../../src/app/marketplace/marketplace-api')];
+    delete require.cache[require.resolve('../../src/app/marketplace/license-manager')];
+    delete require.cache[require.resolve('../../src/app/marketplace/premium-store')];
   });
 
   afterEach(async () => {
@@ -106,9 +106,9 @@ describe('marketplace end-to-end flow', () => {
       res.end(iconBytes);
     };
 
-    const { MarketplaceAPI } = require('../../src/app/marketplace-api');
-    const LicenseManager = require('../../src/app/license-manager');
-    const PremiumStore = require('../../src/app/premium-store');
+    const { MarketplaceAPI } = require('../../src/app/marketplace/marketplace-api');
+    const LicenseManager = require('../../src/app/marketplace/license-manager');
+    const PremiumStore = require('../../src/app/marketplace/premium-store');
 
     const api = new MarketplaceAPI({
       baseUrl: `http://127.0.0.1:${port}`,

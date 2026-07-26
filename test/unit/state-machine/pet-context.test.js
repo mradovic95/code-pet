@@ -7,7 +7,7 @@ mockSettingsStore();
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-const PetContext = require('../../../src/app/state-machine/pet-context');
+const PetContext = require('../../../src/app/pet/state-machine/pet-context');
 
 describe('PetContext', () => {
   let sut;
@@ -357,9 +357,9 @@ describe('PetContext', () => {
   });
 
   function requireFreshPetContext() {
-    const resolved = require.resolve('../../../src/app/state-machine/pet-context');
+    const resolved = require.resolve('../../../src/app/pet/state-machine/pet-context');
     delete require.cache[resolved];
-    const FreshPetContext = require('../../../src/app/state-machine/pet-context');
+    const FreshPetContext = require('../../../src/app/pet/state-machine/pet-context');
     delete require.cache[resolved]; // keep the shared cached copy for other tests
     return FreshPetContext;
   }

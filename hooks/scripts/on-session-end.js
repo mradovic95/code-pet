@@ -41,7 +41,7 @@ async function main() {
     // wipes out everyone's pets. Confirm the server is genuinely unreachable
     // with a second probe before tearing down an orphaned process — a healthy
     // server removes this project itself and self-shuts-down when it empties.
-    const pm = require(path.join(PLUGIN_ROOT, 'src', 'app', 'process-manager'));
+    const pm = require(path.join(PLUGIN_ROOT, 'src', 'app', 'core', 'process-manager'));
     const alive = await pm.healthCheck();
     if (!alive) {
       await pm.stopApp();

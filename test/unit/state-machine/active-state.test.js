@@ -7,8 +7,8 @@ const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { createMockContext } = require('../../helpers/mock-context');
 
-const WorkingState = require('../../../src/app/state-machine/working-state');
-const PlanningState = require('../../../src/app/state-machine/planning-state');
+const WorkingState = require('../../../src/app/pet/state-machine/working-state');
+const PlanningState = require('../../../src/app/pet/state-machine/planning-state');
 
 describe('ActiveState (shared behavior)', () => {
   describe('via WorkingState', () => {

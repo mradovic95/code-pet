@@ -13,7 +13,7 @@ const MOCKS = {
 
 function setupMocks() {
   // Resolve real paths for modules we want to mock
-  const loggerPath = require.resolve('../../src/app/logger');
+  const loggerPath = require.resolve('../../src/app/core/logger');
   MOCKS[loggerPath] = mockLogger;
 
   // Clear any cached versions
@@ -29,7 +29,7 @@ function setupMocks() {
 }
 
 function mockSettingsStore(overrides = {}) {
-  const settingsPath = require.resolve('../../src/app/settings-store');
+  const settingsPath = require.resolve('../../src/app/core/settings-store');
   delete require.cache[settingsPath];
   require.cache[settingsPath] = {
     id: settingsPath,

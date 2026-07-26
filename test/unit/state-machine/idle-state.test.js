@@ -7,7 +7,7 @@ const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { createMockContext } = require('../../helpers/mock-context');
 
-const IdleState = require('../../../src/app/state-machine/idle-state');
+const IdleState = require('../../../src/app/pet/state-machine/idle-state');
 
 describe('IdleState', () => {
   let sut;

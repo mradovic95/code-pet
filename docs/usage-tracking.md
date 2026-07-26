@@ -68,7 +68,7 @@ session can still mis-attribute a duration to the wrong call, but no start is
 silently dropped. Leak controls: entries expire after 10
 minutes and the map is capped at 50 pending starts per pet — both overridable
 via the `CODE_PET_TOOL_START_TTL_MS` and `CODE_PET_MAX_PENDING_TOOL_STARTS`
-env vars (read once at app start in `src/app/state-machine/pet-context.js`;
+env vars (read once at app start in `src/app/pet/state-machine/pet-context.js`;
 see `feature-flags.md`). Nothing is written to `usage.log`
 for the pre event itself — log volume is unchanged.
 
@@ -154,7 +154,7 @@ injectable `now`):
   `renderHtmlReport(report)` — the HTML variant is a fully self-contained
   document (inline CSS + SVG charts, no external requests, dark-mode aware).
   The View Report button opens the rendered HTML in a dedicated preview
-  window (`src/app/report-window.js`); its toolbar has explicit
+  window (`src/app/windows/report-window.js`); its toolbar has explicit
   "Save as HTML" / "Save as Markdown" buttons. Both rendered variants are
   held in the main process while the window is open, so the saved file is
   always the pristine renderer output — the preview toolbar can't leak in.
@@ -178,7 +178,7 @@ inside the store, so concurrent `append()` calls cannot interleave into
 torn lines, and the hot path (state machine event handling) never blocks
 on disk I/O.
 
-Errors are logged via `src/app/logger.js` (when available) and swallowed —
+Errors are logged via `src/app/core/logger.js` (when available) and swallowed —
 the contract is "never throw to the caller". A failing disk does not crash
 the pet.
 
