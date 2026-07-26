@@ -712,11 +712,6 @@ body {
   padding: 12px 0;
 }
 
-/*
- * Framed table for Skill Insights: a static header band on top of a scrolling
- * body. The frame owns the card background + rounding; the inner .usage-list is
- * made transparent so only the rows scroll, under the fixed header.
- */
 /* Muted one-line subtitle under a section title (e.g. the delegation headline). */
 .usage-note {
   font-size: 11px;
@@ -728,6 +723,12 @@ body {
   display: none;
 }
 
+/*
+ * Framed table for the Usage and Files insight tables: a static header band on
+ * top of a scrolling body. The frame owns the card background + rounding; the
+ * inner .usage-list is made transparent so only the rows scroll, under the
+ * fixed header.
+ */
 .usage-table {
   background: #313244;
   border-radius: 8px;
@@ -740,9 +741,15 @@ body {
 }
 
 /*
- * Column header for the Skill Insights table. Its cell widths/margins MUST stay
- * in sync with the data-row cells below (.usage-name, .sparkline, .summary-avg,
- * .summary-last-used, .usage-count) — alignment depends on them matching.
+ * Column header shared by the Usage-tab insight tables and the Files-tab lists.
+ * Each header cell's width/margin MUST stay in sync with the data-row cell it
+ * sits above — alignment depends on them matching:
+ *   .col-name   ↔ .usage-name
+ *   .col-trend  ↔ .sparkline
+ *   .col-avg    ↔ .summary-avg
+ *   .col-used   ↔ .summary-last-used, .fa-breakdown
+ *   .col-metric ↔ .fa-metric
+ *   .col-count  ↔ .usage-count
  * The 16px horizontal padding (8px .usage-list + 8px .usage-row) matches the
  * row content inset so labels sit over their columns.
  */
@@ -779,6 +786,14 @@ body {
 .usage-header .col-used {
   width: 58px;
   margin-left: 8px;
+  text-align: right;
+}
+
+/* Files tab: one narrow numeric column per metric. 36px fits the widest label
+   ("Write") at this font size. */
+.usage-header .col-metric {
+  width: 36px;
+  margin-left: 6px;
   text-align: right;
 }
 
@@ -823,12 +838,25 @@ body {
   flex-shrink: 0;
 }
 
-/* Files tab: per-file read/edit/write breakdown between path and total. */
+/* Files tab: distinct-session count in Read to Orient. Matches .col-used. */
 .fa-breakdown {
   font-size: 11px;
   color: #7f849c;
-  margin-left: 12px;
+  width: 58px;
+  margin-left: 8px;
+  text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* Files tab: one read/edit/write/plan/exec count per cell. Matches .col-metric. */
+.fa-metric {
+  font-size: 11px;
+  color: #7f849c;
+  width: 36px;
+  margin-left: 6px;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }

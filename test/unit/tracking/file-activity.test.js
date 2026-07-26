@@ -27,7 +27,10 @@ describe('file-activity.aggregate', () => {
     // THEN
     const a = result.topFiles.find((f) => f.path === 'a.js');
     assert.deepEqual({ reads: a.reads, edits: a.edits, writes: a.writes, total: a.total }, { reads: 2, edits: 1, writes: 0, total: 3 });
-    assert.deepEqual(result.totals, { reads: 2, edits: 1, writes: 1, files: 2, sessions: 1, events: 4, subagentEvents: 0 });
+    assert.deepEqual(result.totals, {
+      reads: 2, edits: 1, writes: 1, files: 2, sessions: 1, events: 4, subagentEvents: 0,
+      planEvents: 0, execEvents: 0, untaggedEvents: 4,
+    });
   });
 
   it('ranks top files by total descending', () => {
@@ -168,6 +171,89 @@ describe('file-activity.aggregate', () => {
     assert.deepEqual(result.agentSplit, { total: 2, tagged: 0, pct: 0, byType: {} });
     assert.deepEqual(result.topAgents, []);
     assert.equal(result.totals.subagentEvents, 0);
+  });
+
+  it('splits plan-mode from execution touches per file and in the totals', () => {
+    // GIVEN 2 plan-mode touches and 1 execution touch
+    const events = [
+      ev('Read', `${PROJECT}/a.js`, { planMode: true }),
+      ev('Read', `${PROJECT}/a.js`, { planMode: true }),
+      ev('Edit', `${PROJECT}/a.js`, { planMode: false }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    const a = result.topFiles[0];
+    assert.deepEqual({ plan: a.planTouches, exec: a.execTouches }, { plan: 2, exec: 1 });
+    assert.deepEqual(result.modeSplit, {
+      total: 3, tagged: 2, pct: 67, byMode: { plan: 2, execution: 1, unknown: 0 },
+    });
+  });
+
+  it('counts a touch with an unknown mode toward neither side', () => {
+    // GIVEN one tagged touch and one from a transcript that never revealed a mode
+    const events = [
+      ev('Read', `${PROJECT}/a.js`, { planMode: true }),
+      ev('Read', `${PROJECT}/a.js`, { planMode: null }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN the untagged touch still counts as a read, just not as plan or exec
+    assert.equal(result.totals.reads, 2);
+    assert.deepEqual(result.modeSplit.byMode, { plan: 1, execution: 0, unknown: 1 });
+    const a = result.topFiles[0];
+    assert.equal(a.planTouches + a.execTouches, 1);
+  });
+
+  it('ranks orientation files by plan-mode reads and counts the sessions that needed them', () => {
+    // GIVEN a file read while planning in two sessions, one read only once, and
+    // an edit that must not count as orientation
+    const events = [
+      ev('Read', `${PROJECT}/docs.md`, { planMode: true, sessionId: 's1' }),
+      ev('Read', `${PROJECT}/docs.md`, { planMode: true, sessionId: 's1' }),
+      ev('Read', `${PROJECT}/docs.md`, { planMode: true, sessionId: 's2' }),
+      ev('Read', `${PROJECT}/other.md`, { planMode: true, sessionId: 's1' }),
+      ev('Edit', `${PROJECT}/shipped.js`, { planMode: true, sessionId: 's1' }),
+      ev('Read', `${PROJECT}/exec-only.js`, { planMode: false, sessionId: 's1' }),
+    ];
+
+    // WHEN
+    const orient = sut.aggregate(events, { projectPath: PROJECT }).topOrientFiles;
+
+    // THEN only plan-mode reads appear, ranked, with distinct-session counts
+    assert.deepEqual(orient, [
+      { path: 'docs.md', planReads: 3, sessions: 2 },
+      { path: 'other.md', planReads: 1, sessions: 1 },
+    ]);
+  });
+
+  it('reports a zero mode split and no orientation files when nothing is tagged', () => {
+    // GIVEN untagged events only
+    const events = [ev('Read', `${PROJECT}/a.js`), ev('Edit', `${PROJECT}/a.js`)];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.modeSplit, {
+      total: 2, tagged: 0, pct: 0, byMode: { plan: 0, execution: 0, unknown: 2 },
+    });
+    assert.deepEqual(result.topOrientFiles, []);
+  });
+
+  it('keeps the internal plan-session set out of the returned files', () => {
+    // GIVEN a plan-mode read, which builds a private Set of sessions
+    const events = [ev('Read', `${PROJECT}/a.js`, { planMode: true })];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN the exposed row carries counts only — no Set leaks to the renderer
+    assert.ok(!('_planSessions' in result.topFiles[0]));
   });
 
   it('returns empty structure for no events', () => {

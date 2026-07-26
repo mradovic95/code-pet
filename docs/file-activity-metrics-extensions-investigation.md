@@ -4,9 +4,10 @@
 of tool calls. What *richer* statistics are available from the same transcript source, and which of
 them are actually worth building? Ranked by potential impact.
 
-**Status:** Research (2026-07-26). **Candidate §4.1 is implemented** — see the Done note there;
-§4.2–4.9 remain proposals. Sequel to `docs/file-directory-metrics-investigation.md` — that doc asked
-*should a file view exist at all*; this one asks *what should it measure*.
+**Status:** Research (2026-07-26). **Candidates §4.1 and §4.3 are implemented** — see the Done notes
+there; §4.2 and §4.4–4.9 remain proposals. Sequel to
+`docs/file-directory-metrics-investigation.md` — that doc asked *should a file view exist at all*;
+this one asks *what should it measure*.
 
 **One finding was not a feature idea but a correctness gap** (§4.1): the reader silently skipped
 subagent transcripts, so the tab's totals were understated by ~21%. It was ranked first below and
@@ -134,7 +135,34 @@ built on, cited there as Tier 1 prior art).
 50-line refactor). It needs to be shown *beside* counts, not instead of them. Writes report their
 whole content as added lines, so a new file's first write is a large positive spike by construction.
 
-### 4.3 Plan vs. execution split — **high**
+### 4.3 Plan vs. execution split — **high** ✅ DONE
+
+> **Status: implemented (2026-07-26).** Events carry a nullable `planMode`; the Files tab gained a **Mode**
+> filter (All / Plan mode only / Execution only), a split note, per-file `P`/`X` counts beside `R`/`E`/`W`,
+> and a **Read to Orient** list. Post-fix run over the corpus: **2170 touches, 759 in plan mode (35%)**,
+> **zero** untagged on either side. Two things below turned out to be wrong or incomplete, and the
+> implementation departs from them:
+>
+> 1. **Subagent transcripts contain no `permission-mode` records at all**, so tracking the most recent value
+>    while parsing leaves all 448 subagent touches (21%) untagged — reintroducing §4.1's blind spot on a new
+>    axis. Fixed by inheritance: each `agent-<id>.meta.json` carries a `toolUseId` that resolves to the
+>    spawning tool call in the parent transcript, so the parse collects `tool_use id → planMode` and the
+>    subagent adopts the mode its spawn ran in. Resolution was **57/57, zero unknown**, and every sidecar
+>    resolved inside its *own* parent session (0 foreign) — which is what lets the reader stay
+>    session-parallel and only order main-before-subagents *within* a session. Result: 428 plan / 20 exec,
+>    with every `Explore` and `Plan` subagent in plan mode. This is what raises the headline from 19% to
+>    **35%**: delegated exploration is overwhelmingly a planning activity, so the axis and §4.1 compound.
+> 2. **`ExitPlanMode` is not optional as a boundary — it is load-bearing.** A `permission-mode` record does
+>    not reliably follow plan approval (of 108 calls, 55 have none within the next 15 lines), so
+>    most-recent-value alone tags post-approval work as planning. Treating the call as the boundary re-tags
+>    **48 non-read touches** and moves the main-agent share 22.9% → 19.3%, which is what reconciles with the
+>    19.9% measured below.
+>
+> Also checked and rejected: `{"type":"mode","mode":…}` records (1100 of them) only ever hold `"normal"` —
+> not a usable carrier. A second, redundant carrier *is* honoured: a top-level `permissionMode` on `user`
+> prompt records (344 in corpus). And `planMode` is genuinely nullable — an unresolvable `toolUseId` or a
+> transcript that never reveals a mode yields `null`, counted toward neither side rather than silently
+> folded into execution. The research below is kept as written.
 
 **Answers:** "which files do I read to *understand* this project, versus change to *deliver*?" — the
 question that prompted this investigation.
@@ -251,26 +279,32 @@ grows or a rejection-focused question is actually being asked.
 
 ## 6. Recommendation
 
-**Build §4.1–4.3 as one slice, and let §4.4 ride along.** (§4.1 is done; §4.2–4.3 stand.)
+**Build §4.1–4.3 as one slice, and let §4.4 ride along.** (§4.1 and §4.3 are done; §4.2 stands.)
 
 They compose rather than merely coexisting: §4.1 makes the totals correct, §4.2 makes them
 proportional, §4.3 makes them interpretable, and all three need the same single change point in
 `parseTranscript`. Doing them together means the reader is opened once. §4.4 requires no reader
 change at all, so it is free to include and pointless to schedule separately.
 
-§4.1 shipped first on its own because it was a correctness gap rather than an enhancement. It also
-established the event-shape precedent the rest should follow: extra per-touch attributes are added
-as nullable fields on the reader's event objects, named to match the hook tracker's vocabulary
-(`agentId`/`agentType`), and the aggregator exposes them in the same `topFiles`/`topDirs` list shape
-the renderer already knows how to draw.
+§4.1 and §4.3 shipped ahead of §4.2 — §4.1 because it was a correctness gap rather than an
+enhancement, §4.3 because it depended on §4.1's directory walk to be worth anything (see its status
+note: the axis is only 19% of touches without subagents and 35% with them). §4.1 established the
+event-shape precedent both followed: extra per-touch attributes are added as nullable fields on the
+reader's event objects, named to match the hook tracker's vocabulary (`agentId`/`agentType`), and the
+aggregator exposes them in the same `topFiles`/`topDirs` list shape the renderer already knows how to
+draw — §4.3 added `planMode` that way, plus a `modeSplit` mirroring `agentSplit` field-for-field.
+
+**§4.2 inherits one new constraint** from §4.3's implementation: `parseTranscript` now returns
+`{ events, spawnModes }` and a session's main transcript must be parsed before its subagents, so
+churn cannot be added by a purely line-local change to the parse loop.
 
 §4.5 and §4.6 are good follow-ups once that lands — both are re-slices of fields already carried,
 and both are cheaper after the event shape has settled. §4.7–4.9 should wait: 4.7 needs
 normalization before it says anything true, and 4.8/4.9 lack a question that changes a decision.
 
-Two constraints for whoever implements this, both established above: the plan-mode tag depends on
-transcript line order (§4.3), and churn must be displayed beside counts rather than replacing them
-(§4.2).
+One constraint for whoever implements the rest: churn must be displayed beside counts rather than
+replacing them (§4.2). The other — the plan-mode tag depending on transcript line order — is now
+settled in code, and §4.3's status note records how.
 
 ## 7. Next step
 

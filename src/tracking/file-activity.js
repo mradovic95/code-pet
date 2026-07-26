@@ -2,7 +2,8 @@
 
 /**
  * Pure aggregation over transcript-derived file-touch events
- * ({ tool, filePath, sessionId, cwd, timestamp }). No I/O, no Node APIs —
+ * ({ tool, filePath, sessionId, cwd, timestamp, agentId, agentType, planMode }).
+ * No I/O, no Node APIs —
  * loadable both via require() (main process, tests) and via <script> in the
  * settings renderer (window.fileActivity).
  *
@@ -43,22 +44,33 @@
   /**
    * aggregate(events, { projectPath }) →
    * {
-   *   totals:  { reads, edits, writes, files, sessions, events, subagentEvents },
-   *   topFiles: [{ path, reads, edits, writes, total }],  // desc by total
+   *   totals:  { reads, edits, writes, files, sessions, events, subagentEvents,
+   *              planEvents, execEvents, untaggedEvents },
+   *   topFiles: [{ path, reads, edits, writes, total, planTouches, execTouches, planReads }],
    *   topDirs:  [{ dir, total }],                          // desc by total
    *   sessions: [{ sessionId, startedAt, endedAt, files, events }], // desc by endedAt
    *   agentSplit: { total, tagged, pct, byType },  // same shape as usage-analytics
-   *   topAgents: [{ agentType, total }]            // desc by total
+   *   topAgents: [{ agentType, total }],           // desc by total
+   *   modeSplit: { total, tagged, pct, byMode },   // agentSplit's shape; tagged = plan mode
+   *   topOrientFiles: [{ path, planReads, sessions }] // desc by planReads
    * }
+   *
+   * `topOrientFiles` answers what the project costs to understand: files read in
+   * plan mode, ranked by how often, with the number of *distinct* sessions that
+   * re-read them — which is what separates a file needed repeatedly to orient
+   * from one read many times in a single sitting.
    */
   function aggregate(events, { projectPath } = {}) {
     const list = Array.isArray(events) ? events : [];
 
-    const files = new Map();     // relPath → { path, reads, edits, writes, total }
+    const files = new Map();     // relPath → { path, reads, edits, writes, total, plan/exec counts }
     const dirs = new Map();      // dir → total
     const sessions = new Map();  // sessionId → { sessionId, startedAt, endedAt, files:Set, events }
     const byType = new Map();    // agentType → total (subagent touches only)
-    const totals = { reads: 0, edits: 0, writes: 0, files: 0, sessions: 0, events: 0, subagentEvents: 0 };
+    const totals = {
+      reads: 0, edits: 0, writes: 0, files: 0, sessions: 0, events: 0, subagentEvents: 0,
+      planEvents: 0, execEvents: 0, untaggedEvents: 0,
+    };
 
     for (const e of list) {
       const bucket = CATEGORY[e.tool];
@@ -67,7 +79,7 @@
 
       let f = files.get(rel);
       if (!f) {
-        f = { path: rel, reads: 0, edits: 0, writes: 0, total: 0 };
+        f = { path: rel, reads: 0, edits: 0, writes: 0, total: 0, planTouches: 0, execTouches: 0, planReads: 0, _planSessions: new Set() };
         files.set(rel, f);
       }
       f[bucket] += 1;
@@ -98,6 +110,22 @@
         byType.set(type, (byType.get(type) || 0) + 1);
       }
 
+      // planMode is null when the transcript never revealed a mode; such touches
+      // count toward neither side rather than being folded into execution.
+      if (e.planMode === true) {
+        totals.planEvents += 1;
+        f.planTouches += 1;
+        if (bucket === 'reads') {
+          f.planReads += 1;
+          f._planSessions.add(sid);
+        }
+      } else if (e.planMode === false) {
+        totals.execEvents += 1;
+        f.execTouches += 1;
+      } else {
+        totals.untaggedEvents += 1;
+      }
+
       totals[bucket] += 1;
       totals.events += 1;
     }
@@ -107,7 +135,14 @@
 
     const byTotalThenName = (a, b) => b.total - a.total || String(a.path || a.dir).localeCompare(String(b.path || b.dir));
 
-    const topFiles = [...files.values()].sort(byTotalThenName);
+    const fileList = [...files.values()];
+    const topFiles = fileList
+      .map(({ _planSessions, ...f }) => f) // eslint-disable-line no-unused-vars
+      .sort(byTotalThenName);
+    const topOrientFiles = fileList
+      .filter((f) => f.planReads > 0)
+      .map((f) => ({ path: f.path, planReads: f.planReads, sessions: f._planSessions.size }))
+      .sort((a, b) => b.planReads - a.planReads || a.path.localeCompare(b.path));
     const topDirs = [...dirs.entries()]
       .map(([dir, total]) => ({ dir, total }))
       .sort((a, b) => b.total - a.total || a.dir.localeCompare(b.dir));
@@ -126,7 +161,14 @@
       byType: Object.fromEntries(byType),
     };
 
-    return { totals, topFiles, topDirs, sessions: sessionList, agentSplit, topAgents };
+    const modeSplit = {
+      total: totals.events,
+      tagged: totals.planEvents,
+      pct: totals.events === 0 ? 0 : Math.round((totals.planEvents / totals.events) * 100),
+      byMode: { plan: totals.planEvents, execution: totals.execEvents, unknown: totals.untaggedEvents },
+    };
+
+    return { totals, topFiles, topDirs, sessions: sessionList, agentSplit, topAgents, modeSplit, topOrientFiles };
   }
 
   const api = { aggregate, relativePath, dirOf };

@@ -15,28 +15,74 @@
       <option value="sub">Subagents only</option>
     </select>
   </div>
+  <div class="filter-row">
+    <label class="filter-label" for="fa-mode">Mode</label>
+    <select id="fa-mode" class="filter-select">
+      <option value="">All modes</option>
+      <option value="plan">Plan mode only</option>
+      <option value="exec">Execution only</option>
+    </select>
+  </div>
   <div class="section usage-export-row">
     <button id="fa-refresh" class="btn-export">Refresh</button>
   </div>
   <div id="fa-totals" class="usage-note"></div>
   <div id="fa-agent-note" class="usage-note"></div>
+  <div id="fa-mode-note" class="usage-note"></div>
 </div>
 <div class="section">
   <div class="section-title">Top Files</div>
-  <div id="fa-top-files" class="usage-list usage-list-tall">
-    <div class="usage-empty">No file activity yet</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-metric">Read</span>
+      <span class="col-metric">Edit</span>
+      <span class="col-metric">Write</span>
+      <span class="col-metric">Plan</span>
+      <span class="col-metric">Exec</span>
+      <span class="col-count">Total</span>
+    </div>
+    <div id="fa-top-files" class="usage-list usage-list-tall">
+      <div class="usage-empty">No file activity yet</div>
+    </div>
   </div>
 </div>
 <div class="section">
   <div class="section-title">Top Directories</div>
-  <div id="fa-top-dirs" class="usage-list">
-    <div class="usage-empty">No file activity yet</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">Directory</span>
+      <span class="col-count">Touches</span>
+    </div>
+    <div id="fa-top-dirs" class="usage-list">
+      <div class="usage-empty">No file activity yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Read to Orient</div>
+  <div class="usage-note">Files read while planning, not while working — what this project costs to understand.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-used">Sessions</span>
+      <span class="col-count">Reads</span>
+    </div>
+    <div id="fa-orient" class="usage-list usage-list-tall">
+      <div class="usage-empty">No plan-mode reads yet</div>
+    </div>
   </div>
 </div>
 <div class="section">
   <div class="section-title">By Agent Type</div>
   <div class="usage-note">File touches made inside subagents, grouped by the type of agent that made them.</div>
-  <div id="fa-top-agents" class="usage-list">
-    <div class="usage-empty">No subagent file activity yet</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">Agent Type</span>
+      <span class="col-count">Touches</span>
+    </div>
+    <div id="fa-top-agents" class="usage-list">
+      <div class="usage-empty">No subagent file activity yet</div>
+    </div>
   </div>
 </div>

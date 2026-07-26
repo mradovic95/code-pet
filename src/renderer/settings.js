@@ -690,6 +690,7 @@ async function renderFileActivityTab() {
   if (!_faWired) {
     document.getElementById('fa-session').addEventListener('change', renderFaView);
     document.getElementById('fa-agent').addEventListener('change', renderFaView);
+    document.getElementById('fa-mode').addEventListener('change', renderFaView);
     document.getElementById('fa-refresh').addEventListener('click', renderFileActivityTab);
     _faWired = true;
   }
@@ -718,6 +719,7 @@ function renderFaView() {
   if (!analytics) return;
   const sid = document.getElementById('fa-session').value;
   const agent = document.getElementById('fa-agent').value;
+  const mode = document.getElementById('fa-mode').value;
 
   let events = sid
     ? _faEvents.filter((e) => (e.sessionId || 'unknown') === sid)
@@ -726,6 +728,10 @@ function renderFaView() {
   // reader from the transcript's location).
   if (agent === 'main') events = events.filter((e) => !e.agentId);
   else if (agent === 'sub') events = events.filter((e) => !!e.agentId);
+  // planMode is null when the transcript never revealed a mode — such touches
+  // belong to neither side, so both filters drop them.
+  if (mode === 'plan') events = events.filter((e) => e.planMode === true);
+  else if (mode === 'exec') events = events.filter((e) => e.planMode === false);
 
   const agg = analytics.aggregate(events, { projectPath: _faProjectPath });
   const t = agg.totals;
@@ -740,9 +746,51 @@ function renderFaView() {
       : '';
   }
 
+  // Only meaningful while both sides are in view — once the Mode filter narrows
+  // to one, the percentage is trivially 100 or 0.
+  const modeNoteEl = document.getElementById('fa-mode-note');
+  if (modeNoteEl) {
+    modeNoteEl.textContent = agg.modeSplit.tagged > 0 && !mode
+      ? `${agg.modeSplit.pct}% of these touches happened in plan mode`
+      : '';
+  }
+
   renderFaFiles('fa-top-files', agg.topFiles.slice(0, FA_TOP_FILES));
   renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
+  renderFaOrient('fa-orient', agg.topOrientFiles.slice(0, FA_TOP_FILES));
   renderFaAgents('fa-top-agents', agg.topAgents);
+}
+
+function renderFaOrient(containerId, files) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!files.length) {
+    c.innerHTML = '<div class="usage-empty">No plan-mode reads for this selection</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = f.path;
+    name.title = f.path;
+
+    const breakdown = document.createElement('span');
+    breakdown.className = 'fa-breakdown';
+    breakdown.textContent = f.sessions;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = f.planReads;
+
+    row.appendChild(name);
+    row.appendChild(breakdown);
+    row.appendChild(count);
+    c.appendChild(row);
+  }
 }
 
 function renderFaAgents(containerId, agents) {
@@ -789,16 +837,20 @@ function renderFaFiles(containerId, files) {
     name.textContent = f.path;
     name.title = f.path;
 
-    const breakdown = document.createElement('span');
-    breakdown.className = 'fa-breakdown';
-    breakdown.textContent = `R ${f.reads} · E ${f.edits} · W ${f.writes}`;
-
     const count = document.createElement('span');
     count.className = 'usage-count';
     count.textContent = f.total;
 
     row.appendChild(name);
-    row.appendChild(breakdown);
+    // One fixed-width cell per metric, in the same order as the column header in
+    // file-activity.html. The plan/exec pair can sum to less than the total when
+    // a transcript never revealed its mode.
+    for (const value of [f.reads, f.edits, f.writes, f.planTouches, f.execTouches]) {
+      const metric = document.createElement('span');
+      metric.className = 'fa-metric';
+      metric.textContent = value;
+      row.appendChild(metric);
+    }
     row.appendChild(count);
     c.appendChild(row);
   }

@@ -86,8 +86,8 @@ src/
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
-    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session) — dual-export: require() + window.fileActivity in the settings renderer
-    transcript-reader.js     # Reads/parses Claude Code session + subagent transcripts (~/.claude/projects/**/*.jsonl) into file-touch events on demand (Files tab); main-process only
+    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session, agent + plan/exec splits) — dual-export: require() + window.fileActivity in the settings renderer
+    transcript-reader.js     # Reads/parses Claude Code session + subagent transcripts (~/.claude/projects/**/*.jsonl) into file-touch events on demand (Files tab); main-process only. Per session: main transcript before its subagents (plan-mode inheritance)
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -149,14 +149,28 @@ bloat `usage.log` and add a per-file privacy footprint). Instead `src/tracking/t
 session transcripts only when the tab is opened/refreshed — nothing is persisted. **Two transcript layouts, both
 walked:** `~/.claude/projects/<encoded-project>/<session-id>.jsonl` (one per session, the main agent) and
 `<session-id>/subagents/agent-<id>.jsonl` (one per subagent) with an `agent-<id>.meta.json` sidecar carrying its
-`agentType`. Subagent transcripts must be walked explicitly — they were ~21% of this project's touches, nearly all
-reads — and *only* the directory layout identifies them: `isSidechain` is `false` on every record in the top-level
-transcripts, so subagent-ness comes from where the file was found, never from a record field. It extracts
+`agentType` and `toolUseId`. Subagent transcripts must be walked explicitly — they were ~21% of this project's touches,
+nearly all reads — and *only* the directory layout identifies them: `isSidechain` is `false` on every record in the
+top-level transcripts, so subagent-ness comes from where the file was found, never from a record field. It extracts
 `Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only tools that carry one) into
-`{tool, filePath, sessionId, cwd, timestamp, agentId, agentType}` events — `agentId`/`agentType` are null for
+`{tool, filePath, sessionId, cwd, timestamp, agentId, agentType, planMode}` events — `agentId`/`agentType` are null for
 main-agent touches, and reuse the hook tracker's field names deliberately so both views share one vocabulary. Sidechain
 records carry their *parent* session's id, so a subagent's touches fold into the session that spawned it and the Session
-filter needs no special case. These cross the renderer boundary via the
+filter needs no special case.
+
+**`planMode` is why the reader is structured per-session rather than per-file.** Plan-vs-execution comes from
+`permissionMode`, carried both by standalone `{"type":"permission-mode",…}` records and as a top-level field on `user`
+prompt records — *neither of which has a timestamp*, so the tag depends on line order within one file and can never be
+recovered from a merged event stream. An `ExitPlanMode` tool call ends plan mode too: a mode record does not reliably
+follow plan approval, so without that boundary post-approval work reads as planning (measured: 48 mis-tagged touches).
+Subagent transcripts carry **no** mode records at all, so a subagent inherits the parent's mode at its spawn — the
+parse collects `tool_use id → planMode` and matches it against the sidecar's `toolUseId`. Hence `parseTranscript`
+returns `{events, spawnModes}` and `readFileEvents` groups by session, parsing a session's main transcript **before**
+its subagents; sessions still run concurrently. `planMode` is genuinely nullable (unresolvable `toolUseId`, or a
+transcript that never reveals a mode) and null touches count toward neither side rather than being folded into
+execution. Skipping the inheritance would leave 21% of touches untagged and understate plan mode as 19% instead of 35%.
+
+These cross the renderer boundary via the
 `get-file-activity` IPC channel (main-only, since the renderer can't read the filesystem). That channel takes **no
 argument**: main resolves the project from `currentSettingsProjectPath` (the settings window's own pet) and returns
 `{ projectPath, events }` — the renderer has no independent source for the path, so having it supply one would be a round
@@ -164,14 +178,18 @@ trip, and it also must not be able to name an arbitrary project whose transcript
 keeps: the *session key* is `projectPath::claudePid`, and only the bare `projectPath` encodes to a valid transcript
 directory. `src/tracking/file-activity.js`
 is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
-project-relative paths, plus `agentSplit`/`topAgents` mirroring `usage-analytics.js`'s `agentSplit` field-for-field) —
-dual-exported like `usage-analytics.js`. The renderer has two filters: **Session** mirroring the Usage tab's (defaults to
-`All sessions` — the whole project — and narrows to one session when picked) and **Agent** (`All agents` / `Main agent
-only` / `Subagents only`), which is orthogonal to Session rather than a re-slice of it. Filtering happens in the renderer
-before aggregating, so `aggregate()` takes no filter argument. A **By Agent Type** list shows which kinds of subagent
-read the most. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
+project-relative paths, plus `agentSplit`/`topAgents` mirroring `usage-analytics.js`'s `agentSplit` field-for-field, and
+`modeSplit`/`topOrientFiles` mirroring `agentSplit` in turn) — dual-exported like `usage-analytics.js`. The renderer has
+three filters, each orthogonal to the others rather than a re-slice: **Session** mirroring the Usage tab's (defaults to
+`All sessions` — the whole project — and narrows to one session when picked), **Agent** (`All agents` / `Main agent
+only` / `Subagents only`), and **Mode** (`All modes` / `Plan mode only` / `Execution only`). Filtering happens in the
+renderer before aggregating, so `aggregate()` takes no filter argument. A **By Agent Type** list shows which kinds of
+subagent read the most, and **Read to Orient** ranks files by plan-mode reads with the count of *distinct* sessions that
+needed each — what separates a file re-read to orient from one read many times in a single sitting, and the intended
+signal for what belongs in this file. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
 complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md` and
-`docs/file-activity-metrics-extensions-investigation.md` (ranked backlog of further metrics; §4.1 is this subagent work).
+`docs/file-activity-metrics-extensions-investigation.md` (ranked backlog of further metrics; §4.1 is the subagent walk
+and §4.3 the plan/execution axis, both implemented — §4.2 line churn is the next slice).
 
 ## Marketplace Integration
 
