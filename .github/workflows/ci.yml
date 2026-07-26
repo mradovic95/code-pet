@@ -54,12 +54,17 @@ jobs:
           PKG_VER=$(node -p "require('./package.json').version")
           PLUGIN_VER=$(node -p "require('./.claude-plugin/plugin.json').version")
           MARKET_VER=$(node -p "require('./.claude-plugin/marketplace.json').plugins[0].version")
+          LOCK_VER=$(node -p "require('./package-lock.json').version")
+          LOCK_PKG_VER=$(node -p "require('./package-lock.json').packages[''].version")
 
-          echo "package.json:     $PKG_VER"
-          echo "plugin.json:      $PLUGIN_VER"
-          echo "marketplace.json: $MARKET_VER"
+          echo "package.json:          $PKG_VER"
+          echo "package-lock.json:     $LOCK_VER"
+          echo "package-lock packages: $LOCK_PKG_VER"
+          echo "plugin.json:           $PLUGIN_VER"
+          echo "marketplace.json:      $MARKET_VER"
 
-          if [ "$PKG_VER" != "$PLUGIN_VER" ] || [ "$PKG_VER" != "$MARKET_VER" ]; then
+          if [ "$PKG_VER" != "$PLUGIN_VER" ] || [ "$PKG_VER" != "$MARKET_VER" ] \
+            || [ "$PKG_VER" != "$LOCK_VER" ] || [ "$PKG_VER" != "$LOCK_PKG_VER" ]; then
             echo "::error::Version mismatch! Run: node scripts/bump-version.js $PKG_VER"
             exit 1
           fi
