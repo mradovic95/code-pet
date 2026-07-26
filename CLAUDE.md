@@ -86,7 +86,7 @@ src/
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
-    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session, agent + plan/exec splits) — dual-export: require() + window.fileActivity in the settings renderer
+    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session, agent + plan/exec splits, read-only + re-read context tax) — dual-export: require() + window.fileActivity in the settings renderer
     transcript-reader.js     # Reads/parses Claude Code session + subagent transcripts (~/.claude/projects/**/*.jsonl) into file-touch events on demand (Files tab); main-process only. Per session: main transcript before its subagents (plan-mode inheritance)
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
@@ -179,17 +179,32 @@ keeps: the *session key* is `projectPath::claudePid`, and only the bare `project
 directory. `src/tracking/file-activity.js`
 is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
 project-relative paths, plus `agentSplit`/`topAgents` mirroring `usage-analytics.js`'s `agentSplit` field-for-field, and
-`modeSplit`/`topOrientFiles` mirroring `agentSplit` in turn) — dual-exported like `usage-analytics.js`. The renderer has
+`modeSplit`/`topOrientFiles` mirroring `agentSplit` in turn, and `topReadOnlyFiles`/`topRereadFiles`) — dual-exported
+like `usage-analytics.js`. The renderer has
 three filters, each orthogonal to the others rather than a re-slice: **Session** mirroring the Usage tab's (defaults to
 `All sessions` — the whole project — and narrows to one session when picked), **Agent** (`All agents` / `Main agent
 only` / `Subagents only`), and **Mode** (`All modes` / `Plan mode only` / `Execution only`). Filtering happens in the
 renderer before aggregating, so `aggregate()` takes no filter argument. A **By Agent Type** list shows which kinds of
 subagent read the most, and **Read to Orient** ranks files by plan-mode reads with the count of *distinct* sessions that
 needed each — what separates a file re-read to orient from one read many times in a single sitting, and the intended
-signal for what belongs in this file. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
+signal for what belongs in this file.
+
+**Two context-tax lists honour the Session filter only, and that is deliberate.** **Read, Never Edited**
+(`topReadOnlyFiles`) needs `reads >= MIN_UNEDITED_READS` — a once-read file is a fact, not a cost; 78 of 96 candidates
+were read exactly once — and **Re-read in One Context** (`topRereadFiles`) counts a read of a file whose earlier read in
+the same context window has not been invalidated by an edit *of that same file* (a read after such an edit is
+verification, not a reload). The **Agent** and **Mode** filters remove the very edits both predicates are defined
+against — under `Plan mode only` every file reads as never-edited — so `renderFaView` runs a *second* `aggregate()` over
+the session-scoped slice for these two, and each section says so. The re-read window is `(sessionId, agentId)`, not the
+session: subagent touches carry the *parent's* `sessionId`, and a subagent reading what the main agent already read is a
+fresh context by design (403 re-reads counted per session vs 110 per context). Both lists exclude paths outside the
+project while `topFiles`/`topDirs` keep them — a census must not hide touches, a diagnosis must not indict files the
+project does not own. `topRereadFiles` is **order-sensitive within a context window**, the second such dependency after
+`planMode`'s line order: any caller that re-sorts or interleaves the event array breaks it silently. The project-dir
+encoding replaces every non-alphanumeric char with `-`. This is
 complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md` and
-`docs/file-activity-metrics-extensions-investigation.md` (ranked backlog of further metrics; §4.1 is the subagent walk
-and §4.3 the plan/execution axis, both implemented — §4.2 line churn is the next slice).
+`docs/file-activity-metrics-extensions-investigation.md` (ranked backlog of further metrics; §4.1 is the subagent walk,
+§4.3 the plan/execution axis and §4.4 the context-tax lists, all implemented — §4.2 line churn is the next slice).
 
 ## Marketplace Integration
 

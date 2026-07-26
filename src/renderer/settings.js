@@ -721,9 +721,10 @@ function renderFaView() {
   const agent = document.getElementById('fa-agent').value;
   const mode = document.getElementById('fa-mode').value;
 
-  let events = sid
+  const scoped = sid
     ? _faEvents.filter((e) => (e.sessionId || 'unknown') === sid)
     : _faEvents;
+  let events = scoped;
   // agentId is set only for touches made inside a subagent (tagged by the
   // reader from the transcript's location).
   if (agent === 'main') events = events.filter((e) => !e.agentId);
@@ -734,6 +735,13 @@ function renderFaView() {
   else if (mode === 'exec') events = events.filter((e) => e.planMode === false);
 
   const agg = analytics.aggregate(events, { projectPath: _faProjectPath });
+  // The two context-tax lists honour the Session filter only. Agent and Mode remove
+  // the very edits their predicates are defined against — "Plan mode only" hides
+  // every edit, so each file would read as never-edited — so they get the
+  // session-scoped slice instead. Same object when neither filter is narrowed.
+  const diag = agent || mode
+    ? analytics.aggregate(scoped, { projectPath: _faProjectPath })
+    : agg;
   const t = agg.totals;
   document.getElementById('fa-totals').textContent =
     `${t.files} files · ${t.reads} reads · ${t.edits} edits · ${t.writes} writes` +
@@ -758,14 +766,29 @@ function renderFaView() {
   renderFaFiles('fa-top-files', agg.topFiles.slice(0, FA_TOP_FILES));
   renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
   renderFaOrient('fa-orient', agg.topOrientFiles.slice(0, FA_TOP_FILES));
+  renderFaPairList('fa-unedited', diag.topReadOnlyFiles.slice(0, FA_TOP_FILES), {
+    second: 'sessions', count: 'reads', empty: 'No repeatedly-read unedited files for this selection',
+  });
+  renderFaPairList('fa-reread', diag.topRereadFiles.slice(0, FA_TOP_FILES), {
+    second: 'contexts', count: 'rereads', empty: 'No repeat reads within a single context for this selection',
+  });
   renderFaAgents('fa-top-agents', agg.topAgents);
 }
 
 function renderFaOrient(containerId, files) {
+  renderFaPairList(containerId, files, {
+    second: 'sessions', count: 'planReads', empty: 'No plan-mode reads for this selection',
+  });
+}
+
+// One row per file with a dim secondary count and a bold primary count — the
+// column geometry the Read to Orient / context-tax headers are written against
+// (.fa-breakdown ↔ .col-used, .usage-count ↔ .col-count; see settings.css).
+function renderFaPairList(containerId, files, { second, count, empty }) {
   const c = document.getElementById(containerId);
   if (!c) return;
   if (!files.length) {
-    c.innerHTML = '<div class="usage-empty">No plan-mode reads for this selection</div>';
+    c.innerHTML = `<div class="usage-empty">${empty}</div>`;
     return;
   }
   c.innerHTML = '';
@@ -780,15 +803,15 @@ function renderFaOrient(containerId, files) {
 
     const breakdown = document.createElement('span');
     breakdown.className = 'fa-breakdown';
-    breakdown.textContent = f.sessions;
+    breakdown.textContent = f[second];
 
-    const count = document.createElement('span');
-    count.className = 'usage-count';
-    count.textContent = f.planReads;
+    const total = document.createElement('span');
+    total.className = 'usage-count';
+    total.textContent = f[count];
 
     row.appendChild(name);
     row.appendChild(breakdown);
-    row.appendChild(count);
+    row.appendChild(total);
     c.appendChild(row);
   }
 }

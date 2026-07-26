@@ -245,15 +245,256 @@ describe('file-activity.aggregate', () => {
     assert.deepEqual(result.topOrientFiles, []);
   });
 
-  it('keeps the internal plan-session set out of the returned files', () => {
-    // GIVEN a plan-mode read, which builds a private Set of sessions
-    const events = [ev('Read', `${PROJECT}/a.js`, { planMode: true })];
+  it('keeps every internal accumulator out of the returned rows', () => {
+    // GIVEN touches that build all the private per-file state (plan sessions, read
+    // sessions, live-context map, re-read counters)
+    const events = [
+      ev('Read', `${PROJECT}/a.js`, { planMode: true }),
+      ev('Read', `${PROJECT}/a.js`, { planMode: true }),
+      ev('Edit', `${PROJECT}/a.js`),
+    ];
 
     // WHEN
     const result = sut.aggregate(events, { projectPath: PROJECT });
 
-    // THEN the exposed row carries counts only — no Set leaks to the renderer
-    assert.ok(!('_planSessions' in result.topFiles[0]));
+    // THEN no Set or Map leaks to the renderer from any list
+    const rows = [
+      ...result.topFiles, ...result.topOrientFiles,
+      ...result.topReadOnlyFiles, ...result.topRereadFiles, ...result.sessions,
+    ];
+    const leaked = rows.flatMap((r) => Object.keys(r).filter((k) => k.startsWith('_')));
+    assert.deepEqual(leaked, []);
+  });
+
+  it('lists files read more than once and never edited, with their session count', () => {
+    // GIVEN a file read in two sessions and never modified
+    const events = [
+      ev('Read', `${PROJECT}/docs.md`),
+      ev('Read', `${PROJECT}/docs.md`, { sessionId: 's2' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topReadOnlyFiles, [{ path: 'docs.md', reads: 2, sessions: 2 }]);
+  });
+
+  it('excludes files that were ever edited, written or notebook-edited', () => {
+    // GIVEN three twice-read files, each modified by a different tool
+    const events = [
+      ev('Read', `${PROJECT}/a.js`), ev('Read', `${PROJECT}/a.js`), ev('Edit', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/b.js`), ev('Read', `${PROJECT}/b.js`), ev('Write', `${PROJECT}/b.js`),
+      ev('Read', `${PROJECT}/c.ipynb`), ev('Read', `${PROJECT}/c.ipynb`), ev('NotebookEdit', `${PROJECT}/c.ipynb`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN none of them is a read-only file
+    assert.deepEqual(result.topReadOnlyFiles, []);
+  });
+
+  it('excludes a file read only once — a once-read file is a fact, not a cost', () => {
+    // GIVEN one file read once, one read twice
+    const events = [
+      ev('Read', `${PROJECT}/once.md`),
+      ev('Read', `${PROJECT}/twice.md`),
+      ev('Read', `${PROJECT}/twice.md`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN only the repeatedly-read one is listed
+    assert.deepEqual(result.topReadOnlyFiles.map((f) => f.path), ['twice.md']);
+  });
+
+  it('ranks read-only files by reads, not by sessions', () => {
+    // GIVEN a file read 3x in one session and one read 2x across two sessions
+    const events = [
+      ev('Read', `${PROJECT}/hot.md`), ev('Read', `${PROJECT}/hot.md`), ev('Read', `${PROJECT}/hot.md`),
+      ev('Read', `${PROJECT}/spread.md`), ev('Read', `${PROJECT}/spread.md`, { sessionId: 's2' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN the higher read count leads, with sessions along for context
+    assert.deepEqual(result.topReadOnlyFiles, [
+      { path: 'hot.md', reads: 3, sessions: 1 },
+      { path: 'spread.md', reads: 2, sessions: 2 },
+    ]);
+  });
+
+  it('excludes paths outside the project from the context-tax lists', () => {
+    // GIVEN a plan file outside the project read twice, and an in-project file
+    const events = [
+      ev('Read', '/home/user/.claude/plans/p.md'),
+      ev('Read', '/home/user/.claude/plans/p.md'),
+      ev('Read', `${PROJECT}/in.md`),
+      ev('Read', `${PROJECT}/in.md`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN the outside path is a diagnosis the project can't act on — but it still
+    // counts in the census
+    assert.deepEqual(result.topReadOnlyFiles.map((f) => f.path), ['in.md']);
+    assert.deepEqual(result.topRereadFiles.map((f) => f.path), ['in.md']);
+    assert.ok(result.topFiles.some((f) => f.path === '/home/user/.claude/plans/p.md'));
+  });
+
+  it('keeps absolute paths when no project path is given', () => {
+    // GIVEN no projectPath, so nothing is outside a project we were not told about
+    const events = [ev('Read', '/somewhere/a.md'), ev('Read', '/somewhere/a.md')];
+
+    // WHEN
+    const result = sut.aggregate(events);
+
+    // THEN
+    assert.deepEqual(result.topReadOnlyFiles.map((f) => f.path), ['/somewhere/a.md']);
+  });
+
+  it('folds a subagent read into its parent session for the read-only count', () => {
+    // GIVEN a main-agent read and a subagent read of the same file in one session
+    const events = [
+      ev('Read', `${PROJECT}/docs.md`),
+      ev('Read', `${PROJECT}/docs.md`, { agentId: 'a1', agentType: 'Explore' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN both reads count, but they happened in one session
+    assert.deepEqual(result.topReadOnlyFiles, [{ path: 'docs.md', reads: 2, sessions: 1 }]);
+  });
+
+  it('counts a second read of the same file in one context as a re-read', () => {
+    // GIVEN the same file read twice by the same agent in one session
+    const events = [ev('Read', `${PROJECT}/a.js`), ev('Read', `${PROJECT}/a.js`)];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topRereadFiles, [{ path: 'a.js', rereads: 1, contexts: 1 }]);
+  });
+
+  it('does not count a read that follows an edit of that file — that is verification', () => {
+    // GIVEN read, edit, read of one file
+    const events = [
+      ev('Read', `${PROJECT}/a.js`),
+      ev('Edit', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/a.js`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN the second read re-checked what the edit changed; it is not a reload
+    assert.deepEqual(result.topRereadFiles, []);
+  });
+
+  it('counts again once a later edit re-invalidates the context', () => {
+    // GIVEN read,read,edit,read,read — two reloads either side of one verification
+    const events = [
+      ev('Read', `${PROJECT}/a.js`), ev('Read', `${PROJECT}/a.js`),
+      ev('Edit', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/a.js`), ev('Read', `${PROJECT}/a.js`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topRereadFiles, [{ path: 'a.js', rereads: 2, contexts: 1 }]);
+  });
+
+  it('does not let an edit of a different file clear a re-read', () => {
+    // GIVEN a.js read, an unrelated file edited, a.js read again
+    const events = [
+      ev('Read', `${PROJECT}/a.js`),
+      ev('Edit', `${PROJECT}/b.js`),
+      ev('Read', `${PROJECT}/a.js`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN a.js was still reloaded — only an edit of a.js itself would excuse it
+    assert.deepEqual(result.topRereadFiles, [{ path: 'a.js', rereads: 1, contexts: 1 }]);
+  });
+
+  it('treats a subagent context as separate from the main agent one', () => {
+    // GIVEN the main agent and a subagent each reading the file once, same session
+    const events = [
+      ev('Read', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/a.js`, { agentId: 'a1', agentType: 'Explore' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN a subagent reads into its own context — that is delegation, not a reload
+    assert.deepEqual(result.topRereadFiles, []);
+  });
+
+  it('counts a subagent re-reading inside its own context', () => {
+    // GIVEN one subagent reading the same file twice
+    const events = [
+      ev('Read', `${PROJECT}/a.js`, { agentId: 'a1', agentType: 'Explore' }),
+      ev('Read', `${PROJECT}/a.js`, { agentId: 'a1', agentType: 'Explore' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topRereadFiles, [{ path: 'a.js', rereads: 1, contexts: 1 }]);
+  });
+
+  it('does not count the same file read once in each of two sessions', () => {
+    // GIVEN one read per session — each session is a fresh context
+    const events = [
+      ev('Read', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/a.js`, { sessionId: 's2' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topRereadFiles, []);
+  });
+
+  it('counts the distinct contexts a file was re-read in', () => {
+    // GIVEN the file re-read in two different sessions
+    const events = [
+      ev('Read', `${PROJECT}/a.js`), ev('Read', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/a.js`, { sessionId: 's2' }), ev('Read', `${PROJECT}/a.js`, { sessionId: 's2' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topRereadFiles, [{ path: 'a.js', rereads: 2, contexts: 2 }]);
+  });
+
+  it('ranks re-read files by re-read count', () => {
+    // GIVEN one file reloaded twice and one reloaded once
+    const events = [
+      ev('Read', `${PROJECT}/thrash.js`), ev('Read', `${PROJECT}/thrash.js`), ev('Read', `${PROJECT}/thrash.js`),
+      ev('Read', `${PROJECT}/mild.js`), ev('Read', `${PROJECT}/mild.js`),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.topRereadFiles.map((f) => f.path), ['thrash.js', 'mild.js']);
   });
 
   it('returns empty structure for no events', () => {
@@ -264,6 +505,8 @@ describe('file-activity.aggregate', () => {
     assert.deepEqual(result.topFiles, []);
     assert.deepEqual(result.topDirs, []);
     assert.deepEqual(result.sessions, []);
+    assert.deepEqual(result.topReadOnlyFiles, []);
+    assert.deepEqual(result.topRereadFiles, []);
     assert.equal(result.totals.events, 0);
   });
 });

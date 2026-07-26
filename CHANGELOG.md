@@ -18,12 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an Agent filter scoping to the main agent or to subagents; and a Mode filter
   scoping to plan mode or to execution. Shows Top Files — read/edit/write plus
   the plan/execution breakdown, each as its own labelled fixed-width column
-  under a table header matching the Usage tab's insight tables (all four Files
-  lists carry one) — Top Directories, a main-vs-subagent split, a
+  under a table header matching the Usage tab's insight tables (every Files list
+  carries one) — Top Directories, a main-vs-subagent split, a
   plan-vs-execution split, **By Agent Type** — which kinds of subagent read the
   most — and **Read to Orient**, files ranked by plan-mode reads with the number
   of distinct sessions that needed each, i.e. what this project costs to
-  understand before any work happens. Subagent work was ~21% of file touches
+  understand before any work happens. Two further lists measure the project's
+  context tax: **Read, Never Edited** (files read more than once and never
+  changed — documentation that should be summarized, or a dependency whose
+  contents keep being re-derived) and **Re-read in One Context** (the same file
+  loaded again inside one agent's context window with no edit in between —
+  context gathered, lost, and gathered again). Both deliberately honour the
+  Session filter only: Agent and Mode remove the very edits their predicates are
+  defined against, so under "Plan mode only" every file would read as
+  never-edited. A read following an edit of that file is verification, not a
+  reload, and is not counted; and a subagent reading what the main agent already
+  read is delegation, not lost context, so re-reads are counted per context
+  window rather than per session. Subagent work was ~21% of file touches
   when measured, nearly all reads, so it is counted rather than dropped; folding
   it into the plan/execution axis is what shows 35% of file activity happening
   in plan mode rather than 19%. Complements the hook-based Usage tab; see

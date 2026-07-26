@@ -74,6 +74,34 @@
   </div>
 </div>
 <div class="section">
+  <div class="section-title">Read, Never Edited</div>
+  <div class="usage-note">Files read more than once and never changed — documentation that should be summarized, or a dependency whose contents keep being re-derived. Counted across all agents and modes in the current session scope; files outside the project are excluded.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-used">Sessions</span>
+      <span class="col-count">Reads</span>
+    </div>
+    <div id="fa-unedited" class="usage-list usage-list-tall">
+      <div class="usage-empty">No repeatedly-read unedited files yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Re-read in One Context</div>
+  <div class="usage-note">The same file loaded again inside one agent's context window with no edit of it in between — context that was gathered, lost, and gathered again. A read that follows an edit of that file is verification, not a reload, and is not counted. One context is a session, or a subagent within it. Counted across all agents and modes in the current session scope.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-used">Contexts</span>
+      <span class="col-count">Re-reads</span>
+    </div>
+    <div id="fa-reread" class="usage-list usage-list-tall">
+      <div class="usage-empty">No repeat reads within a single context yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
   <div class="section-title">By Agent Type</div>
   <div class="usage-note">File touches made inside subagents, grouped by the type of agent that made them.</div>
   <div class="usage-table">

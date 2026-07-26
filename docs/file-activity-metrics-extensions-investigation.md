@@ -4,8 +4,8 @@
 of tool calls. What *richer* statistics are available from the same transcript source, and which of
 them are actually worth building? Ranked by potential impact.
 
-**Status:** Research (2026-07-26). **Candidates §4.1 and §4.3 are implemented** — see the Done notes
-there; §4.2 and §4.4–4.9 remain proposals. Sequel to
+**Status:** Research (2026-07-26). **Candidates §4.1, §4.3 and §4.4 are implemented** — see the Done
+notes there; §4.2 and §4.5–4.9 remain proposals. Sequel to
 `docs/file-directory-metrics-investigation.md` — that doc asked *should a file view exist at all*;
 this one asks *what should it measure*.
 
@@ -186,7 +186,65 @@ constraint on the event shape, and the one design consequence worth flagging bef
 Plan mode also is not the only planning that happens, so the metric under-reports intent rather than
 over-reporting it.
 
-### 4.4 Read-but-never-edited files and redundant re-reads — **medium-high**
+### 4.4 Read-but-never-edited files and redundant re-reads — **medium-high** ✅ DONE
+
+> **Status: implemented (2026-07-26).** `aggregate()` gained `topReadOnlyFiles` and `topRereadFiles`;
+> the Files tab gained **Read, Never Edited** and **Re-read in One Context**. No reader change, as
+> predicted, and no `totals` additions — `totals` means cardinalities of the input slice, not derived
+> diagnoses, and both lists carry their own denominators (the full `deepEqual` on `totals` in the unit
+> tests still passes verbatim). Post-implementation run: **17** unedited files, **27** re-read files
+> for **110** re-reads. Six things below were wrong, understated, or needed a decision the research
+> did not make:
+>
+> 1. **`groupBySession` is not reusable.** It is not exported from `usage-analytics.js`, lives in a
+>    separate IIFE, and operates on *usage* events. `file-activity.js` is deliberately dependency-free
+>    and dual-loaded via `<script>`, so it keeps its own in-loop grouping — it already had a `sessions`
+>    Map. Nothing was shared between the two modules.
+> 2. **The measured figures were stale and the raw list is mostly noise.** Re-measured over the current
+>    corpus (2215 touches, subagents now included): **96** never-edited files, not 59 — but **78 of the
+>    96 were read exactly once**, and 34 were `~/.claude` plan files or scratchpad scripts. A once-read
+>    file is a fact, not a cost. Hence `MIN_UNEDITED_READS = 2`, which is part of what the metric
+>    *means* rather than a display threshold: 96 rows → 17. Ranking is by reads with distinct sessions
+>    as a secondary column, which keeps the caveat's framing without letting a file read twice in two
+>    sessions outrank one read nine times.
+> 3. **A re-read must be scoped to a context window — `(sessionId, agentId)` — not to a session, and
+>    that is a 2.7× difference.** Per-session/any-agent counting gives 403 re-reads across 70 files;
+>    per-context gives **159 across 30**. The 249-read surplus is a subagent reading what the main agent
+>    already read, which is a fresh window *by design* — §4.1's whole point. It is real token cost, but
+>    it is a delegation cost, and calling it "context that was lost" would indict the correct use of
+>    subagents. Subagent touches carry the *parent's* `sessionId`, so the session alone merges the two
+>    windows; the agent id is what separates them.
+> 4. **The caveat's "legitimate re-reads" case is detectable, so it is excluded rather than merely
+>    disclaimed.** A read that follows an Edit/Write of *that same file* in *that same window* is
+>    verification; it does not count, and a later edit re-invalidates so `read,read,edit,read,read`
+>    scores 2. Measured effect: 159 → **110** re-reads, 30 → **27** files, with the top rows intact
+>    (`usage-analytics.js` 30×, `settings.js` 28×) — a false positive removed without hollowing the
+>    list. An edit of a *different* file must not clear the flag; that has its own test.
+> 5. **This adds a second event-order dependency.** `topRereadFiles` is order-sensitive *within* a
+>    context window — same class of constraint §4.3 recorded for `permission-mode` line order, and now
+>    there are two. It holds because `parseTranscript` emits line-ordered events, `readSession`
+>    concatenates a session's main transcript before its subagents, and `Array.prototype.filter` (the
+>    renderer's filters) is stable. Any future caller that globally re-sorts or interleaves the event
+>    array breaks it silently.
+> 6. **Two of the tab's six lists deliberately ignore two of its three filters.** Mode and Agent remove
+>    the very edits these predicates are defined against — under "Plan mode only" every file reads as
+>    never-edited — so both lists take the session-scoped slice via a second `aggregate()` call, and say
+>    so in their section notes. This is a knowing break of the tab's "every list reflects every filter"
+>    invariant; the alternative considered was blanking the sections under 4 of 9 filter combinations.
+>    Do not "fix" it.
+>
+> **Out-of-project paths are excluded from both lists** (`relativePath` leaves them absolute, so a
+> leading separator identifies one — no I/O). The asymmetry with `topFiles`/`topDirs`, which keep them,
+> is intentional: **Top Files is a census and must not hide touches; these two are diagnoses and must
+> not indict files the project does not own.**
+>
+> **One noise source survives and cannot be fixed in this module: 48 of the raw 96 unedited paths no
+> longer exist on disk** — moved in the `src/app` refactor, so the same file can appear under both its
+> old and new path (`src/app/state-machine/waiting-for-action-state.js` and
+> `src/app/pet/state-machine/…` are both in the corpus). The aggregator is I/O-free by contract, so a
+> stale path is indistinguishable from a live one. A fix means the main process stat-ing each distinct
+> path once and passing an existence map into `aggregate()`, or a "hide missing files" toggle. Deferred:
+> worth pricing only if the post-gate list becomes visibly dominated by paths that no longer exist.
 
 **Answers:** "what is this project's context tax?"
 
@@ -279,7 +337,7 @@ grows or a rejection-focused question is actually being asked.
 
 ## 6. Recommendation
 
-**Build §4.1–4.3 as one slice, and let §4.4 ride along.** (§4.1 and §4.3 are done; §4.2 stands.)
+**Build §4.1–4.3 as one slice, and let §4.4 ride along.** (§4.1, §4.3 and §4.4 are done; §4.2 stands.)
 
 They compose rather than merely coexisting: §4.1 makes the totals correct, §4.2 makes them
 proportional, §4.3 makes them interpretable, and all three need the same single change point in
@@ -313,5 +371,6 @@ from any metrics work — it was not a feature request but understated totals on
 `feat/file-activity-view` branch — and it is now implemented; the issue covering it can be closed
 with the branch.
 
-The remaining candidates belong in a second issue, scoped to the §6 slice (§4.2 churn and §4.3 plan
-vs. execution, with §4.4 riding along).
+The remaining candidates belong in a second issue, scoped to the §6 slice — now just **§4.2 churn**,
+since §4.3 and §4.4 shipped on the same branch. §4.2 is the last piece of that slice, and §6's note
+about its inherited `parseTranscript` constraint still applies.
