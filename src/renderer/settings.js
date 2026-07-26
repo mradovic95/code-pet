@@ -623,6 +623,16 @@ function formatTime(ts) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function formatShortDateTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleString([], {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 async function renderUsageTab() {
   try {
     _allEvents = await window.codePetSettings.getAllUsageEvents();
@@ -678,7 +688,6 @@ async function renderFileActivityTab() {
   populateFaSessions(all.sessions);
 
   if (!_faWired) {
-    document.getElementById('fa-scope').addEventListener('change', renderFaView);
     document.getElementById('fa-session').addEventListener('change', renderFaView);
     document.getElementById('fa-refresh').addEventListener('click', renderFileActivityTab);
     _faWired = true;
@@ -691,37 +700,32 @@ function populateFaSessions(sessions) {
   const select = document.getElementById('fa-session');
   if (!select) return;
   const current = select.value;
-  select.innerHTML = '';
+  select.innerHTML = '<option value="">All sessions</option>';
   for (const s of sessions) {
     const opt = document.createElement('option');
     opt.value = s.sessionId;
-    const when = s.endedAt ? new Date(s.endedAt).toLocaleString() : 'unknown date';
-    const shortId = String(s.sessionId).slice(0, 8);
-    opt.textContent = `${when} · ${shortId} (${s.files} files)`;
+    const when = s.endedAt ? formatShortDateTime(s.endedAt) : 'unknown date';
+    opt.textContent = `${when} · ${s.files} files`;
     select.appendChild(opt);
   }
-  // Keep the prior pick if it still exists, else default to most recent (first).
-  if (current && sessions.some((s) => s.sessionId === current)) select.value = current;
+  // Keep the prior pick if it still exists, else fall back to All sessions.
+  select.value = current && sessions.some((s) => s.sessionId === current) ? current : '';
 }
 
 function renderFaView() {
   const analytics = window.fileActivity;
   if (!analytics) return;
-  const scope = document.getElementById('fa-scope').value;
-  const sessionSelect = document.getElementById('fa-session');
-  sessionSelect.disabled = scope !== 'session';
+  const sid = document.getElementById('fa-session').value;
 
-  let events = _faEvents;
-  if (scope === 'session') {
-    const sid = sessionSelect.value;
-    events = _faEvents.filter((e) => (e.sessionId || 'unknown') === sid);
-  }
+  const events = sid
+    ? _faEvents.filter((e) => (e.sessionId || 'unknown') === sid)
+    : _faEvents;
 
   const agg = analytics.aggregate(events, { projectPath: _faProjectPath });
   const t = agg.totals;
   document.getElementById('fa-totals').textContent =
     `${t.files} files · ${t.reads} reads · ${t.edits} edits · ${t.writes} writes` +
-    (scope === 'project' ? ` · ${t.sessions} sessions` : '');
+    (sid ? '' : ` · ${t.sessions} sessions`);
 
   renderFaFiles('fa-top-files', agg.topFiles.slice(0, FA_TOP_FILES));
   renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
@@ -731,7 +735,7 @@ function renderFaFiles(containerId, files) {
   const c = document.getElementById(containerId);
   if (!c) return;
   if (!files.length) {
-    c.innerHTML = '<div class="usage-empty">No file activity for this scope</div>';
+    c.innerHTML = '<div class="usage-empty">No file activity for this selection</div>';
     return;
   }
   c.innerHTML = '';
@@ -763,7 +767,7 @@ function renderFaDirs(containerId, dirs) {
   const c = document.getElementById(containerId);
   if (!c) return;
   if (!dirs.length) {
-    c.innerHTML = '<div class="usage-empty">No file activity for this scope</div>';
+    c.innerHTML = '<div class="usage-empty">No file activity for this selection</div>';
     return;
   }
   c.innerHTML = '';

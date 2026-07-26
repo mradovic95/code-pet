@@ -156,8 +156,9 @@ trip, and it also must not be able to name an arbitrary project whose transcript
 keeps: the *session key* is `projectPath::claudePid`, and only the bare `projectPath` encodes to a valid transcript
 directory. `src/tracking/file-activity.js`
 is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
-project-relative paths) — dual-exported like `usage-analytics.js`. The renderer defaults to the most-recent session with
-a toggle to aggregate the whole project. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
+project-relative paths) — dual-exported like `usage-analytics.js`. The renderer has a single **Session** filter mirroring
+the Usage tab's: it defaults to `All sessions` (the whole project) and narrows to one session when picked. The
+project-dir encoding replaces every non-alphanumeric char with `-`. This is
 complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md`.
 
 ## Marketplace Integration

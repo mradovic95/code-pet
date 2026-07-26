@@ -2,15 +2,10 @@
   <div class="section-title">File Activity</div>
   <div class="usage-note">Which files this project's Claude Code sessions read and edited. Computed on demand from session transcripts — nothing is stored.</div>
   <div class="filter-row">
-    <label class="filter-label" for="fa-scope">Scope</label>
-    <select id="fa-scope" class="filter-select">
-      <option value="session">Current session</option>
-      <option value="project">Whole project</option>
-    </select>
-  </div>
-  <div class="filter-row">
     <label class="filter-label" for="fa-session">Session</label>
-    <select id="fa-session" class="filter-select"></select>
+    <select id="fa-session" class="filter-select">
+      <option value="">All sessions</option>
+    </select>
   </div>
   <div class="section usage-export-row">
     <button id="fa-refresh" class="btn-export">Refresh</button>
