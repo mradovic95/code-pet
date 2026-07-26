@@ -7,10 +7,19 @@
       <option value="">All sessions</option>
     </select>
   </div>
+  <div class="filter-row">
+    <label class="filter-label" for="fa-agent">Agent</label>
+    <select id="fa-agent" class="filter-select">
+      <option value="">All agents</option>
+      <option value="main">Main agent only</option>
+      <option value="sub">Subagents only</option>
+    </select>
+  </div>
   <div class="section usage-export-row">
     <button id="fa-refresh" class="btn-export">Refresh</button>
   </div>
   <div id="fa-totals" class="usage-note"></div>
+  <div id="fa-agent-note" class="usage-note"></div>
 </div>
 <div class="section">
   <div class="section-title">Top Files</div>
@@ -22,5 +31,12 @@
   <div class="section-title">Top Directories</div>
   <div id="fa-top-dirs" class="usage-list">
     <div class="usage-empty">No file activity yet</div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">By Agent Type</div>
+  <div class="usage-note">File touches made inside subagents, grouped by the type of agent that made them.</div>
+  <div id="fa-top-agents" class="usage-list">
+    <div class="usage-empty">No subagent file activity yet</div>
   </div>
 </div>

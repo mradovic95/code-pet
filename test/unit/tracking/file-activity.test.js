@@ -27,7 +27,7 @@ describe('file-activity.aggregate', () => {
     // THEN
     const a = result.topFiles.find((f) => f.path === 'a.js');
     assert.deepEqual({ reads: a.reads, edits: a.edits, writes: a.writes, total: a.total }, { reads: 2, edits: 1, writes: 0, total: 3 });
-    assert.deepEqual(result.totals, { reads: 2, edits: 1, writes: 1, files: 2, sessions: 1, events: 4 });
+    assert.deepEqual(result.totals, { reads: 2, edits: 1, writes: 1, files: 2, sessions: 1, events: 4, subagentEvents: 0 });
   });
 
   it('ranks top files by total descending', () => {
@@ -125,6 +125,49 @@ describe('file-activity.aggregate', () => {
     // THEN
     assert.equal(result.totals.events, 1);
     assert.equal(result.topFiles.length, 1);
+  });
+
+  it('splits main-agent from subagent touches and groups them by agent type', () => {
+    // GIVEN 1 main-agent touch and 3 subagent touches
+    const events = [
+      ev('Edit', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/b.js`, { agentId: 'a1', agentType: 'Explore' }),
+      ev('Read', `${PROJECT}/c.js`, { agentId: 'a2', agentType: 'Explore' }),
+      ev('Read', `${PROJECT}/d.js`, { agentId: 'a3', agentType: 'Plan' }),
+    ];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.equal(result.totals.subagentEvents, 3);
+    assert.deepEqual(result.agentSplit, { total: 4, tagged: 3, pct: 75, byType: { Explore: 2, Plan: 1 } });
+    assert.deepEqual(result.topAgents, [{ agentType: 'Explore', total: 2 }, { agentType: 'Plan', total: 1 }]);
+  });
+
+  it('reports an untyped subagent touch as "unknown"', () => {
+    // GIVEN a subagent whose meta sidecar was missing, so agentType is null
+    const events = [ev('Read', `${PROJECT}/a.js`, { agentId: 'a1', agentType: null })];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN it is still counted as delegated work, just untyped
+    assert.equal(result.agentSplit.tagged, 1);
+    assert.deepEqual(result.topAgents, [{ agentType: 'unknown', total: 1 }]);
+  });
+
+  it('reports a zero split when no subagent touched anything', () => {
+    // GIVEN main-agent events only
+    const events = [ev('Read', `${PROJECT}/a.js`), ev('Edit', `${PROJECT}/a.js`)];
+
+    // WHEN
+    const result = sut.aggregate(events, { projectPath: PROJECT });
+
+    // THEN
+    assert.deepEqual(result.agentSplit, { total: 2, tagged: 0, pct: 0, byType: {} });
+    assert.deepEqual(result.topAgents, []);
+    assert.equal(result.totals.subagentEvents, 0);
   });
 
   it('returns empty structure for no events', () => {

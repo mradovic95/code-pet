@@ -26,6 +26,19 @@ function toolUseLine(sessionId, timestamp, ...tools) {
   });
 }
 
+// Writes <projectDir>/<sessionId>/subagents/agent-<id>.jsonl (+ .meta.json),
+// the layout Claude Code uses for a subagent spawned by that session.
+function writeSubagent(sessionId, agentId, { meta, content } = {}) {
+  const dir = path.join(projectDir, sessionId, 'subagents');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `agent-${agentId}.jsonl`),
+    content !== undefined ? content : toolUseLine(sessionId, '2026-07-24T10:05:00.000Z',
+      { name: 'Read', input: { file_path: `${PROJECT}/scanned.js` } }));
+  if (meta !== undefined) {
+    fs.writeFileSync(path.join(dir, `agent-${agentId}.meta.json`), meta);
+  }
+}
+
 describe('transcript-reader', () => {
   beforeEach(() => {
     projectsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'code-pet-transcripts-'));
@@ -134,16 +147,96 @@ describe('transcript-reader', () => {
     assert.deepEqual(events, []);
   });
 
-  it('skips sibling subdirectories, reading only .jsonl files', async () => {
-    // GIVEN
-    fs.mkdirSync(path.join(projectDir, 'sess-1'), { recursive: true }); // aux subdir
+  it('ignores subdirectories that hold no subagents directory', async () => {
+    // GIVEN a session dir with nothing but unrelated content beside it
+    fs.mkdirSync(path.join(projectDir, 'sess-1'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, 'sess-1', 'notes.jsonl'),
+      toolUseLine('sess-1', '2026-07-24T10:00:00.000Z', { name: 'Read', input: { file_path: `${PROJECT}/stray.js` } }));
     fs.writeFileSync(path.join(projectDir, 'sess-1.jsonl'),
       toolUseLine('sess-1', '2026-07-24T10:00:00.000Z', { name: 'Read', input: { file_path: `${PROJECT}/a.js` } }));
 
     // WHEN
     const events = await sut.readFileEvents(PROJECT, { projectsDir });
 
-    // THEN
+    // THEN only the top-level transcript is read — a .jsonl one level down counts
+    // only when it sits under subagents/
     assert.equal(events.length, 1);
+    assert.equal(events[0].filePath, `${PROJECT}/a.js`);
+  });
+
+  it('reads subagent transcripts and tags them with agentId and agentType', async () => {
+    // GIVEN a session that spawned an Explore subagent
+    fs.writeFileSync(path.join(projectDir, 'sess-1.jsonl'),
+      toolUseLine('sess-1', '2026-07-24T10:00:00.000Z', { name: 'Edit', input: { file_path: `${PROJECT}/a.js` } }));
+    writeSubagent('sess-1', 'abc123', {
+      meta: JSON.stringify({ agentType: 'Explore', description: 'find the thing', spawnDepth: 1 }),
+    });
+
+    // WHEN
+    const events = await sut.readFileEvents(PROJECT, { projectsDir });
+
+    // THEN both the main-agent and the subagent touch are present
+    assert.equal(events.length, 2);
+    const main = events.find((e) => e.tool === 'Edit');
+    const sub = events.find((e) => e.tool === 'Read');
+    assert.deepEqual({ agentId: main.agentId, agentType: main.agentType }, { agentId: null, agentType: null });
+    assert.deepEqual({ agentId: sub.agentId, agentType: sub.agentType }, { agentId: 'abc123', agentType: 'Explore' });
+    assert.equal(sub.filePath, `${PROJECT}/scanned.js`);
+  });
+
+  it('folds subagent touches into the session that spawned them', async () => {
+    // GIVEN a subagent whose records carry the parent session id
+    writeSubagent('parent-sess', 'a1', { meta: JSON.stringify({ agentType: 'Plan' }) });
+
+    // WHEN
+    const [e] = await sut.readFileEvents(PROJECT, { projectsDir });
+
+    // THEN the Session filter groups delegated work under its parent session
+    assert.equal(e.sessionId, 'parent-sess');
+  });
+
+  it('falls back to the directory name when a subagent record lacks sessionId', async () => {
+    // GIVEN a sidechain line with no sessionId of its own
+    const dir = path.join(projectDir, 'dir-sess', 'subagents');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'agent-x9.jsonl'),
+      line({ type: 'assistant', cwd: PROJECT, isSidechain: true,
+        message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: `${PROJECT}/a.js` } }] } }));
+
+    // WHEN
+    const [e] = await sut.readFileEvents(PROJECT, { projectsDir });
+
+    // THEN
+    assert.equal(e.sessionId, 'dir-sess');
+    assert.equal(e.agentId, 'x9');
+  });
+
+  it('prefers a record-level agentId over the filename stem', async () => {
+    // GIVEN a transcript whose records name the agent explicitly
+    const dir = path.join(projectDir, 'sess-1', 'subagents');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'agent-stem.jsonl'),
+      line({ type: 'assistant', sessionId: 'sess-1', cwd: PROJECT, isSidechain: true, agentId: 'from-record',
+        message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: `${PROJECT}/a.js` } }] } }));
+
+    // WHEN
+    const [e] = await sut.readFileEvents(PROJECT, { projectsDir });
+
+    // THEN
+    assert.equal(e.agentId, 'from-record');
+  });
+
+  it('keeps subagent touches when the meta sidecar is missing or malformed', async () => {
+    // GIVEN one subagent with no sidecar and one with unparseable JSON
+    writeSubagent('sess-1', 'nometa');
+    writeSubagent('sess-1', 'badmeta', { meta: '{not json' });
+
+    // WHEN
+    const events = await sut.readFileEvents(PROJECT, { projectsDir });
+
+    // THEN the touches still count, attributed but untyped
+    assert.equal(events.length, 2);
+    assert.deepEqual(events.map((e) => e.agentType), [null, null]);
+    assert.deepEqual(events.map((e) => e.agentId).sort(), ['badmeta', 'nometa']);
   });
 });

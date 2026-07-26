@@ -87,7 +87,7 @@ src/
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
     file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session) — dual-export: require() + window.fileActivity in the settings renderer
-    transcript-reader.js     # Reads/parses Claude Code session transcripts (~/.claude/projects/*.jsonl) into file-touch events on demand (Files tab); main-process only
+    transcript-reader.js     # Reads/parses Claude Code session + subagent transcripts (~/.claude/projects/**/*.jsonl) into file-touch events on demand (Files tab); main-process only
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -146,9 +146,17 @@ operator reference.
 **Separate view: File Activity (transcript-sourced, on-demand).** The settings **Files** tab answers "which files and
 directories did this project's sessions touch most" — deliberately *not* via hooks (recording every Read/Edit would
 bloat `usage.log` and add a per-file privacy footprint). Instead `src/tracking/transcript-reader.js` parses the Claude Code
-session transcripts (`~/.claude/projects/<encoded-project>/<session-id>.jsonl`, one file per session) only when the tab
-is opened/refreshed — nothing is persisted. It extracts `Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only
-tools that carry one) into `{tool, filePath, sessionId, cwd, timestamp}` events, crossing the renderer boundary via the
+session transcripts only when the tab is opened/refreshed — nothing is persisted. **Two transcript layouts, both
+walked:** `~/.claude/projects/<encoded-project>/<session-id>.jsonl` (one per session, the main agent) and
+`<session-id>/subagents/agent-<id>.jsonl` (one per subagent) with an `agent-<id>.meta.json` sidecar carrying its
+`agentType`. Subagent transcripts must be walked explicitly — they were ~21% of this project's touches, nearly all
+reads — and *only* the directory layout identifies them: `isSidechain` is `false` on every record in the top-level
+transcripts, so subagent-ness comes from where the file was found, never from a record field. It extracts
+`Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only tools that carry one) into
+`{tool, filePath, sessionId, cwd, timestamp, agentId, agentType}` events — `agentId`/`agentType` are null for
+main-agent touches, and reuse the hook tracker's field names deliberately so both views share one vocabulary. Sidechain
+records carry their *parent* session's id, so a subagent's touches fold into the session that spawned it and the Session
+filter needs no special case. These cross the renderer boundary via the
 `get-file-activity` IPC channel (main-only, since the renderer can't read the filesystem). That channel takes **no
 argument**: main resolves the project from `currentSettingsProjectPath` (the settings window's own pet) and returns
 `{ projectPath, events }` — the renderer has no independent source for the path, so having it supply one would be a round
@@ -156,10 +164,14 @@ trip, and it also must not be able to name an arbitrary project whose transcript
 keeps: the *session key* is `projectPath::claudePid`, and only the bare `projectPath` encodes to a valid transcript
 directory. `src/tracking/file-activity.js`
 is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
-project-relative paths) — dual-exported like `usage-analytics.js`. The renderer has a single **Session** filter mirroring
-the Usage tab's: it defaults to `All sessions` (the whole project) and narrows to one session when picked. The
-project-dir encoding replaces every non-alphanumeric char with `-`. This is
-complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md`.
+project-relative paths, plus `agentSplit`/`topAgents` mirroring `usage-analytics.js`'s `agentSplit` field-for-field) —
+dual-exported like `usage-analytics.js`. The renderer has two filters: **Session** mirroring the Usage tab's (defaults to
+`All sessions` — the whole project — and narrows to one session when picked) and **Agent** (`All agents` / `Main agent
+only` / `Subagents only`), which is orthogonal to Session rather than a re-slice of it. Filtering happens in the renderer
+before aggregating, so `aggregate()` takes no filter argument. A **By Agent Type** list shows which kinds of subagent
+read the most. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
+complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md` and
+`docs/file-activity-metrics-extensions-investigation.md` (ranked backlog of further metrics; §4.1 is this subagent work).
 
 ## Marketplace Integration
 

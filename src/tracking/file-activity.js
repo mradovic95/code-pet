@@ -43,10 +43,12 @@
   /**
    * aggregate(events, { projectPath }) →
    * {
-   *   totals:  { reads, edits, writes, files, sessions, events },
+   *   totals:  { reads, edits, writes, files, sessions, events, subagentEvents },
    *   topFiles: [{ path, reads, edits, writes, total }],  // desc by total
    *   topDirs:  [{ dir, total }],                          // desc by total
-   *   sessions: [{ sessionId, startedAt, endedAt, files, events }] // desc by endedAt
+   *   sessions: [{ sessionId, startedAt, endedAt, files, events }], // desc by endedAt
+   *   agentSplit: { total, tagged, pct, byType },  // same shape as usage-analytics
+   *   topAgents: [{ agentType, total }]            // desc by total
    * }
    */
   function aggregate(events, { projectPath } = {}) {
@@ -55,7 +57,8 @@
     const files = new Map();     // relPath → { path, reads, edits, writes, total }
     const dirs = new Map();      // dir → total
     const sessions = new Map();  // sessionId → { sessionId, startedAt, endedAt, files:Set, events }
-    const totals = { reads: 0, edits: 0, writes: 0, files: 0, sessions: 0, events: 0 };
+    const byType = new Map();    // agentType → total (subagent touches only)
+    const totals = { reads: 0, edits: 0, writes: 0, files: 0, sessions: 0, events: 0, subagentEvents: 0 };
 
     for (const e of list) {
       const bucket = CATEGORY[e.tool];
@@ -87,6 +90,14 @@
         if (s.endedAt == null || ms > s.endedAt) s.endedAt = ms;
       }
 
+      // Subagent touches are tagged by the reader from the transcript's location
+      // (<session>/subagents/), never from a record field.
+      if (e.agentId) {
+        totals.subagentEvents += 1;
+        const type = e.agentType || 'unknown';
+        byType.set(type, (byType.get(type) || 0) + 1);
+      }
+
       totals[bucket] += 1;
       totals.events += 1;
     }
@@ -104,7 +115,18 @@
       .map((s) => ({ sessionId: s.sessionId, startedAt: s.startedAt, endedAt: s.endedAt, files: s._files.size, events: s.events }))
       .sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
 
-    return { totals, topFiles, topDirs, sessions: sessionList };
+    const topAgents = [...byType.entries()]
+      .map(([agentType, total]) => ({ agentType, total }))
+      .sort((a, b) => b.total - a.total || a.agentType.localeCompare(b.agentType));
+
+    const agentSplit = {
+      total: totals.events,
+      tagged: totals.subagentEvents,
+      pct: totals.events === 0 ? 0 : Math.round((totals.subagentEvents / totals.events) * 100),
+      byType: Object.fromEntries(byType),
+    };
+
+    return { totals, topFiles, topDirs, sessions: sessionList, agentSplit, topAgents };
   }
 
   const api = { aggregate, relativePath, dirOf };

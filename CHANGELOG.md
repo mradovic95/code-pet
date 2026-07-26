@@ -10,12 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Files** tab in Settings: an on-demand view of which files and directories
   a project's Claude Code sessions read and edited most. Sourced by parsing the
-  session transcripts (`~/.claude/projects/<project>/*.jsonl`) on request — no
-  hooks, no new persistence, nothing recorded to `usage.log`. A single session
-  filter (like the Usage tab's) defaults to `All sessions` — the whole project —
-  and narrows to one session when picked, showing Top Files (read/edit/write
-  breakdown) and Top Directories. Complements the hook-based Usage tab; see
-  `docs/file-directory-metrics-investigation.md`
+  session transcripts (`~/.claude/projects/<project>/*.jsonl`) *and* the subagent
+  transcripts beneath them (`<session-id>/subagents/agent-*.jsonl`) on request —
+  no hooks, no new persistence, nothing recorded to `usage.log`. A session filter
+  (like the Usage tab's) defaults to `All sessions` — the whole project — and
+  narrows to one session when picked; an Agent filter scopes to the main agent or
+  to subagents. Shows Top Files (read/edit/write breakdown), Top Directories,
+  a main-vs-subagent split, and **By Agent Type** — which kinds of subagent read
+  the most. Subagent work was ~21% of file touches when measured, nearly all
+  reads, so it is counted rather than dropped. Complements the hook-based Usage
+  tab; see `docs/file-directory-metrics-investigation.md` and
+  `docs/file-activity-metrics-extensions-investigation.md`
 - Subagent spawn tracking: `Task`/`Agent` tool calls are now recorded as
   `subagent` usage events with the agent type as name (e.g. `Explore`,
   `code-reviewer`) and paired durations (PreToolUse matcher widened to

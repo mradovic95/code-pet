@@ -689,6 +689,7 @@ async function renderFileActivityTab() {
 
   if (!_faWired) {
     document.getElementById('fa-session').addEventListener('change', renderFaView);
+    document.getElementById('fa-agent').addEventListener('change', renderFaView);
     document.getElementById('fa-refresh').addEventListener('click', renderFileActivityTab);
     _faWired = true;
   }
@@ -716,10 +717,15 @@ function renderFaView() {
   const analytics = window.fileActivity;
   if (!analytics) return;
   const sid = document.getElementById('fa-session').value;
+  const agent = document.getElementById('fa-agent').value;
 
-  const events = sid
+  let events = sid
     ? _faEvents.filter((e) => (e.sessionId || 'unknown') === sid)
     : _faEvents;
+  // agentId is set only for touches made inside a subagent (tagged by the
+  // reader from the transcript's location).
+  if (agent === 'main') events = events.filter((e) => !e.agentId);
+  else if (agent === 'sub') events = events.filter((e) => !!e.agentId);
 
   const agg = analytics.aggregate(events, { projectPath: _faProjectPath });
   const t = agg.totals;
@@ -727,8 +733,43 @@ function renderFaView() {
     `${t.files} files · ${t.reads} reads · ${t.edits} edits · ${t.writes} writes` +
     (sid ? '' : ` · ${t.sessions} sessions`);
 
+  const noteEl = document.getElementById('fa-agent-note');
+  if (noteEl) {
+    noteEl.textContent = agg.agentSplit.tagged > 0 && agent !== 'sub'
+      ? `${agg.agentSplit.pct}% of these touches ran inside subagents`
+      : '';
+  }
+
   renderFaFiles('fa-top-files', agg.topFiles.slice(0, FA_TOP_FILES));
   renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
+  renderFaAgents('fa-top-agents', agg.topAgents);
+}
+
+function renderFaAgents(containerId, agents) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!agents.length) {
+    c.innerHTML = '<div class="usage-empty">No subagent file activity for this selection</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const a of agents) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = a.agentType;
+    name.title = a.agentType;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = a.total;
+
+    row.appendChild(name);
+    row.appendChild(count);
+    c.appendChild(row);
+  }
 }
 
 function renderFaFiles(containerId, files) {
