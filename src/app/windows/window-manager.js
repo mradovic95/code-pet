@@ -128,13 +128,22 @@ ipcMain.handle('get-all-usage-events', async () => {
 
 // On-demand: parse the project's Claude Code session transcripts into file-touch
 // events for the Files tab. Nothing is persisted — reads happen only on request.
-ipcMain.handle('get-file-activity', async (_event, projectPath) => {
-  if (!projectPath) return [];
+//
+// The project is resolved here rather than passed in by the renderer: main already
+// knows which pet the settings window was opened for, so asking the renderer to
+// supply it would be a round trip through a process that has no independent source
+// for the value. It also keeps the renderer from naming an arbitrary project whose
+// transcripts it wants read. `projectPath` is returned alongside the events because
+// the renderer needs it to shorten absolute paths for display.
+ipcMain.handle('get-file-activity', async () => {
+  const projectPath = currentSettingsProjectPath;
+  if (!projectPath) return { projectPath: '', events: [] };
   try {
-    return await require('../../tracking/transcript-reader').readFileEvents(projectPath);
+    const { readFileEvents } = require('../../tracking/transcript-reader');
+    return { projectPath, events: await readFileEvents(projectPath) };
   } catch (err) {
     logger.warn(`get-file-activity handler failed: ${err.message}`);
-    return [];
+    return { projectPath, events: [] };
   }
 });
 

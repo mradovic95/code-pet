@@ -149,7 +149,12 @@ bloat `usage.log` and add a per-file privacy footprint). Instead `src/tracking/t
 session transcripts (`~/.claude/projects/<encoded-project>/<session-id>.jsonl`, one file per session) only when the tab
 is opened/refreshed — nothing is persisted. It extracts `Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only
 tools that carry one) into `{tool, filePath, sessionId, cwd, timestamp}` events, crossing the renderer boundary via the
-`get-file-activity` IPC channel (main-only, since the renderer can't read the filesystem). `src/tracking/file-activity.js`
+`get-file-activity` IPC channel (main-only, since the renderer can't read the filesystem). That channel takes **no
+argument**: main resolves the project from `currentSettingsProjectPath` (the settings window's own pet) and returns
+`{ projectPath, events }` — the renderer has no independent source for the path, so having it supply one would be a round
+trip, and it also must not be able to name an arbitrary project whose transcripts get read. Note the distinction main
+keeps: the *session key* is `projectPath::claudePid`, and only the bare `projectPath` encodes to a valid transcript
+directory. `src/tracking/file-activity.js`
 is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
 project-relative paths) — dual-exported like `usage-analytics.js`. The renderer defaults to the most-recent session with
 a toggle to aggregate the whole project. The project-dir encoding replaces every non-alphanumeric char with `-`. This is
@@ -365,6 +370,7 @@ test/
       pet-context.test.js
     windows/
       report-window.test.js
+      window-manager.test.js
     marketplace/
       marketplace-api.test.js
       marketplace-config.test.js

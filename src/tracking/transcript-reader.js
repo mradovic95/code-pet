@@ -9,8 +9,9 @@ const os = require('os');
 // carries `.message.content[]`; tool calls are items with type "tool_use",
 // name, and input. Read/Edit/Write/NotebookEdit inputs carry the file path.
 // We read these on demand (never persisted, never sent anywhere) to compute a
-// per-session / per-project file-activity view — see docs/usage-tracking.md and
-// docs/file-directory-metrics-investigation.md.
+// per-session / per-project file-activity view — see
+// docs/file-directory-metrics-investigation.md. (docs/usage-tracking.md covers the
+// hook-sourced tracker only; nothing here is written to usage.log.)
 
 const DEFAULT_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
 

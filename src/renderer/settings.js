@@ -661,15 +661,18 @@ async function renderFileActivityTab() {
   const filesEl = document.getElementById('fa-top-files');
   if (!analytics || !filesEl) return;
 
-  _faProjectPath = window.codePetSettings.getProjectPath() || '';
   filesEl.innerHTML = '<div class="usage-empty">Reading transcripts…</div>';
 
+  // Main resolves the project itself and reports it back with the events — the
+  // renderer has no independent source for it.
+  let result;
   try {
-    _faEvents = await window.codePetSettings.getFileActivity(_faProjectPath);
+    result = await window.codePetSettings.getFileActivity();
   } catch {
-    _faEvents = [];
+    result = null;
   }
-  if (!Array.isArray(_faEvents)) _faEvents = [];
+  _faProjectPath = (result && result.projectPath) || '';
+  _faEvents = result && Array.isArray(result.events) ? result.events : [];
 
   const all = analytics.aggregate(_faEvents, { projectPath: _faProjectPath });
   populateFaSessions(all.sessions);
