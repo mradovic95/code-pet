@@ -131,7 +131,7 @@ ipcMain.handle('get-all-usage-events', async () => {
 ipcMain.handle('get-file-activity', async (_event, projectPath) => {
   if (!projectPath) return [];
   try {
-    return await require('./transcript-reader').readFileEvents(projectPath);
+    return await require('../../tracking/transcript-reader').readFileEvents(projectPath);
   } catch (err) {
     logger.warn(`get-file-activity handler failed: ${err.message}`);
     return [];

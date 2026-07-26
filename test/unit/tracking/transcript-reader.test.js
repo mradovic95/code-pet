@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const sut = require('../../../src/app/windows/transcript-reader');
+const sut = require('../../../src/tracking/transcript-reader');
 
 const PROJECT = '/home/user/proj';
 let projectsDir;

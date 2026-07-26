@@ -36,7 +36,6 @@ src/
       settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
       report-preload.js        # Context bridge for report preview window (window.codePetReport)
       terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
-      transcript-reader.js     # Reads/parses Claude Code session transcripts (~/.claude/projects/*.jsonl) into file-touch events on demand (Files tab)
     pet/                     # The pet domain: what a pet is and how it reacts to events
       pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
       pet-catalog.js           # Scans shipped + downloaded pet manifests, merges by id
@@ -83,11 +82,12 @@ src/
       store.html               # Marketplace / store tab
       usage.html               # Usage analytics tab
       file-activity.html       # Files tab: on-demand file/directory activity from session transcripts
-  tracking/                  # Skill / MCP tool / subagent usage tracking (self-contained)
+  tracking/                  # Usage + file-activity metrics: hook-sourced tracking and transcript-sourced reads (self-contained)
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
     file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session) — dual-export: require() + window.fileActivity in the settings renderer
+    transcript-reader.js     # Reads/parses Claude Code session transcripts (~/.claude/projects/*.jsonl) into file-touch events on demand (Files tab); main-process only
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -145,7 +145,7 @@ operator reference.
 
 **Separate view: File Activity (transcript-sourced, on-demand).** The settings **Files** tab answers "which files and
 directories did this project's sessions touch most" — deliberately *not* via hooks (recording every Read/Edit would
-bloat `usage.log` and add a per-file privacy footprint). Instead `src/app/windows/transcript-reader.js` parses the Claude Code
+bloat `usage.log` and add a per-file privacy footprint). Instead `src/tracking/transcript-reader.js` parses the Claude Code
 session transcripts (`~/.claude/projects/<encoded-project>/<session-id>.jsonl`, one file per session) only when the tab
 is opened/refreshed — nothing is persisted. It extracts `Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only
 tools that carry one) into `{tool, filePath, sessionId, cwd, timestamp}` events, crossing the renderer boundary via the
@@ -365,7 +365,6 @@ test/
       pet-context.test.js
     windows/
       report-window.test.js
-      transcript-reader.test.js
     marketplace/
       marketplace-api.test.js
       marketplace-config.test.js
@@ -379,6 +378,7 @@ test/
       filesystem-store.test.js
       usage-analytics.test.js
       file-activity.test.js
+      transcript-reader.test.js
   integration/
     hook-prompt-submit.test.js
     hook-pre-tool-use.test.js

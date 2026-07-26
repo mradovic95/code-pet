@@ -6,7 +6,7 @@
  * loadable both via require() (main process, tests) and via <script> in the
  * settings renderer (window.fileActivity).
  *
- * Source events come from src/app/windows/transcript-reader.js (Claude Code session
+ * Source events come from src/tracking/transcript-reader.js (Claude Code session
  * transcripts, read on demand). See docs/file-directory-metrics-investigation.md.
  */
 (function () {
