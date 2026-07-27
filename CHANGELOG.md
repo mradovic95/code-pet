@@ -37,7 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window rather than per session. Subagent work was ~21% of file touches
   when measured, nearly all reads, so it is counted rather than dropped; folding
   it into the plan/execution axis is what shows 35% of file activity happening
-  in plan mode rather than 19%. Complements the hook-based Usage tab; see
+  in plan mode rather than 19%. Top Files' column headers are sortable —
+  click Read, Edit, Write, Plan, Exec or Total to reorder by that column
+  (descending first), or File for A→Z; clicking the active column reverses
+  it. The sort applies to the full list before the top-50 slice, so sorting
+  by Edit surfaces a heavily-edited file even when its total touches never
+  put it in the default top 50. Complements the hook-based Usage tab; see
   `docs/file-directory-metrics-investigation.md` and
   `docs/file-activity-metrics-extensions-investigation.md`
 - Subagent spawn tracking: `Task`/`Agent` tool calls are now recorded as

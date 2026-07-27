@@ -510,3 +510,88 @@ describe('file-activity.aggregate', () => {
     assert.equal(result.totals.events, 0);
   });
 });
+
+describe('file-activity.sortFiles', () => {
+  // A row as aggregate() emits it; only the sorted-on fields matter here.
+  function row(path, counts = {}) {
+    return {
+      path, reads: 0, edits: 0, writes: 0, total: 0, planTouches: 0, execTouches: 0, planReads: 0, ...counts,
+    };
+  }
+
+  it('reproduces the aggregate order by default', () => {
+    // GIVEN a corpus aggregate() has already ordered by total desc
+    const events = [
+      ev('Read', `${PROJECT}/a.js`), ev('Read', `${PROJECT}/a.js`), ev('Edit', `${PROJECT}/a.js`),
+      ev('Read', `${PROJECT}/b.js`), ev('Edit', `${PROJECT}/b.js`),
+      ev('Write', `${PROJECT}/c.js`),
+    ];
+    const { topFiles } = sut.aggregate(events, { projectPath: PROJECT });
+
+    // WHEN sorted with the default key/direction
+    const result = sut.sortFiles(topFiles, { key: 'total', dir: 'desc' });
+
+    // THEN
+    assert.deepEqual(result.map((f) => f.path), topFiles.map((f) => f.path));
+  });
+
+  it('surfaces a high-edit file that the default order ranks below the top slice', () => {
+    // GIVEN a heavily-edited file with fewer total touches than three read-heavy ones
+    const events = [
+      ...Array.from({ length: 5 }, () => ev('Edit', `${PROJECT}/churn.js`)),
+      ...Array.from({ length: 8 }, () => ev('Read', `${PROJECT}/doc1.md`)),
+      ...Array.from({ length: 8 }, () => ev('Read', `${PROJECT}/doc2.md`)),
+      ...Array.from({ length: 8 }, () => ev('Read', `${PROJECT}/doc3.md`)),
+    ];
+    const { topFiles } = sut.aggregate(events, { projectPath: PROJECT });
+    // Sorting a slice of the default order could never surface it — it isn't in one.
+    assert.equal(topFiles.slice(0, 3).some((f) => f.path === 'churn.js'), false);
+
+    // WHEN the full list is sorted by edits before any slicing
+    const result = sut.sortFiles(topFiles, { key: 'edits', dir: 'desc' }).slice(0, 3);
+
+    // THEN
+    assert.equal(result[0].path, 'churn.js');
+  });
+
+  it('sorts by path as text in both directions', () => {
+    // GIVEN
+    const rows = [row('c.js'), row('a.js'), row('b.js')];
+
+    // WHEN / THEN
+    assert.deepEqual(sut.sortFiles(rows, { key: 'path', dir: 'asc' }).map((f) => f.path), ['a.js', 'b.js', 'c.js']);
+    assert.deepEqual(sut.sortFiles(rows, { key: 'path', dir: 'desc' }).map((f) => f.path), ['c.js', 'b.js', 'a.js']);
+  });
+
+  it('breaks ties on path ascending in both directions', () => {
+    // GIVEN three files with the same write count
+    const rows = [row('c.js', { writes: 1 }), row('a.js', { writes: 1 }), row('b.js', { writes: 1 })];
+
+    // WHEN / THEN both directions stay deterministic and alphabetical
+    assert.deepEqual(sut.sortFiles(rows, { key: 'writes', dir: 'desc' }).map((f) => f.path), ['a.js', 'b.js', 'c.js']);
+    assert.deepEqual(sut.sortFiles(rows, { key: 'writes', dir: 'asc' }).map((f) => f.path), ['a.js', 'b.js', 'c.js']);
+  });
+
+  it('falls back to total desc for an unknown key', () => {
+    // GIVEN
+    const rows = [row('a.js', { total: 1 }), row('b.js', { total: 9 })];
+
+    // WHEN
+    const result = sut.sortFiles(rows, { key: 'nonsense', dir: 'desc' });
+
+    // THEN
+    assert.deepEqual(result.map((f) => f.path), ['b.js', 'a.js']);
+  });
+
+  it('does not mutate the input array', () => {
+    // GIVEN
+    const rows = [row('a.js', { total: 1 }), row('b.js', { total: 9 })];
+    const before = rows.map((f) => f.path);
+
+    // WHEN
+    sut.sortFiles(rows, { key: 'total', dir: 'desc' });
+
+    // THEN
+    assert.deepEqual(rows.map((f) => f.path), before);
+  });
+});

@@ -241,7 +241,37 @@
     };
   }
 
-  const api = { aggregate, relativePath, dirOf };
+  // Columns the Top Files table can be ordered by. 'path' sorts as text, the rest
+  // as numbers; anything else falls back to the default order.
+  const FILE_SORT_KEYS = new Set([
+    'path', 'reads', 'edits', 'writes', 'planTouches', 'execTouches', 'total',
+  ]);
+
+  /**
+   * sortFiles(rows, { key, dir }) → a new array of `topFiles` rows in the requested
+   * order. Ties always break on path ascending, in both directions — sorting by a
+   * mostly-zero column (writes) would otherwise yield an arbitrary order.
+   *
+   * This reorders *aggregated rows*, never the raw event array. aggregate()'s
+   * re-read detection reads events in transcript order within a context window, so
+   * re-sorting events breaks topRereadFiles silently; rows are already-computed
+   * output and safe to reorder.
+   *
+   * Callers that show a top-N slice must sort **before** slicing: a slice of the
+   * default total-desc order reordered by edits answers "the edit counts among the
+   * top N by total", not "the top N by edits".
+   */
+  function sortFiles(rows, { key, dir } = {}) {
+    const list = Array.isArray(rows) ? rows.slice() : [];
+    const by = FILE_SORT_KEYS.has(key) ? key : 'total';
+    const sign = dir === 'asc' ? 1 : -1;
+    const byPath = (a, b) => String(a.path).localeCompare(String(b.path));
+    return list.sort(by === 'path'
+      ? (a, b) => sign * byPath(a, b)
+      : (a, b) => sign * ((a[by] || 0) - (b[by] || 0)) || byPath(a, b));
+  }
+
+  const api = { aggregate, sortFiles, relativePath, dirOf };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

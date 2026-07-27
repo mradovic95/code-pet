@@ -197,9 +197,14 @@ contains every `Read`/`Edit`/`Write`/`NotebookEdit` with its `file_path`, plus `
 
 Shape (see CLAUDE.md for the full trace): `src/tracking/transcript-reader.js` (main-only fs read) →
 `get-file-activity` IPC → `src/tracking/file-activity.js` (pure aggregation) → a dedicated
-**Files** settings tab (`tabs/file-activity.html`), defaulting to the current session with a
-toggle to the whole project. Verified against `jq` ground truth: reader output (Edit 838 / Read
-503 / Write 159) matched the transcripts exactly.
+**Files** settings tab (`tabs/file-activity.html`). Verified against `jq` ground truth: reader
+output (Edit 838 / Read 503 / Write 159) matched the transcripts exactly.
+
+> **Superseded detail (2026-07-27).** This section originally described the tab as "defaulting to
+> the current session with a toggle to the whole project". The separate Scope toggle was collapsed
+> into the Session filter itself, which now defaults to `All sessions` — the whole project — and
+> narrows to one session when picked. The sequel doc added two further orthogonal filters (Agent,
+> Mode). See CLAUDE.md for the current shape.
 
 Deferred follow-ups: saveable HTML/MD export of the file view; forwarding the real `session_id`
 through hooks to fix `usage.log`'s synthetic sessionId; Grep/Glob/Bash path extraction.

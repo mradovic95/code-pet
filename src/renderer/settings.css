@@ -752,6 +752,9 @@ body {
  *   .col-count  ↔ .usage-count
  * The 16px horizontal padding (8px .usage-list + 8px .usage-row) matches the
  * row content inset so labels sit over their columns.
+ *
+ * 9px (not 10) so a sort caret fits inside the 36px .col-metric without widening
+ * the column and stealing width from the filename — see .usage-header-sortable.
  */
 .usage-header {
   display: flex;
@@ -759,11 +762,59 @@ body {
   padding: 8px 16px;
   border-bottom: 1px solid #45475a;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #6c7086;
+}
+
+/*
+ * Sortable column headers (Files tab → Top Files). Every sortable cell reserves
+ * the caret slot at opacity 0, so hovering or re-sorting only changes opacity and
+ * never nudges a label. Only the active column shows its caret at full strength;
+ * the others hint at being clickable on hover.
+ */
+.usage-header-sortable [data-sort-key] {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* No margin: the caret's own side bearing is the gap. At 8px it then fits inside
+   the 36px .col-metric even behind the widest label ("Write"), which is what lets
+   the metric columns keep their width. */
+.usage-header-sortable [data-sort-key]::after {
+  content: '▾';
+  font-size: 8px;
+  opacity: 0;
+}
+
+.usage-header-sortable [data-sort-key]:hover {
+  color: #a6adc8;
+}
+
+.usage-header-sortable [data-sort-key]:hover::after {
+  opacity: 0.35;
+}
+
+.usage-header-sortable [data-sort-key]:focus-visible {
+  outline: 1px solid #89b4fa;
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.usage-header-sortable .sort-active,
+.usage-header-sortable .sort-active:hover {
+  color: #89b4fa;
+}
+
+.usage-header-sortable .sort-active::after,
+.usage-header-sortable .sort-active:hover::after {
+  opacity: 1;
+}
+
+.usage-header-sortable .sort-active[data-sort-dir='asc']::after {
+  content: '▴';
 }
 
 .usage-header .col-name {

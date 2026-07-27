@@ -86,7 +86,7 @@ src/
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
     usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
-    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session, agent + plan/exec splits, read-only + re-read context tax) — dual-export: require() + window.fileActivity in the settings renderer
+    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session, agent + plan/exec splits, read-only + re-read context tax) + sortFiles() for the Top Files column sort — dual-export: require() + window.fileActivity in the settings renderer
     transcript-reader.js     # Reads/parses Claude Code session + subagent transcripts (~/.claude/projects/**/*.jsonl) into file-touch events on demand (Files tab); main-process only. Per session: main transcript before its subagents (plan-mode inheritance)
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
@@ -188,6 +188,15 @@ renderer before aggregating, so `aggregate()` takes no filter argument. A **By A
 subagent read the most, and **Read to Orient** ranks files by plan-mode reads with the count of *distinct* sessions that
 needed each — what separates a file re-read to orient from one read many times in a single sitting, and the intended
 signal for what belongs in this file.
+
+**Top Files has sortable column headers** (`sortFiles()` in `file-activity.js`, wired in `settings.js` off the
+`data-sort-key` on each header cell in `file-activity.html`). A count column sorts descending on first click and a
+filename ascending; clicking the active column reverses it; ties always break on path ascending so a mostly-zero column
+like Write stays deterministic. **The sort is applied to the full aggregated list before the top-N slice** — sorting the
+slice would answer "the edit counts among the top N by total" rather than "the top N by edits", and a heavily-edited
+file with few total touches never enters the default-order slice to begin with. The sort is session-scoped renderer
+state, so it survives the filters and Refresh. It reorders *aggregated rows*, never the event array, which stays
+order-sensitive for `planMode` and `topRereadFiles`.
 
 **Two context-tax lists honour the Session filter only, and that is deliberate.** **Read, Never Edited**
 (`topReadOnlyFiles`) needs `reads >= MIN_UNEDITED_READS` — a once-read file is a fact, not a cost; 78 of 96 candidates

@@ -225,7 +225,9 @@ over-reporting it.
 >    there are two. It holds because `parseTranscript` emits line-ordered events, `readSession`
 >    concatenates a session's main transcript before its subagents, and `Array.prototype.filter` (the
 >    renderer's filters) is stable. Any future caller that globally re-sorts or interleaves the event
->    array breaks it silently.
+>    array breaks it silently. The first caller that could have done so has since arrived and did
+>    not: Top Files' sortable column headers (`sortFiles()`) reorder *aggregated rows*, which are
+>    already-computed output, and never touch the event array.
 > 6. **Two of the tab's six lists deliberately ignore two of its three filters.** Mode and Agent remove
 >    the very edits these predicates are defined against — under "Plan mode only" every file reads as
 >    never-edited — so both lists take the session-scoped slice via a second `aggregate()` call, and say

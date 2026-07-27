@@ -603,6 +603,7 @@ let _eventPage = 0;               // current page in event log
 let _faEvents = [];               // transcript-derived file events (all sessions of the project)
 let _faProjectPath = '';          // project the file events belong to
 let _faWired = false;             // Files tab listeners attached once
+let _faFilesSort = { key: 'total', dir: 'desc' }; // Top Files column sort; session-scoped like _eventPage
 const FA_TOP_FILES = 50;
 const FA_TOP_DIRS = 30;
 const EVENT_PAGE_SIZE = 50;
@@ -692,6 +693,7 @@ async function renderFileActivityTab() {
     document.getElementById('fa-agent').addEventListener('change', renderFaView);
     document.getElementById('fa-mode').addEventListener('change', renderFaView);
     document.getElementById('fa-refresh').addEventListener('click', renderFileActivityTab);
+    wireFaFilesSort();
     _faWired = true;
   }
 
@@ -763,7 +765,11 @@ function renderFaView() {
       : '';
   }
 
-  renderFaFiles('fa-top-files', agg.topFiles.slice(0, FA_TOP_FILES));
+  // Sort the full list, *then* slice. Sorting the slice would answer "the edit
+  // counts among the top N by total" rather than "the top N by edits" — a file
+  // edited heavily but touched few times never enters the default-order slice.
+  renderFaFiles('fa-top-files', analytics.sortFiles(agg.topFiles, _faFilesSort).slice(0, FA_TOP_FILES));
+  paintFaSortIndicators();
   renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
   renderFaOrient('fa-orient', agg.topOrientFiles.slice(0, FA_TOP_FILES));
   renderFaPairList('fa-unedited', diag.topReadOnlyFiles.slice(0, FA_TOP_FILES), {
@@ -773,6 +779,50 @@ function renderFaView() {
     second: 'contexts', count: 'rereads', empty: 'No repeat reads within a single context for this selection',
   });
   renderFaAgents('fa-top-agents', agg.topAgents);
+}
+
+// Click (or Enter/Space) a Top Files column header to reorder by it. First click on
+// a count sorts descending — biggest first is what a "top files" table is for —
+// while the File column starts A→Z. Clicking the active column reverses it; there
+// is no third "unsorted" state, since the table always has an order.
+function wireFaFilesSort() {
+  const header = document.getElementById('fa-files-header');
+  if (!header) return;
+
+  const sortBy = (cell) => {
+    const key = cell.dataset.sortKey;
+    _faFilesSort = _faFilesSort.key === key
+      ? { key, dir: _faFilesSort.dir === 'desc' ? 'asc' : 'desc' }
+      : { key, dir: key === 'path' ? 'asc' : 'desc' };
+    renderFaView();
+  };
+
+  header.addEventListener('click', (e) => {
+    const cell = e.target.closest('[data-sort-key]');
+    if (cell) sortBy(cell);
+  });
+  header.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const cell = e.target.closest('[data-sort-key]');
+    if (!cell) return;
+    e.preventDefault(); // Space would scroll the tab
+    sortBy(cell);
+  });
+}
+
+// Called from renderFaView so the indicator can never drift from the rendered order.
+// Only the active column carries a caret; the rest reserve the slot invisibly.
+function paintFaSortIndicators() {
+  const header = document.getElementById('fa-files-header');
+  if (!header) return;
+  for (const cell of header.querySelectorAll('[data-sort-key]')) {
+    const active = cell.dataset.sortKey === _faFilesSort.key;
+    cell.classList.toggle('sort-active', active);
+    cell.dataset.sortDir = active ? _faFilesSort.dir : '';
+    cell.setAttribute('aria-sort', active
+      ? (_faFilesSort.dir === 'asc' ? 'ascending' : 'descending')
+      : 'none');
+  }
 }
 
 function renderFaOrient(containerId, files) {

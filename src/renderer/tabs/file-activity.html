@@ -33,14 +33,18 @@
 <div class="section">
   <div class="section-title">Top Files</div>
   <div class="usage-table">
-    <div class="usage-header">
-      <span class="col-name">File</span>
-      <span class="col-metric">Read</span>
-      <span class="col-metric">Edit</span>
-      <span class="col-metric">Write</span>
-      <span class="col-metric">Plan</span>
-      <span class="col-metric">Exec</span>
-      <span class="col-count">Total</span>
+    <!-- Sortable: data-sort-key names the topFiles field each column shows, so the
+         column order and its data key stay in one place. settings.js reads the key
+         off the clicked cell; sorting is applied to the full list before the top-N
+         slice. -->
+    <div class="usage-header usage-header-sortable" id="fa-files-header">
+      <span class="col-name" data-sort-key="path" role="columnheader" tabindex="0" aria-sort="none">File</span>
+      <span class="col-metric" data-sort-key="reads" role="columnheader" tabindex="0" aria-sort="none">Read</span>
+      <span class="col-metric" data-sort-key="edits" role="columnheader" tabindex="0" aria-sort="none">Edit</span>
+      <span class="col-metric" data-sort-key="writes" role="columnheader" tabindex="0" aria-sort="none">Write</span>
+      <span class="col-metric" data-sort-key="planTouches" role="columnheader" tabindex="0" aria-sort="none">Plan</span>
+      <span class="col-metric" data-sort-key="execTouches" role="columnheader" tabindex="0" aria-sort="none">Exec</span>
+      <span class="col-count" data-sort-key="total" role="columnheader" tabindex="0" aria-sort="descending">Total</span>
     </div>
     <div id="fa-top-files" class="usage-list usage-list-tall">
       <div class="usage-empty">No file activity yet</div>
