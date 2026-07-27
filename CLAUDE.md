@@ -6,7 +6,7 @@ bottom-right corner) shows a sprite-animated dog that responds to hook events.
 ## Tech Stack
 
 - **Node.js** (>= 18) — hook scripts, process management
-- **Electron** (^42.0.0) — transparent overlay window, the only runtime dependency
+- **Electron** (^43.0.0) — transparent overlay window, the only runtime dependency
 - No other external dependencies. Keep it that way.
 
 ## Directory Structure

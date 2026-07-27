@@ -73,6 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with long tool names truncated (full name on hover)
 
 ### Changed
+- Bumped `electron` from 42.2.0 to 43.2.0, and the CI actions
+  `actions/checkout` and `actions/setup-node` from v6 to v7. No code change
+  was needed: of Electron 43's breaking changes, only the new
+  `dialog.showSaveDialog` Downloads default and `NativeImage.toBitmap()`
+  colour normalization could apply, and the report window already passes an
+  explicit `defaultPath` while nothing here calls `toBitmap()`
 - Reorganized `src/app/` from 21 flat files into five subsystem folders —
   `pet/` (registry, catalog, state machine), `server/` (the HTTP event server),
   `windows/` (BrowserWindows, preloads, and the helpers only they use),
