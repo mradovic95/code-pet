@@ -3,20 +3,20 @@
 const path = require('path');
 const os = require('os');
 const { app } = require('electron');
-const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setAllUsageEventsFn, setSessionsForProjectFn } = require('./window-manager');
-const { startServer, stopServer, dispatchEvent, setUsageStore, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession, getAllPersistedEvents } = require('./event-server');
-require('./report-window'); // registers the usage-report preview IPC handlers
-const { writePid, removePid } = require('./process-manager');
-const PetCatalog = require('./pet-catalog');
-const settingsStore = require('./settings-store');
-const LicenseManager = require('./license-manager');
-const PremiumStore = require('./premium-store');
-const MarketplaceCatalog = require('./marketplace-catalog');
-const { MockLicenseAPI } = require('./license-api');
-const { MarketplaceAPI } = require('./marketplace-api');
-const marketplaceConfig = require('./marketplace-config');
+const { createOverlayWindow, closeSettingsWindow, setProjectsSnapshotFn, setClaudePidFn, setTtyFn, setDispatchEventFn, setCatalogFn, setUpdatePetTypeFn, setCatalogObj, setLicenseManagerFn, setPremiumStoreFn, setMarketplaceCatalogFn, setLicenseApiFn, setToolUsageFn, setToolEventsFn, setAllUsageEventsFn, setSessionsForProjectFn } = require('./windows/window-manager');
+const { startServer, stopServer, dispatchEvent, setUsageStore, setPetTypeForProject, getSessionsForProject, getProjectsSnapshot, getClaudePidForSession, getTtyForSession, getToolUsageForSession, getToolEventsForSession, getAllPersistedEvents } = require('./server/event-server');
+require('./windows/report-window'); // registers the usage-report preview IPC handlers
+const { writePid, removePid } = require('./core/process-manager');
+const PetCatalog = require('./pet/pet-catalog');
+const settingsStore = require('./core/settings-store');
+const LicenseManager = require('./marketplace/license-manager');
+const PremiumStore = require('./marketplace/premium-store');
+const MarketplaceCatalog = require('./marketplace/marketplace-catalog');
+const { MockLicenseAPI } = require('./marketplace/license-api');
+const { MarketplaceAPI } = require('./marketplace/marketplace-api');
+const marketplaceConfig = require('./marketplace/marketplace-config');
 const { createStore } = require('../tracking');
-const logger = require('./logger');
+const logger = require('./core/logger');
 
 // Persistent usage store — `USAGE_STORE_TYPE=memory` disables persistence.
 const usageStore = createStore({ type: process.env.USAGE_STORE_TYPE || 'filesystem' });
@@ -150,7 +150,7 @@ if (!gotLock) {
   app.on('before-quit', async () => {
     logger.info('Shutting down...');
     closeSettingsWindow();
-    require('./report-window').closeReportWindow();
+    require('./windows/report-window').closeReportWindow();
     await stopServer();
     try {
       await usageStore.flush();

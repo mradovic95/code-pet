@@ -4,6 +4,7 @@
 const FEATURE_FLAGS = {
   STORE_TAB: false,   // v1: hidden until marketplace ships publicly
   USAGE_TAB: true,
+  FILES_TAB: true,    // on-demand transcript-sourced file activity view
 };
 
 const PREVIEW_STATES = ['idle', 'working', 'planning', 'waiting_for_action', 'waking_up'];
@@ -25,6 +26,9 @@ async function init() {
   }
   if (FEATURE_FLAGS.USAGE_TAB) {
     tabs.push(loadTab('tab-usage', 'usage.html'));
+  }
+  if (FEATURE_FLAGS.FILES_TAB) {
+    tabs.push(loadTab('tab-files', 'file-activity.html'));
   }
   await Promise.all(tabs);
 
@@ -82,9 +86,13 @@ async function init() {
     document.getElementById('tab-btn-usage').style.display = '';
   }
 
+  if (FEATURE_FLAGS.FILES_TAB) {
+    document.getElementById('tab-btn-files').style.display = '';
+  }
+
   // --- Tabs (with fade transition) ---
 
-  const TAB_IDS = ['tab-general', 'tab-store', 'tab-usage'];
+  const TAB_IDS = ['tab-general', 'tab-store', 'tab-usage', 'tab-files'];
   let _activeTabId = 'tab-general';
   let _tabTransitioning = false;
 
@@ -114,6 +122,7 @@ async function init() {
         // Trigger lazy loads before fade-in
         if (tab.dataset.tab === 'usage') renderUsageTab();
         if (tab.dataset.tab === 'store') renderMarketplace();
+        if (tab.dataset.tab === 'files') renderFileActivityTab();
 
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -591,7 +600,18 @@ let _filteredEvents = [];         // last filtered result (for CSV export)
 let _filtersWired = false;        // event listeners attached once
 let _lastProjectFilter = '';      // track project changes to reset session dropdown
 let _eventPage = 0;               // current page in event log
+let _faEvents = [];               // transcript-derived file events (all sessions of the project)
+let _faProjectPath = '';          // project the file events belong to
+let _faWired = false;             // Files tab listeners attached once
+let _faFilesSort = { key: 'total', dir: 'desc' }; // Top Files column sort; session-scoped like _eventPage
+const FA_TOP_FILES = 50;
+const FA_TOP_DIRS = 30;
 const EVENT_PAGE_SIZE = 50;
+const EVENT_TYPE_BADGES = {
+  mcp_tool: { label: 'MCP', className: 'badge-mcp' },
+  skill: { label: 'Skill', className: 'badge-skill' },
+  subagent: { label: 'Agent', className: 'badge-agent' },
+};
 
 function basename(p) {
   if (!p) return '(unknown)';
@@ -602,6 +622,16 @@ function basename(p) {
 function formatTime(ts) {
   const d = new Date(ts);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatShortDateTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleString([], {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 async function renderUsageTab() {
@@ -633,6 +663,297 @@ async function renderUsageTab() {
   }
 
   applyFilters();
+}
+
+// --- Files tab (on-demand transcript-sourced file activity) ---
+
+async function renderFileActivityTab() {
+  const analytics = window.fileActivity;
+  const filesEl = document.getElementById('fa-top-files');
+  if (!analytics || !filesEl) return;
+
+  filesEl.innerHTML = '<div class="usage-empty">Reading transcripts…</div>';
+
+  // Main resolves the project itself and reports it back with the events — the
+  // renderer has no independent source for it.
+  let result;
+  try {
+    result = await window.codePetSettings.getFileActivity();
+  } catch {
+    result = null;
+  }
+  _faProjectPath = (result && result.projectPath) || '';
+  _faEvents = result && Array.isArray(result.events) ? result.events : [];
+
+  const all = analytics.aggregate(_faEvents, { projectPath: _faProjectPath });
+  populateFaSessions(all.sessions);
+
+  if (!_faWired) {
+    document.getElementById('fa-session').addEventListener('change', renderFaView);
+    document.getElementById('fa-agent').addEventListener('change', renderFaView);
+    document.getElementById('fa-mode').addEventListener('change', renderFaView);
+    document.getElementById('fa-refresh').addEventListener('click', renderFileActivityTab);
+    wireFaFilesSort();
+    _faWired = true;
+  }
+
+  renderFaView();
+}
+
+function populateFaSessions(sessions) {
+  const select = document.getElementById('fa-session');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = '<option value="">All sessions</option>';
+  for (const s of sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.sessionId;
+    const when = s.endedAt ? formatShortDateTime(s.endedAt) : 'unknown date';
+    opt.textContent = `${when} · ${s.files} files`;
+    select.appendChild(opt);
+  }
+  // Keep the prior pick if it still exists, else fall back to All sessions.
+  select.value = current && sessions.some((s) => s.sessionId === current) ? current : '';
+}
+
+function renderFaView() {
+  const analytics = window.fileActivity;
+  if (!analytics) return;
+  const sid = document.getElementById('fa-session').value;
+  const agent = document.getElementById('fa-agent').value;
+  const mode = document.getElementById('fa-mode').value;
+
+  const scoped = sid
+    ? _faEvents.filter((e) => (e.sessionId || 'unknown') === sid)
+    : _faEvents;
+  let events = scoped;
+  // agentId is set only for touches made inside a subagent (tagged by the
+  // reader from the transcript's location).
+  if (agent === 'main') events = events.filter((e) => !e.agentId);
+  else if (agent === 'sub') events = events.filter((e) => !!e.agentId);
+  // planMode is null when the transcript never revealed a mode — such touches
+  // belong to neither side, so both filters drop them.
+  if (mode === 'plan') events = events.filter((e) => e.planMode === true);
+  else if (mode === 'exec') events = events.filter((e) => e.planMode === false);
+
+  const agg = analytics.aggregate(events, { projectPath: _faProjectPath });
+  // The two context-tax lists honour the Session filter only. Agent and Mode remove
+  // the very edits their predicates are defined against — "Plan mode only" hides
+  // every edit, so each file would read as never-edited — so they get the
+  // session-scoped slice instead. Same object when neither filter is narrowed.
+  const diag = agent || mode
+    ? analytics.aggregate(scoped, { projectPath: _faProjectPath })
+    : agg;
+  const t = agg.totals;
+  document.getElementById('fa-totals').textContent =
+    `${t.files} files · ${t.reads} reads · ${t.edits} edits · ${t.writes} writes` +
+    (sid ? '' : ` · ${t.sessions} sessions`);
+
+  const noteEl = document.getElementById('fa-agent-note');
+  if (noteEl) {
+    noteEl.textContent = agg.agentSplit.tagged > 0 && agent !== 'sub'
+      ? `${agg.agentSplit.pct}% of these touches ran inside subagents`
+      : '';
+  }
+
+  // Only meaningful while both sides are in view — once the Mode filter narrows
+  // to one, the percentage is trivially 100 or 0.
+  const modeNoteEl = document.getElementById('fa-mode-note');
+  if (modeNoteEl) {
+    modeNoteEl.textContent = agg.modeSplit.tagged > 0 && !mode
+      ? `${agg.modeSplit.pct}% of these touches happened in plan mode`
+      : '';
+  }
+
+  // Sort the full list, *then* slice. Sorting the slice would answer "the edit
+  // counts among the top N by total" rather than "the top N by edits" — a file
+  // edited heavily but touched few times never enters the default-order slice.
+  renderFaFiles('fa-top-files', analytics.sortFiles(agg.topFiles, _faFilesSort).slice(0, FA_TOP_FILES));
+  paintFaSortIndicators();
+  renderFaDirs('fa-top-dirs', agg.topDirs.slice(0, FA_TOP_DIRS));
+  renderFaOrient('fa-orient', agg.topOrientFiles.slice(0, FA_TOP_FILES));
+  renderFaPairList('fa-unedited', diag.topReadOnlyFiles.slice(0, FA_TOP_FILES), {
+    second: 'sessions', count: 'reads', empty: 'No repeatedly-read unedited files for this selection',
+  });
+  renderFaPairList('fa-reread', diag.topRereadFiles.slice(0, FA_TOP_FILES), {
+    second: 'contexts', count: 'rereads', empty: 'No repeat reads within a single context for this selection',
+  });
+  renderFaAgents('fa-top-agents', agg.topAgents);
+}
+
+// Click (or Enter/Space) a Top Files column header to reorder by it. First click on
+// a count sorts descending — biggest first is what a "top files" table is for —
+// while the File column starts A→Z. Clicking the active column reverses it; there
+// is no third "unsorted" state, since the table always has an order.
+function wireFaFilesSort() {
+  const header = document.getElementById('fa-files-header');
+  if (!header) return;
+
+  const sortBy = (cell) => {
+    const key = cell.dataset.sortKey;
+    _faFilesSort = _faFilesSort.key === key
+      ? { key, dir: _faFilesSort.dir === 'desc' ? 'asc' : 'desc' }
+      : { key, dir: key === 'path' ? 'asc' : 'desc' };
+    renderFaView();
+  };
+
+  header.addEventListener('click', (e) => {
+    const cell = e.target.closest('[data-sort-key]');
+    if (cell) sortBy(cell);
+  });
+  header.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const cell = e.target.closest('[data-sort-key]');
+    if (!cell) return;
+    e.preventDefault(); // Space would scroll the tab
+    sortBy(cell);
+  });
+}
+
+// Called from renderFaView so the indicator can never drift from the rendered order.
+// Only the active column carries a caret; the rest reserve the slot invisibly.
+function paintFaSortIndicators() {
+  const header = document.getElementById('fa-files-header');
+  if (!header) return;
+  for (const cell of header.querySelectorAll('[data-sort-key]')) {
+    const active = cell.dataset.sortKey === _faFilesSort.key;
+    cell.classList.toggle('sort-active', active);
+    cell.dataset.sortDir = active ? _faFilesSort.dir : '';
+    cell.setAttribute('aria-sort', active
+      ? (_faFilesSort.dir === 'asc' ? 'ascending' : 'descending')
+      : 'none');
+  }
+}
+
+function renderFaOrient(containerId, files) {
+  renderFaPairList(containerId, files, {
+    second: 'sessions', count: 'planReads', empty: 'No plan-mode reads for this selection',
+  });
+}
+
+// One row per file with a dim secondary count and a bold primary count — the
+// column geometry the Read to Orient / context-tax headers are written against
+// (.fa-breakdown ↔ .col-used, .usage-count ↔ .col-count; see settings.css).
+function renderFaPairList(containerId, files, { second, count, empty }) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!files.length) {
+    c.innerHTML = `<div class="usage-empty">${empty}</div>`;
+    return;
+  }
+  c.innerHTML = '';
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = f.path;
+    name.title = f.path;
+
+    const breakdown = document.createElement('span');
+    breakdown.className = 'fa-breakdown';
+    breakdown.textContent = f[second];
+
+    const total = document.createElement('span');
+    total.className = 'usage-count';
+    total.textContent = f[count];
+
+    row.appendChild(name);
+    row.appendChild(breakdown);
+    row.appendChild(total);
+    c.appendChild(row);
+  }
+}
+
+function renderFaAgents(containerId, agents) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!agents.length) {
+    c.innerHTML = '<div class="usage-empty">No subagent file activity for this selection</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const a of agents) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = a.agentType;
+    name.title = a.agentType;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = a.total;
+
+    row.appendChild(name);
+    row.appendChild(count);
+    c.appendChild(row);
+  }
+}
+
+function renderFaFiles(containerId, files) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!files.length) {
+    c.innerHTML = '<div class="usage-empty">No file activity for this selection</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const f of files) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = f.path;
+    name.title = f.path;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = f.total;
+
+    row.appendChild(name);
+    // One fixed-width cell per metric, in the same order as the column header in
+    // file-activity.html. The plan/exec pair can sum to less than the total when
+    // a transcript never revealed its mode.
+    for (const value of [f.reads, f.edits, f.writes, f.planTouches, f.execTouches]) {
+      const metric = document.createElement('span');
+      metric.className = 'fa-metric';
+      metric.textContent = value;
+      row.appendChild(metric);
+    }
+    row.appendChild(count);
+    c.appendChild(row);
+  }
+}
+
+function renderFaDirs(containerId, dirs) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!dirs.length) {
+    c.innerHTML = '<div class="usage-empty">No file activity for this selection</div>';
+    return;
+  }
+  c.innerHTML = '';
+  for (const d of dirs) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const name = document.createElement('span');
+    name.className = 'usage-name';
+    name.textContent = d.dir;
+    name.title = d.dir;
+
+    const count = document.createElement('span');
+    count.className = 'usage-count';
+    count.textContent = d.total;
+
+    row.appendChild(name);
+    row.appendChild(count);
+    c.appendChild(row);
+  }
 }
 
 function populateProjectOptions() {
@@ -761,29 +1082,20 @@ function applyFilters() {
     return true;
   });
 
-  const mcpCounts = {};
-  const skillCounts = {};
-  for (const e of filtered) {
-    if (e.type === 'mcp_tool') {
-      mcpCounts[e.name] = (mcpCounts[e.name] || 0) + 1;
-    } else if (e.type === 'skill') {
-      skillCounts[e.name] = (skillCounts[e.name] || 0) + 1;
-    }
-  }
-
   const hasAnyFilter = Boolean(dateRangeVal || projectVal || sessionAfter);
   const emptyEventsMsg = hasAnyFilter ? 'No events match current filters' : 'No events yet';
   const emptyMcpMsg = hasAnyFilter ? 'No MCP tool usage for this filter' : 'No MCP tool usage yet';
   const emptySkillsMsg = hasAnyFilter ? 'No skill usage for this filter' : 'No skill usage yet';
+  const emptyAgentsMsg = hasAnyFilter ? 'No subagent runs for this filter' : 'No subagent runs yet';
 
   _filteredEvents = filtered;
   _eventPage = 0;
 
   renderEventLog(filtered, emptyEventsMsg);
-  renderUsageList('mcp-usage-list', mcpCounts, emptyMcpMsg);
-  renderUsageList('skill-usage-list', skillCounts, emptySkillsMsg);
   renderWeeklyTrend(filtered, emptyEventsMsg);
-  renderSkillSummary(filtered, emptySkillsMsg);
+  renderNameSummary('skill-summary', filtered, { type: 'skill', emptyMsg: emptySkillsMsg });
+  renderNameSummary('mcp-summary', filtered, { type: 'mcp_tool', emptyMsg: emptyMcpMsg });
+  renderAgentSummary(filtered, emptyAgentsMsg);
   renderCoUsage(filtered);
   // Dormancy is relative to today, not the date filter — always over the full log.
   renderDormant();
@@ -821,8 +1133,9 @@ function renderEventLog(events, emptyMsg) {
     timeEl.textContent = `${dd}.${mm}.${yy} ${time}`;
 
     const badge = document.createElement('span');
-    badge.className = 'event-type-badge ' + (evt.type === 'mcp_tool' ? 'badge-mcp' : 'badge-skill');
-    badge.textContent = evt.type === 'mcp_tool' ? 'MCP' : 'Skill';
+    const badgeStyle = EVENT_TYPE_BADGES[evt.type] || EVENT_TYPE_BADGES.skill;
+    badge.className = 'event-type-badge ' + badgeStyle.className;
+    badge.textContent = badgeStyle.label;
 
     const nameEl = document.createElement('span');
     nameEl.className = 'event-name';
@@ -845,35 +1158,6 @@ function renderEventLog(events, emptyMsg) {
       document.getElementById('page-next').disabled = _eventPage >= totalPages - 1;
       document.getElementById('page-info').textContent = `${_eventPage + 1} / ${totalPages}`;
     }
-  }
-}
-
-function renderUsageList(containerId, data, emptyMsg) {
-  const container = document.getElementById(containerId);
-  const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
-
-  if (entries.length === 0) {
-    container.innerHTML = `<div class="usage-empty">${emptyMsg}</div>`;
-    return;
-  }
-
-  container.innerHTML = '';
-  for (const [name, count] of entries) {
-    const row = document.createElement('div');
-    row.className = 'usage-row';
-
-    const nameEl = document.createElement('span');
-    nameEl.className = 'usage-name';
-    nameEl.textContent = name;
-    nameEl.title = name;
-
-    const countEl = document.createElement('span');
-    countEl.className = 'usage-count';
-    countEl.textContent = count;
-
-    row.appendChild(nameEl);
-    row.appendChild(countEl);
-    container.appendChild(row);
   }
 }
 
@@ -918,14 +1202,17 @@ function renderWeeklyTrend(events, emptyMsg) {
   }
 }
 
-function renderSkillSummary(events, emptyMsg) {
-  const container = document.getElementById('skill-summary');
+// Shared renderer for the name+trend+avg+used+count Insights tables (Skill and
+// MCP — identical columns, only the event `type` differs). Agent Insights has an
+// extra column and is rendered separately by renderAgentSummary.
+function renderNameSummary(containerId, events, { type, emptyMsg } = {}) {
+  const container = document.getElementById(containerId);
   const analytics = window.usageAnalytics;
   if (!container || !analytics) return;
 
-  const summary = analytics.summarizeByName(events || [], { type: 'skill' });
+  const summary = analytics.summarizeByName(events || [], { type });
   if (summary.length === 0) {
-    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No skill usage yet'}</div>`;
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No usage yet'}</div>`;
     return;
   }
 
@@ -975,6 +1262,81 @@ function renderSkillSummary(events, emptyMsg) {
     }
     row.appendChild(avgEl);
     row.appendChild(lastEl);
+    row.appendChild(countEl);
+    container.appendChild(row);
+  }
+}
+
+// Subagent counterpart of renderNameSummary: per-agent-type run count, spawn
+// duration and 8-week trend, plus the "calls inside" metric (skill/MCP calls
+// tagged with this agentType) and a delegation headline — surfacing the report's
+// Top Agents / agentSplit data in the live tab.
+function renderAgentSummary(events, emptyMsg) {
+  const container = document.getElementById('agent-summary');
+  const noteEl = document.getElementById('agent-split-note');
+  const analytics = window.usageAnalytics;
+  if (!container || !analytics) return;
+
+  const summary = analytics.summarizeByName(events || [], { type: 'subagent' });
+  if (summary.length === 0) {
+    container.innerHTML = `<div class="usage-empty">${emptyMsg || 'No subagent runs yet'}</div>`;
+    if (noteEl) noteEl.textContent = '';
+    return;
+  }
+
+  const durationsByName = new Map(
+    analytics.durationStats(events || []).map((d) => [d.name, d])
+  );
+  const split = analytics.agentSplit(events || []);
+  if (noteEl) {
+    noteEl.textContent = split.tagged > 0
+      ? `${split.pct}% of tracked calls ran inside subagents`
+      : '';
+  }
+
+  container.innerHTML = '';
+  for (const s of summary) {
+    const row = document.createElement('div');
+    row.className = 'usage-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'usage-name';
+    nameEl.textContent = s.name;
+    nameEl.title = `${s.name} — first used ${formatRelativeDays(s.firstUsed)}, ${s.sessionCount} session${s.sessionCount === 1 ? '' : 's'}`;
+
+    const spark = document.createElement('span');
+    spark.className = 'sparkline';
+    const buckets = analytics.weeklyTrend(events, { weeks: 8, name: s.name });
+    const max = Math.max(...buckets.map((b) => b.count), 1);
+    for (const b of buckets) {
+      const bar = document.createElement('span');
+      bar.className = 'spark-bar' + (b.count === 0 ? ' spark-bar-empty' : '');
+      bar.style.height = `${Math.max(Math.round((b.count / max) * 100), 12)}%`;
+      spark.appendChild(bar);
+    }
+
+    const dur = durationsByName.get(s.name);
+    const avgEl = document.createElement('span');
+    avgEl.className = 'summary-avg';
+    if (dur) {
+      avgEl.textContent = analytics.formatMs(dur.avgMs);
+      avgEl.title = `avg over ${dur.count} timed run${dur.count === 1 ? '' : 's'} (max ${analytics.formatMs(dur.maxMs)})`;
+    }
+
+    const insideCount = (split.byType && split.byType[s.name]) || 0;
+    const insideEl = document.createElement('span');
+    insideEl.className = 'summary-last-used';
+    insideEl.textContent = insideCount;
+    insideEl.title = `${insideCount} skill/MCP call${insideCount === 1 ? '' : 's'} ran inside this agent`;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'usage-count';
+    countEl.textContent = s.count;
+
+    row.appendChild(nameEl);
+    row.appendChild(spark);
+    row.appendChild(avgEl);
+    row.appendChild(insideEl);
     row.appendChild(countEl);
     container.appendChild(row);
   }

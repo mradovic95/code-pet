@@ -1,0 +1,120 @@
+<div class="section">
+  <div class="section-title">File Activity</div>
+  <div class="usage-note">Which files this project's Claude Code sessions read and edited. Computed on demand from session transcripts — nothing is stored.</div>
+  <div class="filter-row">
+    <label class="filter-label" for="fa-session">Session</label>
+    <select id="fa-session" class="filter-select">
+      <option value="">All sessions</option>
+    </select>
+  </div>
+  <div class="filter-row">
+    <label class="filter-label" for="fa-agent">Agent</label>
+    <select id="fa-agent" class="filter-select">
+      <option value="">All agents</option>
+      <option value="main">Main agent only</option>
+      <option value="sub">Subagents only</option>
+    </select>
+  </div>
+  <div class="filter-row">
+    <label class="filter-label" for="fa-mode">Mode</label>
+    <select id="fa-mode" class="filter-select">
+      <option value="">All modes</option>
+      <option value="plan">Plan mode only</option>
+      <option value="exec">Execution only</option>
+    </select>
+  </div>
+  <div class="section usage-export-row">
+    <button id="fa-refresh" class="btn-export">Refresh</button>
+  </div>
+  <div id="fa-totals" class="usage-note"></div>
+  <div id="fa-agent-note" class="usage-note"></div>
+  <div id="fa-mode-note" class="usage-note"></div>
+</div>
+<div class="section">
+  <div class="section-title">Top Files</div>
+  <div class="usage-table">
+    <!-- Sortable: data-sort-key names the topFiles field each column shows, so the
+         column order and its data key stay in one place. settings.js reads the key
+         off the clicked cell; sorting is applied to the full list before the top-N
+         slice. -->
+    <div class="usage-header usage-header-sortable" id="fa-files-header">
+      <span class="col-name" data-sort-key="path" role="columnheader" tabindex="0" aria-sort="none">File</span>
+      <span class="col-metric" data-sort-key="reads" role="columnheader" tabindex="0" aria-sort="none">Read</span>
+      <span class="col-metric" data-sort-key="edits" role="columnheader" tabindex="0" aria-sort="none">Edit</span>
+      <span class="col-metric" data-sort-key="writes" role="columnheader" tabindex="0" aria-sort="none">Write</span>
+      <span class="col-metric" data-sort-key="planTouches" role="columnheader" tabindex="0" aria-sort="none">Plan</span>
+      <span class="col-metric" data-sort-key="execTouches" role="columnheader" tabindex="0" aria-sort="none">Exec</span>
+      <span class="col-count" data-sort-key="total" role="columnheader" tabindex="0" aria-sort="descending">Total</span>
+    </div>
+    <div id="fa-top-files" class="usage-list usage-list-tall">
+      <div class="usage-empty">No file activity yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Top Directories</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">Directory</span>
+      <span class="col-count">Touches</span>
+    </div>
+    <div id="fa-top-dirs" class="usage-list">
+      <div class="usage-empty">No file activity yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Read to Orient</div>
+  <div class="usage-note">Files read while planning, not while working — what this project costs to understand.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-used">Sessions</span>
+      <span class="col-count">Reads</span>
+    </div>
+    <div id="fa-orient" class="usage-list usage-list-tall">
+      <div class="usage-empty">No plan-mode reads yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Read, Never Edited</div>
+  <div class="usage-note">Files read more than once and never changed — documentation that should be summarized, or a dependency whose contents keep being re-derived. Counted across all agents and modes in the current session scope; files outside the project are excluded.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-used">Sessions</span>
+      <span class="col-count">Reads</span>
+    </div>
+    <div id="fa-unedited" class="usage-list usage-list-tall">
+      <div class="usage-empty">No repeatedly-read unedited files yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">Re-read in One Context</div>
+  <div class="usage-note">The same file loaded again inside one agent's context window with no edit of it in between — context that was gathered, lost, and gathered again. A read that follows an edit of that file is verification, not a reload, and is not counted. One context is a session, or a subagent within it. Counted across all agents and modes in the current session scope.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">File</span>
+      <span class="col-used">Contexts</span>
+      <span class="col-count">Re-reads</span>
+    </div>
+    <div id="fa-reread" class="usage-list usage-list-tall">
+      <div class="usage-empty">No repeat reads within a single context yet</div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="section-title">By Agent Type</div>
+  <div class="usage-note">File touches made inside subagents, grouped by the type of agent that made them.</div>
+  <div class="usage-table">
+    <div class="usage-header">
+      <span class="col-name">Agent Type</span>
+      <span class="col-count">Touches</span>
+    </div>
+    <div id="fa-top-agents" class="usage-list">
+      <div class="usage-empty">No subagent file activity yet</div>
+    </div>
+  </div>
+</div>

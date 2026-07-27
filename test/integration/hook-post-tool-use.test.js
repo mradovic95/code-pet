@@ -98,6 +98,43 @@ describe('on-post-tool-use hook', () => {
     assert.equal(requests[0].body.agentId, 'a8917150403d66ba2');
   });
 
+  it('forwards agent_type from stdin as agentType', async () => {
+    // GIVEN
+    const input = {
+      tool_name: 'WebFetch',
+      permission_mode: 'dontAsk',
+      agent_id: 'a8917150403d66ba2',
+      agent_type: 'leanpay:code-reviewer',
+    };
+
+    // WHEN
+    await spawnHook(input);
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.event, 'action_completed');
+    assert.equal(requests[0].body.agentType, 'leanpay:code-reviewer');
+  });
+
+  it('forwards subagent spawns with the full tool_input carrying subagent_type', async () => {
+    // GIVEN
+    const input = {
+      tool_name: 'Task',
+      tool_input: { subagent_type: 'code-reviewer', prompt: 'review the diff' },
+      tool_use_id: 'toolu_task1',
+    };
+
+    // WHEN
+    await spawnHook(input);
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.event, 'action_completed');
+    assert.equal(requests[0].body.toolName, 'Task');
+    assert.equal(requests[0].body.toolInput.subagent_type, 'code-reviewer');
+    assert.equal(requests[0].body.toolUseId, 'toolu_task1');
+  });
+
   it('sends action_completed with plan permissionMode', async () => {
     // GIVEN
     const input = {

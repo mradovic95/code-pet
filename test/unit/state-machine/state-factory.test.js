@@ -6,7 +6,7 @@ setupMocks();
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createState } = require('../../../src/app/state-machine/state-factory');
+const { createState } = require('../../../src/app/pet/state-machine/state-factory');
 
 describe('createState', () => {
   const fakeContext = { projectName: 'test', lastActiveEvent: null };

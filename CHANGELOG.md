@@ -7,6 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Files** tab in Settings: an on-demand view of which files and directories
+  a project's Claude Code sessions read and edited most. Sourced by parsing the
+  session transcripts (`~/.claude/projects/<project>/*.jsonl`) *and* the subagent
+  transcripts beneath them (`<session-id>/subagents/agent-*.jsonl`) on request —
+  no hooks, no new persistence, nothing recorded to `usage.log`. Three
+  independent filters: a Session filter (like the Usage tab's) defaulting to
+  `All sessions` — the whole project — and narrowing to one session when picked;
+  an Agent filter scoping to the main agent or to subagents; and a Mode filter
+  scoping to plan mode or to execution. Shows Top Files — read/edit/write plus
+  the plan/execution breakdown, each as its own labelled fixed-width column
+  under a table header matching the Usage tab's insight tables (every Files list
+  carries one) — Top Directories, a main-vs-subagent split, a
+  plan-vs-execution split, **By Agent Type** — which kinds of subagent read the
+  most — and **Read to Orient**, files ranked by plan-mode reads with the number
+  of distinct sessions that needed each, i.e. what this project costs to
+  understand before any work happens. Two further lists measure the project's
+  context tax: **Read, Never Edited** (files read more than once and never
+  changed — documentation that should be summarized, or a dependency whose
+  contents keep being re-derived) and **Re-read in One Context** (the same file
+  loaded again inside one agent's context window with no edit in between —
+  context gathered, lost, and gathered again). Both deliberately honour the
+  Session filter only: Agent and Mode remove the very edits their predicates are
+  defined against, so under "Plan mode only" every file would read as
+  never-edited. A read following an edit of that file is verification, not a
+  reload, and is not counted; and a subagent reading what the main agent already
+  read is delegation, not lost context, so re-reads are counted per context
+  window rather than per session. Subagent work was ~21% of file touches
+  when measured, nearly all reads, so it is counted rather than dropped; folding
+  it into the plan/execution axis is what shows 35% of file activity happening
+  in plan mode rather than 19%. Top Files' column headers are sortable —
+  click Read, Edit, Write, Plan, Exec or Total to reorder by that column
+  (descending first), or File for A→Z; clicking the active column reverses
+  it. The sort applies to the full list before the top-50 slice, so sorting
+  by Edit surfaces a heavily-edited file even when its total touches never
+  put it in the default top 50. Complements the hook-based Usage tab; see
+  `docs/file-directory-metrics-investigation.md` and
+  `docs/file-activity-metrics-extensions-investigation.md`
+- Subagent spawn tracking: `Task`/`Agent` tool calls are now recorded as
+  `subagent` usage events with the agent type as name (e.g. `Explore`,
+  `code-reviewer`) and paired durations (PreToolUse matcher widened to
+  `Skill|Task|Agent|mcp__.*`). The report gains a **Top Agents** section
+  (runs, sessions, average duration) and a main-vs-subagent split — the
+  share of tracked calls that ran inside subagents
+- **Agents** section in Settings → Usage: per-agent-type run counts alongside
+  the existing MCP Tools and Skills lists, narrowed by the same
+  period/project/session filters. The Event Log now carries a distinct badge
+  per tracked event type (MCP, Skill, Agent) so the new subagent events are
+  labelled correctly
+- Agent-type attribution: usage events for tool calls made inside a subagent
+  now record `agentType` (e.g. `Explore`, `my-plugin:reviewer`) from the hook
+  payload's documented `agent_type` field; the report's Top Agents table gains
+  a **Calls inside** column and the main-vs-subagent split a per-type
+  breakdown. On Claude Code versions that don't send the field, events simply
+  stay untyped as before (see `docs/agent-type-attribution-investigation.md`)
+- **Agent Insights** table in Settings → Usage: a rich per-agent-type view
+  (8-week trend, average spawn duration, a **calls-inside** count of the
+  skill/MCP calls that ran inside each agent, and run count) plus a delegation
+  headline (`N% of tracked calls ran inside subagents`). Surfaces the report's
+  Top Agents / `agentSplit` metrics in the live tab, at parity with Skill
+  Insights, narrowed by the same period/project/session filters
+- **MCP Insights** table in Settings → Usage: MCP tools get the same rich view
+  as Skill Insights (8-week trend, average duration, last-used, call count),
+  with long tool names truncated (full name on hover)
+
+### Changed
+- Bumped `electron` from 42.2.0 to 43.2.0, and the CI actions
+  `actions/checkout` and `actions/setup-node` from v6 to v7. No code change
+  was needed: of Electron 43's breaking changes, only the new
+  `dialog.showSaveDialog` Downloads default and `NativeImage.toBitmap()`
+  colour normalization could apply, and the report window already passes an
+  explicit `defaultPath` while nothing here calls `toBitmap()`
+- Reorganized `src/app/` from 21 flat files into five subsystem folders —
+  `pet/` (registry, catalog, state machine), `server/` (the HTTP event server),
+  `windows/` (BrowserWindows, preloads, and the helpers only they use),
+  `marketplace/` (purchase/license/download, including its HTTP client) and
+  `core/` (utilities every subsystem shares: logger, process manager, settings
+  store) — with `main.js` alone at the root. Pure relocation: no behavior
+  change, no renames, no file splitting. `test/unit/` mirrors the new layout.
+  Dependencies point inward, `server/`/`windows/` → `pet/` → `core/`, so the pet
+  domain stays free of transport and `core/` depends on nothing above it
+- The **Skill Insights** table in Settings → Usage is now a framed table with a
+  fixed column header (`Skill`, `Trend`, `Avg`, `Used`, `Runs`) so the five
+  columns — name, 8-week sparkline, average duration, last-used and invocation
+  count — are labelled instead of distinguished only by colour. The header stays
+  fixed while the rows scroll beneath it
+- Consolidated the Usage tab: the three plain name+count lists (MCP Tools,
+  Skills, Agents) are replaced by the three rich Insights tables (Skill, MCP,
+  Agent), which are supersets of them — removing duplicate listings
+- Event Log type badges (`AGENT` / `MCP` / `SKILL`) in Settings → Usage now share
+  a uniform width, so the tool-name column lines up across rows instead of
+  shifting with each badge's label length
+
 ## [0.2.0] - 2026-07-19
 
 ### Added

@@ -14,6 +14,9 @@ class UsageEvent {
     if (extra && typeof extra.agentId === 'string' && extra.agentId !== '') {
       this.agentId = extra.agentId;
     }
+    if (extra && typeof extra.agentType === 'string' && extra.agentType !== '') {
+      this.agentType = extra.agentType;
+    }
     Object.freeze(this);
   }
 
@@ -27,6 +30,7 @@ class UsageEvent {
     };
     if (this.durationMs !== undefined) json.durationMs = this.durationMs;
     if (this.agentId !== undefined) json.agentId = this.agentId;
+    if (this.agentType !== undefined) json.agentType = this.agentType;
     return json;
   }
 }

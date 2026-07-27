@@ -39,6 +39,10 @@ const version = resolveVersion(arg);
 
 const files = [
   { path: 'package.json', update: (j) => { j.version = version; } },
+  // npm rewrites both of these from package.json on any install, so bump them
+  // here too — otherwise the lockfile drifts until someone's unrelated
+  // `npm install` corrects it and shows up as a stray diff in their branch.
+  { path: 'package-lock.json', update: (j) => { j.version = version; j.packages[''].version = version; } },
   { path: '.claude-plugin/plugin.json', update: (j) => { j.version = version; } },
   { path: '.claude-plugin/marketplace.json', update: (j) => { j.plugins[0].version = version; } },
 ];

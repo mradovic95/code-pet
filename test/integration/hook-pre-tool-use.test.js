@@ -75,6 +75,24 @@ describe('on-pre-tool-use hook', () => {
     assert.equal(requests[0].body.agentId, 'a8917150403d66ba2');
   });
 
+  it('sends action_started for a subagent spawn (Task matcher)', async () => {
+    // GIVEN — hooks.json matches Task/Agent so subagent runs get duration-paired
+    const input = {
+      tool_name: 'Task',
+      tool_input: { subagent_type: 'Explore', prompt: 'find usages' },
+      tool_use_id: 'toolu_task42',
+    };
+
+    // WHEN
+    await spawnHook(input);
+
+    // THEN
+    const requests = server.getRequests();
+    assert.equal(requests[0].body.event, 'action_started');
+    assert.equal(requests[0].body.toolName, 'Task');
+    assert.equal(requests[0].body.toolUseId, 'toolu_task42');
+  });
+
   it('exits cleanly with {} on empty stdin', async () => {
     // GIVEN
     const input = {};

@@ -733,3 +733,156 @@ describe('usageAnalytics.formatMs', () => {
     }
   });
 });
+
+describe('usageAnalytics.agentSplit', () => {
+  it('counts events carrying an agentId and computes the percentage', () => {
+    // GIVEN
+    const events = [
+      event({ agentId: 'a1' }),
+      event({ agentId: 'a2' }),
+      event({}),
+      event({}),
+    ];
+
+    // WHEN
+    const result = sut.agentSplit(events);
+
+    // THEN
+    assert.equal(result.total, 4);
+    assert.equal(result.tagged, 2);
+    assert.equal(result.pct, 50);
+  });
+
+  it('breaks tagged events down by agentType, grouping untyped under unknown', () => {
+    // GIVEN
+    const events = [
+      event({ agentId: 'a1', agentType: 'Explore' }),
+      event({ agentId: 'a1', agentType: 'Explore' }),
+      event({ agentId: 'a2', agentType: 'Plan' }),
+      event({ agentId: 'a3' }),
+      event({}),
+    ];
+
+    // WHEN
+    const result = sut.agentSplit(events);
+
+    // THEN
+    assert.deepEqual(result.byType, { Explore: 2, Plan: 1, unknown: 1 });
+  });
+
+  it('returns zeros for empty input', () => {
+    // GIVEN
+    const events = [];
+
+    // WHEN
+    const result = sut.agentSplit(events);
+
+    // THEN
+    assert.deepEqual(result, { total: 0, tagged: 0, pct: 0, byType: {} });
+  });
+});
+
+describe('usageAnalytics.buildReport type scoping', () => {
+  it('joins topAgents with duration stats and computes agentSplit', () => {
+    // GIVEN
+    const events = [
+      event({ type: 'subagent', name: 'Explore', sessionId: 's1', timestamp: NOW - 100, durationMs: 4000 }),
+      event({ type: 'subagent', name: 'Explore', sessionId: 's2', timestamp: NOW - 50, durationMs: 2000 }),
+      event({ type: 'subagent', name: 'Plan', sessionId: 's1', timestamp: NOW - 40 }),
+      event({ name: 'commit', sessionId: 's1', timestamp: NOW, agentId: 'a1' }),
+    ];
+
+    // WHEN
+    const report = sut.buildReport(events, { now: NOW });
+
+    // THEN
+    assert.equal(report.totals.subagents, 3);
+    assert.deepEqual(report.topAgents.map((a) => a.name), ['Explore', 'Plan']);
+    assert.equal(report.topAgents[0].avgMs, 3000);
+    assert.equal(report.topAgents[0].maxMs, 4000);
+    assert.equal(report.topAgents[1].avgMs, undefined);
+    assert.equal(report.agentSplit.total, 4);
+    assert.equal(report.agentSplit.tagged, 1);
+    assert.equal(report.agentSplit.pct, 25);
+  });
+
+  it('produces identical insight sections for old-shape logs with and without scoping', () => {
+    // GIVEN — a log written before subagent tracking existed
+    const events = [
+      event({ name: 'commit', sessionId: 's1', timestamp: NOW - 1000, durationMs: 500 }),
+      event({ type: 'mcp_tool', name: 'mcp__db__query', sessionId: 's1', timestamp: NOW }),
+    ];
+
+    // WHEN
+    const report = sut.buildReport(events, { now: NOW });
+
+    // THEN — same aggregates as running the pure functions unscoped
+    assert.deepEqual(report.coUsed, sut.coOccurrence(events));
+    assert.deepEqual(report.sequences, sut.sequences(events));
+    assert.deepEqual(report.durations, sut.durationStats(events));
+    assert.deepEqual(report.perProject, sut.perProject(events));
+  });
+});
+
+describe('usageAnalytics report rendering for new sections', () => {
+  it('renders Top Agents in markdown with data', () => {
+    // GIVEN
+    const events = [
+      event({ type: 'subagent', name: 'code-reviewer', sessionId: 's1', timestamp: NOW, durationMs: 3000 }),
+      event({ name: 'commit', sessionId: 's1', timestamp: NOW - 1, agentId: 'a1', agentType: 'code-reviewer' }),
+    ];
+    const report = sut.buildReport(events, { now: NOW });
+
+    // WHEN
+    const md = sut.renderMarkdownReport(report);
+
+    // THEN
+    assert.ok(md.includes('## Top Agents'));
+    assert.ok(md.includes('| code-reviewer | 1 | 1 | 1 | 3.0s |'));
+    assert.ok(md.includes('% of tracked skill/MCP/agent calls ran inside subagents'));
+  });
+
+  it('renders empty states for the new sections in markdown', () => {
+    // GIVEN
+    const report = sut.buildReport([], { now: NOW });
+
+    // WHEN
+    const md = sut.renderMarkdownReport(report);
+
+    // THEN
+    assert.ok(md.includes('_No subagent runs recorded._'));
+  });
+
+  it('renders Top Agents section in html', () => {
+    // GIVEN
+    const events = [
+      event({ type: 'subagent', name: 'Explore', sessionId: 's1', timestamp: NOW, durationMs: 1500 }),
+    ];
+    const report = sut.buildReport(events, { now: NOW });
+
+    // WHEN
+    const html = sut.renderHtmlReport(report);
+
+    // THEN
+    assert.ok(html.includes('<h2>Top Agents</h2>'));
+    assert.ok(html.includes('Explore'));
+    assert.ok(html.includes('1.5s'));
+    assert.ok(!html.includes('<script'), 'report must stay script-free');
+  });
+
+  it('escapes hostile subagent names in html', () => {
+    // GIVEN
+    const hostile = '<img src=x onerror=alert(1)>';
+    const events = [
+      event({ type: 'subagent', name: hostile, sessionId: 's1', timestamp: NOW }),
+    ];
+    const report = sut.buildReport(events, { now: NOW });
+
+    // WHEN
+    const html = sut.renderHtmlReport(report);
+
+    // THEN
+    assert.ok(!html.includes(hostile), 'raw hostile name leaked into html');
+    assert.ok(html.includes('&lt;img'));
+  });
+});

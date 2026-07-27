@@ -2,7 +2,7 @@
 
 /**
  * Pure aggregation functions over persisted usage events
- * ({ type, name, timestamp, sessionId, projectPath, durationMs?, agentId? }).
+ * ({ type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType? }).
  * No I/O, no Node APIs — loadable both via require() (main process, tests)
  * and via <script> in the settings renderer (window.usageAnalytics).
  */
@@ -239,6 +239,24 @@
       .sort((a, b) => b.avgMs - a.avgMs || a.name.localeCompare(b.name));
   }
 
+  // Share of events that ran inside a subagent (carry an agentId), plus a
+  // per-agent-type breakdown. Events tagged before agentType existed (or from
+  // older CLI versions that don't send it) group under 'unknown'.
+  function agentSplit(events) {
+    let total = 0;
+    let tagged = 0;
+    const byType = {};
+    for (const e of events) {
+      total += 1;
+      if (e.agentId) {
+        tagged += 1;
+        const type = e.agentType || 'unknown';
+        byType[type] = (byType[type] || 0) + 1;
+      }
+    }
+    return { total, tagged, pct: total === 0 ? 0 : Math.round((tagged / total) * 100), byType };
+  }
+
   function perProject(events, { topNames = 3 } = {}) {
     const byProject = new Map();
     for (const e of events) {
@@ -271,12 +289,19 @@
       if (firstEvent === null || e.timestamp < firstEvent) firstEvent = e.timestamp;
       if (lastEvent === null || e.timestamp > lastEvent) lastEvent = e.timestamp;
     }
+    const subagentEvents = events.filter((e) => e.type === 'subagent');
+    const agentDurations = new Map(durationStats(subagentEvents).map((d) => [d.name, d]));
+    const topAgents = topN(events, { type: 'subagent', n: 10 }).map((s) => {
+      const d = agentDurations.get(s.name);
+      return d ? { ...s, avgMs: d.avgMs, maxMs: d.maxMs } : s;
+    });
     return {
       generatedAt: now,
       totals: {
         events: events.length,
         skills: events.filter((e) => e.type === 'skill').length,
         mcpTools: events.filter((e) => e.type === 'mcp_tool').length,
+        subagents: subagentEvents.length,
         sessions: sessions.size,
         projects: projects.size,
         firstEvent,
@@ -284,6 +309,8 @@
       },
       topSkills: topN(events, { type: 'skill', n: 10 }),
       topMcp: topN(events, { type: 'mcp_tool', n: 10 }),
+      topAgents,
+      agentSplit: agentSplit(events),
       dormant: dormant(events, { thresholdDays: dormantDays, now }),
       dormantDays,
       coUsed: coOccurrence(events),
@@ -354,7 +381,7 @@
     lines.push('');
     lines.push(`Generated: ${formatDate(report.generatedAt)}`);
     lines.push(
-      `Events: ${t.events} (${t.skills} skill, ${t.mcpTools} MCP) across ` +
+      `Events: ${t.events} (${t.skills} skill, ${t.mcpTools} MCP, ${t.subagents} subagent) across ` +
         `${t.sessions} sessions and ${t.projects} projects` +
         (t.firstEvent != null ? `, from ${formatDate(t.firstEvent)} to ${formatDate(t.lastEvent)}` : '')
     );
@@ -382,6 +409,25 @@
       lines.push('|---|---|---|---|');
       for (const s of report.topMcp) {
         lines.push(`| ${escapeMd(s.name)} | ${s.count} | ${s.sessionCount} | ${formatDate(s.lastUsed)} |`);
+      }
+    }
+    lines.push('');
+
+    lines.push('## Top Agents');
+    lines.push('');
+    if (report.topAgents.length === 0) {
+      lines.push('_No subagent runs recorded._');
+    } else {
+      if (report.agentSplit.total > 0) {
+        lines.push(`${report.agentSplit.pct}% of tracked skill/MCP/agent calls ran inside subagents.`);
+        lines.push('');
+      }
+      lines.push('| Agent | Runs | Calls inside | Sessions | Avg duration | Last used |');
+      lines.push('|---|---|---|---|---|---|');
+      for (const a of report.topAgents) {
+        const avg = typeof a.avgMs === 'number' ? formatMs(a.avgMs) : 'n/a';
+        const inside = (report.agentSplit.byType && report.agentSplit.byType[a.name]) || 0;
+        lines.push(`| ${escapeMd(a.name)} | ${a.count} | ${inside} | ${a.sessionCount} | ${avg} | ${formatDate(a.lastUsed)} |`);
       }
     }
     lines.push('');
@@ -573,6 +619,22 @@
           })))
     }</section>`);
 
+    sections.push(`<section><h2>Top Agents</h2>${
+      report.topAgents.length === 0
+        ? emptyHtml('No subagent runs recorded.')
+        : (report.agentSplit.total > 0
+            ? `<p class="note">${report.agentSplit.pct}% of tracked skill/MCP/agent calls ran inside subagents.</p>`
+            : '') +
+          tableHtml(['Agent', 'Runs', 'Calls inside', 'Sessions', 'Avg duration', 'Last used'], report.topAgents.map((a) => [
+            a.name,
+            `${a.count}`,
+            `${(report.agentSplit.byType && report.agentSplit.byType[a.name]) || 0}`,
+            `${a.sessionCount}`,
+            typeof a.avgMs === 'number' ? formatMs(a.avgMs) : 'n/a',
+            formatDate(a.lastUsed),
+          ]))
+    }</section>`);
+
     sections.push(`<section><h2>Dormant <span class="h-note">(not used in ${report.dormantDays}+ days)</span></h2>` +
       `<p class="note">Candidates to prune, update, or re-surface.</p>${
       report.dormant.length === 0
@@ -641,7 +703,7 @@
     }
 
     const subtitle =
-      `${t.events} events (${t.skills} skill, ${t.mcpTools} MCP) · ${t.sessions} sessions · ${t.projects} projects` +
+      `${t.events} events (${t.skills} skill, ${t.mcpTools} MCP, ${t.subagents} subagent) · ${t.sessions} sessions · ${t.projects} projects` +
       (t.firstEvent != null ? ` · ${formatDate(t.firstEvent)} — ${formatDate(t.lastEvent)}` : '');
 
     return `<!DOCTYPE html>
@@ -738,6 +800,7 @@ ${sections.join('\n')}
   const api = {
     summarizeByName,
     topN,
+    agentSplit,
     weeklyTrend,
     dayTrend,
     weekTrend,

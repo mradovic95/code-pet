@@ -7,7 +7,7 @@ const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { createMockContext } = require('../../helpers/mock-context');
 
-const WaitingForActionState = require('../../../src/app/state-machine/waiting-for-action-state');
+const WaitingForActionState = require('../../../src/app/pet/state-machine/waiting-for-action-state');
 
 describe('WaitingForActionState', () => {
   let sut;

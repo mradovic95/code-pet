@@ -24,7 +24,7 @@ async function main() {
   // Step 2: Ensure Electron app is running
   // Require process-manager only after bootstrap confirms deps are ready
   // (process-manager itself only uses built-ins, but we gate on readiness for launchApp)
-  const pm = require(path.join(PLUGIN_ROOT, 'src', 'app', 'process-manager'));
+  const pm = require(path.join(PLUGIN_ROOT, 'src', 'app', 'core', 'process-manager'));
 
   const running = await pm.isRunning();
   if (!running) {

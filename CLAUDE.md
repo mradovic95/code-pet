@@ -1,11 +1,12 @@
 # Code Pet
 
-Animated desktop pet that reacts to Claude Code activity. A transparent, always-on-top Electron overlay (96×96px, bottom-right corner) shows a sprite-animated dog that responds to hook events.
+Animated desktop pet that reacts to Claude Code activity. A transparent, always-on-top Electron overlay (96×96px,
+bottom-right corner) shows a sprite-animated dog that responds to hook events.
 
 ## Tech Stack
 
 - **Node.js** (>= 18) — hook scripts, process management
-- **Electron** (^42.0.0) — transparent overlay window, the only runtime dependency
+- **Electron** (^43.0.0) — transparent overlay window, the only runtime dependency
 - No other external dependencies. Keep it that way.
 
 ## Directory Structure
@@ -22,43 +23,48 @@ hooks/
     on-session-end.js        # SessionEnd: send falling_asleep → shut down Electron (skipped for reason clear/resume)
     on-notification.js       # Notification: send action_requested (+notification payload)
     on-prompt-submit.js      # UserPromptSubmit: send working_started or planning_started (+prompt_length)
-    on-pre-tool-use.js       # PreToolUse (matcher Skill|mcp__.*): sends action_started for duration pairing
+    on-pre-tool-use.js       # PreToolUse (matcher Skill|Task|Agent|mcp__.*): sends action_started for duration pairing
     on-post-tool-use.js      # PostToolUse: sends action_completed for all tool completions
     on-stop.js               # Stop: send work_finished (+stop_reason)
 src/
-  app/                       # Electron main process
-    main.js                  # Entry point: PID → server → overlay window
-    event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
-    pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
-    pet-catalog.js           # Scans shipped + downloaded pet manifests, merges by id
-    process-manager.js       # PID file, app launch/stop, health checks
-    window-manager.js        # Transparent click-through BrowserWindow + marketplace IPC handlers
-    logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
-    preload.js               # Context bridge: window.codePet.onPetEvent()
-    settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
-    settings-store.js        # Persistent user settings (~/.code-pet/settings.json) with sound + dismissed pets
-    report-window.js         # Usage report preview window + IPC (open-usage-report, get-report-html, save-report)
-    report-preload.js        # Context bridge for report preview window (window.codePetReport)
-    terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
-    http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
-    marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
-    marketplace-catalog.js   # Catalog fetch + productId↔petId mapping (cached to product-map.json)
-    marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
-    marketplace-constants.js # DEFAULT_BASE_URL, DEFAULT_MARKETPLACE_ID; consulted when no override
-    license-api.js           # MockLicenseAPI (dev/test fallback when MARKETPLACE_MOCK=true)
-    license-manager.js       # License activation, revalidation, offline grace period
-    premium-store.js         # Downloads premium pet manifests + sprites to ~/.code-pet/pets/{id}/
-    state-machine/             # Server-side state machine (whitelist pattern)
-      states.js                # STATES enum
-      events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
-      base-state.js            # BaseState: ignore-all defaults, helpers
-      state-factory.js         # createState(): state name → class instance
-      pet-context.js           # PetContext: orchestrator, mutable state per project
-      idle-state.js            # IdleState
-      active-state.js          # ActiveState: shared working/planning base
-      working-state.js         # WorkingState (extends ActiveState)
-      planning-state.js        # PlanningState (extends ActiveState)
-      waiting-for-action-state.js # WaitingForActionState
+  app/                       # Electron main process — grouped by subsystem; only the entry point sits at the root
+    main.js                  # Entry point: PID → server → overlay window (package.json "main"; must stay here)
+    windows/                 # Everything that owns a BrowserWindow or bridges into a renderer, plus the helpers only that layer uses
+      window-manager.js        # Transparent click-through overlay + settings window + most IPC handlers
+      report-window.js         # Usage report preview window + IPC (open-usage-report, get-report-html, save-report)
+      preload.js               # Context bridge: window.codePet.onPetEvent()
+      settings-preload.js      # Context bridge for settings window (includes marketplace IPC)
+      report-preload.js        # Context bridge for report preview window (window.codePetReport)
+      terminal-focus.js        # macOS helper: focuses the terminal that spawned the session
+    pet/                     # The pet domain: what a pet is and how it reacts to events
+      pet-registry.js          # PetRegistry class: per-project PetContext container with lifecycle callbacks
+      pet-catalog.js           # Scans shipped + downloaded pet manifests, merges by id
+      state-machine/           # Server-side state machine (whitelist pattern)
+        states.js                # STATES enum
+        events.js                # EVENTS, EVENT_TO_STATE, VALID_EVENTS
+        base-state.js            # BaseState: ignore-all defaults, helpers
+        state-factory.js         # createState(): state name → class instance
+        pet-context.js           # PetContext: orchestrator, mutable state per project
+        idle-state.js            # IdleState
+        active-state.js          # ActiveState: shared working/planning base
+        working-state.js         # WorkingState (extends ActiveState)
+        planning-state.js        # PlanningState (extends ActiveState)
+        waiting-for-action-state.js # WaitingForActionState
+    server/                  # HTTP transport only — owns the port, not the domain
+      event-server.js          # HTTP server on 127.0.0.1:31425 (/event, /health, /last-event, /shutdown)
+    marketplace/             # Purchase → license → download stack (see Marketplace Integration below)
+      marketplace-api.js       # Real marketplace REST API client (replaces MockLicenseAPI when configured)
+      marketplace-catalog.js   # Catalog fetch + productId↔petId mapping (cached to product-map.json)
+      marketplace-config.js    # Reads ~/.code-pet/marketplace.json for API URL, key, marketplace ID
+      marketplace-constants.js # DEFAULT_BASE_URL, DEFAULT_MARKETPLACE_ID; consulted when no override
+      license-api.js           # MockLicenseAPI (dev/test fallback when MARKETPLACE_MOCK=true)
+      license-manager.js       # License activation, revalidation, offline grace period
+      premium-store.js         # Downloads premium pet manifests + sprites to ~/.code-pet/pets/{id}/
+      http-client.js           # Promise-based HTTP utility (Node.js built-in https/http, zero deps)
+    core/                    # Genuinely shared, dependency-light utilities — every folder above requires these
+      logger.js                # File logger (~/.code-pet/code-pet.log, 1MB max)
+      process-manager.js       # PID file, app launch/stop, health checks (also required by the hooks)
+      settings-store.js        # Persistent user settings (~/.code-pet/settings.json) with sound + dismissed pets
   renderer/                  # Chromium renderer (the visible overlay)
     index.html               # Shell: <div id="pets-container">, loads pet.js + pet-manager.js + ipc.js
     pet.js                   # Sprite state machine + interaction (Pet class)
@@ -75,10 +81,13 @@ src/
       general.html             # General settings tab
       store.html               # Marketplace / store tab
       usage.html               # Usage analytics tab
-  tracking/                  # Skill / MCP tool usage tracking (self-contained)
+      file-activity.html       # Files tab: on-demand file/directory activity from session transcripts
+  tracking/                  # Usage + file-activity metrics: hook-sourced tracking and transcript-sourced reads (self-contained)
     index.js                 # Barrel: UsageEvent, UsageTracker, UsageStore, createStore, MemoryStore, FilesystemStore, usageAnalytics
-    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?)
+    usage-event.js           # Frozen UsageEvent value object (type, name, timestamp, sessionId, projectPath, durationMs?, agentId?, agentType?)
     usage-analytics.js       # Pure aggregation over event arrays (summaries, trends, co-occurrence, dormant, report) — dual-export: require() + window.usageAnalytics in the settings renderer
+    file-activity.js         # Pure aggregation over transcript file-touch events (top files/dirs, per-session, agent + plan/exec splits, read-only + re-read context tax) + sortFiles() for the Top Files column sort — dual-export: require() + window.fileActivity in the settings renderer
+    transcript-reader.js     # Reads/parses Claude Code session + subagent transcripts (~/.claude/projects/**/*.jsonl) into file-touch events on demand (Files tab); main-process only. Per session: main transcript before its subagents (plan-mode inheritance)
     usage-tracker.js         # In-memory ring buffer + optional store sink (UsageTracker)
     usage-store.js           # UsageStore abstract contract + createStore({ type }) factory
     stores/
@@ -94,7 +103,6 @@ test/
   helpers/                   # Mock logger, mock context, test HTTP server
   unit/                      # State machine, tracking, pet-registry, marketplace tests
   integration/               # Hook contract tests (spawn real processes + HTTP)
-test.sh                      # Dev utility: send events to the pet (curl wrapper)
 ```
 
 ## Architecture
@@ -114,14 +122,109 @@ Claude Code hooks (stdin JSON)
 
 Hook scripts and the Electron app communicate **only via HTTP**. Hooks have zero Electron dependency.
 
-**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill` and `mcp_tool` events. The tracker holds a ring buffer in memory *and* writes each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`), constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code changes. Events optionally carry `durationMs` (PreToolUse→PostToolUse pairing via an in-memory map on `PetContext`; the `action_started` event is handled before the state machine and never changes pet state) and `agentId` (subagent attribution). `src/tracking/usage-analytics.js` provides pure aggregation (top skills, weekly trends, calendar activity views — current day/week/month via `dayTrend`/`weekTrend`/`monthTrend` — co-occurrence, dormant detection, duration stats with avg/median/max/min, HTML/markdown report) consumed by the settings Usage tab; the "View Report" button there opens the rendered HTML report in a dedicated preview window (`src/app/report-window.js`) with explicit Save as HTML / Save as Markdown buttons — the pristine report strings stay in the main process so saved files never contain the preview toolbar. The report HTML must stay script-free: the preview iframe uses `sandbox=""` (no `allow-scripts`), so all interactivity (the Today/This Week/This Month activity toggle, the Average/Median/Max/Min duration toggle) is pure CSS via hidden radio inputs + `:checked` selectors, and the report/preview styling mirrors the settings window's dark palette rather than defining its own theme. See `docs/usage-tracking.md` for the data format and operator reference.
+**Side-channel: usage persistence.** Each `PetContext` owns a `UsageTracker` that records `skill`, `mcp_tool`, and
+`subagent` events (subagent = `Task`/`Agent` tool spawn, name = `subagent_type`). Other built-in tools (Read, Bash,
+Edit, …) are not recorded — high volume, little analytical value. The tracker holds a ring buffer in memory *and* writes
+each event through a `UsageStore` sink. The default sink is `FilesystemStore` (NDJSON at `~/.code-pet/usage.log`),
+constructed in `src/app/main.js` and threaded through `PetRegistry → PetContext → UsageTracker`. Backends are swapped by
+adding a class to `src/tracking/stores/` and a case to `createStore()` in `src/tracking/usage-store.js` — no other code
+changes. Events optionally carry `durationMs` (PreToolUse→PostToolUse pairing via an in-memory map on `PetContext`; the
+`action_started` event is handled before the state machine and never changes pet state), `agentId` (subagent
+attribution), and `agentType` (the type of the subagent the tool ran inside, from the hook payload's `agent_type`
+field — see `docs/agent-type-attribution-investigation.md`). `src/tracking/usage-analytics.js` provides pure
+aggregation (top skills, top agents with durations, main-vs-subagent split via `agentSplit`, weekly trends, calendar
+activity views — current day/week/month via `dayTrend`/`weekTrend`/`monthTrend` — co-occurrence, dormant detection,
+duration stats with avg/median/max/min, HTML/markdown report) consumed by the settings Usage tab; the "View Report"
+button there opens the rendered HTML report in a dedicated preview window (`src/app/windows/report-window.js`) with explicit
+Save as HTML / Save as Markdown buttons — the pristine report strings stay in the main process so saved files never
+contain the preview toolbar. The report HTML must stay script-free: the preview iframe uses `sandbox=""` (no
+`allow-scripts`), so all interactivity (the Today/This Week/This Month activity toggle, the Average/Median/Max/Min
+duration toggle) is pure CSS via hidden radio inputs + `:checked` selectors, and the report/preview styling mirrors the
+settings window's dark palette rather than defining its own theme. See `docs/usage-tracking.md` for the data format and
+operator reference.
+
+**Separate view: File Activity (transcript-sourced, on-demand).** The settings **Files** tab answers "which files and
+directories did this project's sessions touch most" — deliberately *not* via hooks (recording every Read/Edit would
+bloat `usage.log` and add a per-file privacy footprint). Instead `src/tracking/transcript-reader.js` parses the Claude Code
+session transcripts only when the tab is opened/refreshed — nothing is persisted. **Two transcript layouts, both
+walked:** `~/.claude/projects/<encoded-project>/<session-id>.jsonl` (one per session, the main agent) and
+`<session-id>/subagents/agent-<id>.jsonl` (one per subagent) with an `agent-<id>.meta.json` sidecar carrying its
+`agentType` and `toolUseId`. Subagent transcripts must be walked explicitly — they were ~21% of this project's touches,
+nearly all reads — and *only* the directory layout identifies them: `isSidechain` is `false` on every record in the
+top-level transcripts, so subagent-ness comes from where the file was found, never from a record field. It extracts
+`Read`/`Edit`/`Write`/`NotebookEdit` `file_path`s (the only tools that carry one) into
+`{tool, filePath, sessionId, cwd, timestamp, agentId, agentType, planMode}` events — `agentId`/`agentType` are null for
+main-agent touches, and reuse the hook tracker's field names deliberately so both views share one vocabulary. Sidechain
+records carry their *parent* session's id, so a subagent's touches fold into the session that spawned it and the Session
+filter needs no special case.
+
+**`planMode` is why the reader is structured per-session rather than per-file.** Plan-vs-execution comes from
+`permissionMode`, carried both by standalone `{"type":"permission-mode",…}` records and as a top-level field on `user`
+prompt records — *neither of which has a timestamp*, so the tag depends on line order within one file and can never be
+recovered from a merged event stream. An `ExitPlanMode` tool call ends plan mode too: a mode record does not reliably
+follow plan approval, so without that boundary post-approval work reads as planning (measured: 48 mis-tagged touches).
+Subagent transcripts carry **no** mode records at all, so a subagent inherits the parent's mode at its spawn — the
+parse collects `tool_use id → planMode` and matches it against the sidecar's `toolUseId`. Hence `parseTranscript`
+returns `{events, spawnModes}` and `readFileEvents` groups by session, parsing a session's main transcript **before**
+its subagents; sessions still run concurrently. `planMode` is genuinely nullable (unresolvable `toolUseId`, or a
+transcript that never reveals a mode) and null touches count toward neither side rather than being folded into
+execution. Skipping the inheritance would leave 21% of touches untagged and understate plan mode as 19% instead of 35%.
+
+These cross the renderer boundary via the
+`get-file-activity` IPC channel (main-only, since the renderer can't read the filesystem). That channel takes **no
+argument**: main resolves the project from `currentSettingsProjectPath` (the settings window's own pet) and returns
+`{ projectPath, events }` — the renderer has no independent source for the path, so having it supply one would be a round
+trip, and it also must not be able to name an arbitrary project whose transcripts get read. Note the distinction main
+keeps: the *session key* is `projectPath::claudePid`, and only the bare `projectPath` encodes to a valid transcript
+directory. `src/tracking/file-activity.js`
+is the pure aggregator (top files with read/edit/write split, top directories via dirname rollup, per-session grouping,
+project-relative paths, plus `agentSplit`/`topAgents` mirroring `usage-analytics.js`'s `agentSplit` field-for-field, and
+`modeSplit`/`topOrientFiles` mirroring `agentSplit` in turn, and `topReadOnlyFiles`/`topRereadFiles`) — dual-exported
+like `usage-analytics.js`. The renderer has
+three filters, each orthogonal to the others rather than a re-slice: **Session** mirroring the Usage tab's (defaults to
+`All sessions` — the whole project — and narrows to one session when picked), **Agent** (`All agents` / `Main agent
+only` / `Subagents only`), and **Mode** (`All modes` / `Plan mode only` / `Execution only`). Filtering happens in the
+renderer before aggregating, so `aggregate()` takes no filter argument. A **By Agent Type** list shows which kinds of
+subagent read the most, and **Read to Orient** ranks files by plan-mode reads with the count of *distinct* sessions that
+needed each — what separates a file re-read to orient from one read many times in a single sitting, and the intended
+signal for what belongs in this file.
+
+**Top Files has sortable column headers** (`sortFiles()` in `file-activity.js`, wired in `settings.js` off the
+`data-sort-key` on each header cell in `file-activity.html`). A count column sorts descending on first click and a
+filename ascending; clicking the active column reverses it; ties always break on path ascending so a mostly-zero column
+like Write stays deterministic. **The sort is applied to the full aggregated list before the top-N slice** — sorting the
+slice would answer "the edit counts among the top N by total" rather than "the top N by edits", and a heavily-edited
+file with few total touches never enters the default-order slice to begin with. The sort is session-scoped renderer
+state, so it survives the filters and Refresh. It reorders *aggregated rows*, never the event array, which stays
+order-sensitive for `planMode` and `topRereadFiles`.
+
+**Two context-tax lists honour the Session filter only, and that is deliberate.** **Read, Never Edited**
+(`topReadOnlyFiles`) needs `reads >= MIN_UNEDITED_READS` — a once-read file is a fact, not a cost; 78 of 96 candidates
+were read exactly once — and **Re-read in One Context** (`topRereadFiles`) counts a read of a file whose earlier read in
+the same context window has not been invalidated by an edit *of that same file* (a read after such an edit is
+verification, not a reload). The **Agent** and **Mode** filters remove the very edits both predicates are defined
+against — under `Plan mode only` every file reads as never-edited — so `renderFaView` runs a *second* `aggregate()` over
+the session-scoped slice for these two, and each section says so. The re-read window is `(sessionId, agentId)`, not the
+session: subagent touches carry the *parent's* `sessionId`, and a subagent reading what the main agent already read is a
+fresh context by design (403 re-reads counted per session vs 110 per context). Both lists exclude paths outside the
+project while `topFiles`/`topDirs` keep them — a census must not hide touches, a diagnosis must not indict files the
+project does not own. `topRereadFiles` is **order-sensitive within a context window**, the second such dependency after
+`planMode`'s line order: any caller that re-sorts or interleaves the event array breaks it silently. The project-dir
+encoding replaces every non-alphanumeric char with `-`. This is
+complementary to the hook tracker, not a replacement. See `docs/file-directory-metrics-investigation.md` and
+`docs/file-activity-metrics-extensions-investigation.md` (ranked backlog of further metrics; §4.1 is the subagent walk,
+§4.3 the plan/execution axis and §4.4 the context-tax lists, all implemented — §4.2 line churn is the next slice).
 
 ## Marketplace Integration
 
-Premium pets are purchased and downloaded from the deployed marketplace module (Spring Boot API backed by AWS API Gateway + EC2). Defaults live in `src/app/marketplace-constants.js` — `DEFAULT_BASE_URL` and `DEFAULT_MARKETPLACE_ID = 1`.
+Premium pets are purchased and downloaded from the deployed marketplace module (Spring Boot API backed by AWS API
+Gateway + EC2). Defaults live in `src/app/marketplace/marketplace-constants.js` — `DEFAULT_BASE_URL` and
+`DEFAULT_MARKETPLACE_ID = 1`.
 
 - **Real mode** (default): `MarketplaceAPI` calls the deployed REST API. No configuration required out of the box.
-- **Mock mode** (dev only): `MockLicenseAPI` generates fake license keys for activation testing. Sprite download is not supported in mock mode — a real marketplace API is required to fetch assets. Activate by setting `MARKETPLACE_MOCK=true`.
+- **Mock mode** (dev only): `MockLicenseAPI` generates fake license keys for activation testing. Sprite download is not
+  supported in mock mode — a real marketplace API is required to fetch assets. Activate by setting
+  `MARKETPLACE_MOCK=true`.
 
 ```
 Settings UI (Buy button)
@@ -145,98 +248,146 @@ Settings UI (Buy button)
 **Configuration** (all optional, overrides the defaults in `marketplace-constants.js`):
 
 `~/.code-pet/marketplace.json`:
+
 ```json
 {
-  "baseUrl": "https://fake-marketplace.invalid",
-  "marketplaceId": 1,
-  "jwtToken": null
+	"baseUrl": "https://fake-marketplace.invalid",
+	"marketplaceId": 1,
+	"jwtToken": null
 }
 ```
 
 Env var overrides: `MARKETPLACE_URL`, `MARKETPLACE_ID`, `MARKETPLACE_MOCK`.
 
-**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is built from the catalog response — `petId = product.name.toLowerCase().replace(/\s+/g, '-')` — and cached to `~/.code-pet/product-map.json`. **Sellers must name products predictably** for this to round-trip.
+**Product ID ↔ Pet ID mapping**: The marketplace uses numeric `productId`, code-pet uses string `petId`. The mapping is
+built from the catalog response — `petId = product.name.toLowerCase().replace(/\s+/g, '-')` — and cached to
+`~/.code-pet/product-map.json`. **Sellers must name products predictably** for this to round-trip.
 
-**Asset manifest convention**: Each product has a `manifest.json` asset listing sprite filenames. The client fetches `manifest.json` first, then each referenced sprite. Sellers are responsible for uploading both. Asset downloads are gated by `X-License-Key` (not `Authorization: Bearer`).
+**Asset manifest convention**: Each product has a `manifest.json` asset listing sprite filenames. The client fetches
+`manifest.json` first, then each referenced sprite. Sellers are responsible for uploading both. Asset downloads are
+gated by `X-License-Key` (not `Authorization: Bearer`).
 
-**Stale mock key recovery**: if `~/.code-pet/license.json` contains a key starting with `MOCK-` while running in real mode, the file is cleared on startup (logged as a warning). Prevents confusion when a dev toggles off mock mode.
+**Stale mock key recovery**: if `~/.code-pet/license.json` contains a key starting with `MOCK-` while running in real
+mode, the file is cleared on startup (logged as a warning). Prevents confusion when a dev toggles off mock mode.
 
 ## Events and States
 
-Four semantic events map to four server-side states. Four additional events (`awaken`, `falling_asleep`, `action_completed`, `dismiss`) are handled specially by the server without a dedicated state.
+Four semantic events map to four server-side states. Four additional events (`awaken`, `falling_asleep`,
+`action_completed`, `dismiss`) are handled specially by the server without a dedicated state.
 
-| Event (hook sends) | State (pet.js) | Triggered by |
-|---------------------|----------------|--------------|
-| `awaken` | *(renderer-only `waking_up` animation)* | SessionStart |
-| `action_started` | *(no state change)* | PreToolUse (Skill and MCP tools only) |
-| `working_started` | `working` | UserPromptSubmit (normal mode) |
-| `planning_started` | `planning` | UserPromptSubmit (plan mode) |
-| `action_requested` | `waiting_for_action` | Notification (permission_prompt) |
-| `work_finished` | `idle` | Stop |
-| `action_completed` | *(restores previous)* | PostToolUse (any tool) |
-| `falling_asleep` | *(ignored or removes project)* | SessionEnd (real terminations only; not sent for `reason: clear`/`resume`) |
-| `dismiss` | *(removes project unconditionally)* | UI: Settings → Dismiss Pet |
+| Event (hook sends) | State (pet.js)                          | Triggered by                                                               |
+|--------------------|-----------------------------------------|----------------------------------------------------------------------------|
+| `awaken`           | *(renderer-only `waking_up` animation)* | SessionStart                                                               |
+| `action_started`   | *(no state change)*                     | PreToolUse (Skill, subagent, and MCP tools only)                           |
+| `working_started`  | `working`                               | UserPromptSubmit (normal mode)                                             |
+| `planning_started` | `planning`                              | UserPromptSubmit (plan mode)                                               |
+| `action_requested` | `waiting_for_action`                    | Notification (permission_prompt)                                           |
+| `work_finished`    | `idle`                                  | Stop                                                                       |
+| `action_completed` | *(restores previous)*                   | PostToolUse (any tool)                                                     |
+| `falling_asleep`   | *(ignored or removes project)*          | SessionEnd (real terminations only; not sent for `reason: clear`/`resume`) |
+| `dismiss`          | *(removes project unconditionally)*     | UI: Settings → Dismiss Pet                                                 |
 
-> `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation (4s, frame count per the pet's manifest) and auto-transitions back to idle CSS.
+> `awaken` does not change server state — the server stays in `idle` and sends `rendererState: 'waking_up'` to the
+> renderer, which plays the one-shot animation (4s, frame count per the pet's manifest) and auto-transitions back to
+> idle
+> CSS.
 
-> `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from `waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it re-affirms the current state. In idle, it is ignored — unless the event carries `agentId` (forwarded from the hook's `agent_id` stdin field, present only for tool calls made inside a subagent): then the pet wakes back to `working`/`planning`, so background subagents that outlive the main agent's turn keep the pet animated. Untagged events stay ignored in idle so a main-agent tool completion racing in after Stop can't wake the pet with no later Stop to re-idle it. See `docs/background-subagents-investigation.md`.
+> `on-post-tool-use.js` sends `action_completed` for every tool completion. The server restores the pet from
+`waiting_for_action` to its previous active state (`working` or `planning`) via `lastActiveEvent`. In active states, it
+> re-affirms the current state. In idle, it is ignored — unless the event carries `agentId` (forwarded from the hook's
+`agent_id` stdin field, present only for tool calls made inside a subagent): then the pet wakes back to `working`/
+`planning`, so background subagents that outlive the main agent's turn keep the pet animated. Untagged events stay
+> ignored in idle so a main-agent tool completion racing in after Stop can't wake the pet with no later Stop to re-idle
+> it. See `docs/background-subagents-investigation.md`.
 
-> `falling_asleep` is handled specially by the server: removes the project only in `idle`; ignored in all other states (`working`, `planning`, `waiting_for_action`). The hook itself filters first: `on-session-end.js` reads `reason` from stdin and sends nothing when the session ends in place (`clear` from `/clear`, `resume` from `/resume`/`--continue`) — the pet survives those and the follow-up SessionStart just replays the waking_up animation.
+> `falling_asleep` is handled specially by the server: removes the project only in `idle`; ignored in all other states (
+`working`, `planning`, `waiting_for_action`). The hook itself filters first: `on-session-end.js` reads `reason` from
+> stdin and sends nothing when the session ends in place (`clear` from `/clear`, `resume` from `/resume`/`--continue`) —
+> the pet survives those and the follow-up SessionStart just replays the waking_up animation.
 
-> `dismiss` unconditionally removes the project regardless of current state. It is triggered by the UI Dismiss button (Settings window), not by hooks. `BaseState.onDismiss()` defaults to `removeProject()`, so all states inherit this behavior.
+> `dismiss` unconditionally removes the project regardless of current state. It is triggered by the UI Dismiss button (
+> Settings window), not by hooks. `BaseState.onDismiss()` defaults to `removeProject()`, so all states inherit this
+> behavior.
 
 ## State Machine & Interaction (pet.js)
 
 Four server-side states: `idle`, `working`, `planning`, `waiting_for_action`
 
-`waking_up` is a renderer-only animation — the server stays in `idle` and sends `rendererState: 'waking_up'` to the renderer, which plays the one-shot animation and auto-transitions to idle CSS.
+`waking_up` is a renderer-only animation — the server stays in `idle` and sends `rendererState: 'waking_up'` to the
+renderer, which plays the one-shot animation and auto-transitions to idle CSS.
 
-| State | Frames | Duration | Loops | Auto-transition |
-|-------|--------|----------|-------|-----------------|
-| idle | 4 | 1600ms | yes | — |
-| working | 4 | 1200ms | yes | — |
-| planning | 4 | 1200ms | yes | — |
-| waiting_for_action | 4 | 1600ms | yes | — |
-| *waking_up (renderer-only)* | per manifest (shipped pets: 4; in-code fallback in `pet.js`: 20) | 4000ms | no | → idle (4000ms) |
+| State                       | Frames                                                           | Duration | Loops | Auto-transition |
+|-----------------------------|------------------------------------------------------------------|----------|-------|-----------------|
+| idle                        | 4                                                                | 1600ms   | yes   | —               |
+| working                     | 4                                                                | 1200ms   | yes   | —               |
+| planning                    | 4                                                                | 1200ms   | yes   | —               |
+| waiting_for_action          | 4                                                                | 1600ms   | yes   | —               |
+| *waking_up (renderer-only)* | per manifest (shipped pets: 4; in-code fallback in `pet.js`: 20) | 4000ms   | no    | → idle (4000ms) |
 
 - **Debounce**: 300ms — rapid state changes collapse to the latest event
-- **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit → working/planning)
-- **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send `planning_started` instead of `working_started`
-- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: only IdleState removes the project; all other states (working, planning, waiting_for_action) ignore it via BaseState's default `ignore()` behavior.
-- **Awaken suppression**: implicit via the whitelist pattern — only IdleState overrides `onAwaken()`. All other states inherit `BaseState.ignore()`, so awaken events during any non-idle state are silently ignored. Prevents spurious `SessionStart` (fired after permission prompts / AskQuestion answers) from interrupting work animations.
+- **Active states** (working, planning): loop until explicitly changed by a hook event (Stop → idle, UserPromptSubmit →
+  working/planning)
+- **Plan mode detection**: `on-prompt-submit.js` checks `permission_mode === "plan"` in stdin JSON to send
+  `planning_started` instead of `working_started`
+- **`falling_asleep` handling**: State classes handle `falling_asleep` per-state: only IdleState removes the project;
+  all other states (working, planning, waiting_for_action) ignore it via BaseState's default `ignore()` behavior.
+- **Awaken suppression**: implicit via the whitelist pattern — only IdleState overrides `onAwaken()`. All other states
+  inherit `BaseState.ignore()`, so awaken events during any non-idle state are silently ignored. Prevents spurious
+  `SessionStart` (fired after permission prompts / AskQuestion answers) from interrupting work animations.
 
 ## Key Conventions
 
+- **`src/app` layout**: five subsystem folders — `pet/`, `server/`, `windows/`, `marketplace/`, `core/` — with
+  `main.js` alone at the root. Dependencies point *inward*, `server/`/`windows/` → `pet/` → `core/`: everything may
+  require `core/`, `server/` and `windows/` may require `pet/`, and neither `pet/` nor `core/` may require outward.
+  `pet/` is the domain (registry, catalog, state machine) and holds no I/O transport — that is why `event-server.js`
+  stays in `server/` despite owning the registry singleton: it binds the port and serves `/health` + `/shutdown`,
+  which are process lifecycle, not pet. A new file belongs in the folder whose subsystem owns it; if three subsystems
+  would all want it, it belongs in `core/`. Two paths are load-bearing and must not drift: `main.js`
+  stays at `src/app/main.js` (referenced by `package.json` `"main"` and by `process-manager.js`'s launch path), and
+  `core/process-manager.js` is required by absolute join from `on-session-start.js` / `on-session-end.js`, so moving it
+  silently breaks app launch outside the test suite.
 - All hook scripts exit with `process.stdout.write('{}')` and code 0 — never block Claude Code
-- Project identity in hook payloads comes from `CLAUDE_PROJECT_DIR` (fallback: `process.cwd()`) via `getProjectRoot()` in `send-event.js` — never from the hook's cwd alone, which drifts when a Bash tool call runs `cd` mid-session and would mint phantom pets for subfolders. Pet keying stays one per session (`projectPath::claudePid`); concurrent sessions in the same folder get suffixed labels by design. See `docs/subfolder-pet-investigation.md`.
+- Project identity in hook payloads comes from `CLAUDE_PROJECT_DIR` (fallback: `process.cwd()`) via `getProjectRoot()`
+  in `send-event.js` — never from the hook's cwd alone, which drifts when a Bash tool call runs `cd` mid-session and
+  would mint phantom pets for subfolders. Pet keying stays one per session (`projectPath::claudePid`); concurrent
+  sessions in the same folder get suffixed labels by design. See `docs/subfolder-pet-investigation.md`.
 - Errors in hooks are silently swallowed; the pet is non-intrusive
 - Electron installs lazily on first `SessionStart` via background `npm install` (lock file at `~/.code-pet/installing`)
 - Single instance enforced via `app.requestSingleInstanceLock()` + PID file
 - Renderer uses `contextIsolation: true`, `nodeIntegration: false`
-- Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all workspaces
+- Overlay is click-through (`setIgnoreMouseEvents(true)`), always-on-top at `screen-saver` level, visible on all
+  workspaces
 - `CODE_PET_PORT` env var overrides the default port 31425
-- `USAGE_STORE_TYPE` env var selects the persistence backend (`filesystem` default, `memory` to disable). Skill / MCP events are appended to `~/.code-pet/usage.log` by default.
-- `CODE_PET_TOOL_START_TTL_MS` (default 600000) and `CODE_PET_MAX_PENDING_TOOL_STARTS` (default 50) env vars tune the duration-pairing map in `pet-context.js`; read once at app start, invalid values fall back.
-- `CODE_PET_IDLE_CLEANUP=true` enables the 60 s stale-project sweep that removes projects idle > 3 h (`src/app/pet-registry.js:151`, gated in `src/app/event-server.js`). Default off — projects persist in the registry until the app exits, which can delay the 5 s idle-shutdown trigger on multi-project users.
-- `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables it. Logging is off by default.
-- Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`on-<hook> stdin: ${JSON.stringify(input)}`)` )
-- All runtime flags (sentinel files, env vars, config fields, tunable constants) are catalogued in `docs/feature-flags.md`
+- `USAGE_STORE_TYPE` env var selects the persistence backend (`filesystem` default, `memory` to disable). Skill / MCP /
+  subagent events are appended to `~/.code-pet/usage.log` by default.
+- `CODE_PET_TOOL_START_TTL_MS` (default 600000) and `CODE_PET_MAX_PENDING_TOOL_STARTS` (default 50) env vars tune the
+  duration-pairing map in `pet-context.js`; read once at app start, invalid values fall back.
+- `CODE_PET_IDLE_CLEANUP=true` enables the 60 s stale-project sweep that removes projects idle > 3 h (
+  `src/app/pet/pet-registry.js:151`, gated in `src/app/server/event-server.js`). Default off — projects persist in the registry
+  until the app exits, which can delay the 5 s idle-shutdown trigger on multi-project users.
+- `touch ~/.code-pet/debug` enables file logging (`code-pet.log` and `hooks-debug.log`); `rm ~/.code-pet/debug` disables
+  it. Logging is off by default.
+- Hook scripts that read stdin log the full JSON to `~/.code-pet/hooks-debug.log` for debugging (e.g. `debugLog(`
+  on-<hook> stdin: ${JSON.stringify(input)}`)` )
+- All runtime flags (sentinel files, env vars, config fields, tunable constants) are catalogued in
+  `docs/feature-flags.md`
 
 ## Runtime State (all in `~/.code-pet/`)
 
-| File | Purpose |
-|------|---------|
-| `app.pid` | Running Electron process PID |
-| `code-pet.log` | Structured app log (1MB, truncated on overflow) |
-| `app.log` | Electron stdout/stderr |
-| `install.log` | npm install output |
-| `installing` | Lock file during npm install (contains PID, stale after 10min) |
-| `hooks-debug.log` | Timestamped log of all hook events sent via `send-event.js` + full stdin JSON from each hook |
-| `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId) |
-| `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog |
-| `license.json` | Activated license key, owned pets, validation timestamp |
-| `pets/{id}/` | Downloaded marketplace pets (sprites + manifest + icon, plaintext). Lives outside the plugin dir so purchases survive `claude plugin upgrade`. Missing-but-owned pets are redownloaded on startup using `license.json`. |
-| `usage.log` | Append-only NDJSON log of skill / MCP tool events. One JSON object per line. Grows unbounded by design (cross-session analytics). Disable with `USAGE_STORE_TYPE=memory`. |
+| File               | Purpose                                                                                                                                                                                                                 |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app.pid`          | Running Electron process PID                                                                                                                                                                                            |
+| `code-pet.log`     | Structured app log (1MB, truncated on overflow)                                                                                                                                                                         |
+| `app.log`          | Electron stdout/stderr                                                                                                                                                                                                  |
+| `install.log`      | npm install output                                                                                                                                                                                                      |
+| `installing`       | Lock file during npm install (contains PID, stale after 10min)                                                                                                                                                          |
+| `hooks-debug.log`  | Timestamped log of all hook events sent via `send-event.js` + full stdin JSON from each hook                                                                                                                            |
+| `marketplace.json` | Marketplace API configuration (baseUrl, apiKey, marketplaceId)                                                                                                                                                          |
+| `product-map.json` | Cached productId ↔ petId mapping from marketplace catalog                                                                                                                                                               |
+| `license.json`     | Activated license key, owned pets, validation timestamp                                                                                                                                                                 |
+| `pets/{id}/`       | Downloaded marketplace pets (sprites + manifest + icon, plaintext). Lives outside the plugin dir so purchases survive `claude plugin upgrade`. Missing-but-owned pets are redownloaded on startup using `license.json`. |
+| `usage.log`        | Append-only NDJSON log of skill / MCP tool / subagent events. One JSON object per line. Grows unbounded by design (cross-session analytics). Disable with `USAGE_STORE_TYPE=memory`.                                    |
 
 ## Testing
 
@@ -258,8 +409,13 @@ test/
     mock-modules.js         # Require cache mocking for logger, settings-store
     mock-context.js         # Mock PetContext for testing states in isolation
     test-http-server.js     # Records HTTP requests for hook contract tests
-  unit/
-    state-machine/          # One test file per state class
+  unit/                     # mirrors the src/app subsystem folders
+    pet/
+      pet-registry.test.js
+      pet-catalog.test.js
+    server/
+      event-server.test.js
+    state-machine/          # One test file per state class (kept at unit/ root, not nested under pet/)
       idle-state.test.js
       working-state.test.js
       planning-state.test.js
@@ -267,22 +423,26 @@ test/
       active-state.test.js
       state-factory.test.js
       pet-context.test.js
+    windows/
+      report-window.test.js
+      window-manager.test.js
+    marketplace/
+      marketplace-api.test.js
+      marketplace-config.test.js
+      premium-store.test.js
+      http-client.test.js
     tracking/
       usage-event.test.js
       usage-tracker.test.js
       usage-store.test.js
       memory-store.test.js
       filesystem-store.test.js
-    pet-registry.test.js
-    report-window.test.js
-    pet-catalog.test.js
-    premium-store.test.js
-    event-server.test.js
-    http-client.test.js
-    marketplace-api.test.js
-    marketplace-config.test.js
+      usage-analytics.test.js
+      file-activity.test.js
+      transcript-reader.test.js
   integration/
     hook-prompt-submit.test.js
+    hook-pre-tool-use.test.js
     hook-post-tool-use.test.js
     hook-stop.test.js
     hook-notification.test.js
@@ -295,7 +455,8 @@ test/
 - **`sut`** — always name the system under test `sut`
 - **`// GIVEN // WHEN // THEN`** — every test uses these section comments
 - **Test names** — describe behavior: `"transitions to working when working_started received"`
-- **State tests use mock context** — instantiate the state class directly with `createMockContext()`, not through PetContext
+- **State tests use mock context** — instantiate the state class directly with `createMockContext()`, not through
+  PetContext
 - **`pet-context.test.js`** — tests the full orchestration (PetContext + StateFactory + States together)
 - **Integration tests** — spawn real child processes and HTTP servers, test the stdin → HTTP contract
 - **Mock only external deps** — `logger`, `electron`, `settings-store`. Use real instances of own classes.
@@ -313,17 +474,25 @@ claude --plugin-dir /path/to/code-pet
 # Run Electron manually (after npm install)
 npx electron src/app/main.js
 
-# Send an event to the running pet (defaults to awaken)
-./test.sh                    # sends awaken
-./test.sh working_started    # sends working_started
+# Send an event to the running pet
+curl -s -X POST http://127.0.0.1:31425/event -H 'Content-Type: application/json' \
+  -d '{"event":"working_started","project":"/tmp/demo"}'
 ```
 
 ## Sprite Format
 
-Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's `manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
+Each sprite is a horizontal strip of 64×64px frames (PNG or SVG) with transparent background. All sprite strips must be
+exactly `frameSize × frameCount` pixels wide (e.g., 256×64 for 4 frames at 64px). Frame counts are defined in each pet's
+`manifest.json`. CSS in `pet-styles.js` uses `background-position` with `steps(N)` to animate.
 
 Each pet directory includes an `icon.png` (64×64) cropped from the first frame of `idle.png`. Pets live in two roots:
-- **Shipped** (bird, cat, dog): `assets/pets/{id}/` inside the plugin dir. Replaced by `claude plugin upgrade`.
-- **Downloaded** (anything from the marketplace): `~/.code-pet/pets/{id}/` under the user data dir. Survives plugin upgrade/reinstall.
 
-`PetCatalog.scan()` is called once per root at startup. Later-root entries overlay earlier on id collision. The renderer reads each manifest's pre-built `_dirUrl` (computed in main via `pathToFileURL` so Windows paths round-trip correctly) and appends the sprite/sound/icon filename — shipped vs downloaded is invisible to the renderer. If an owned pet is missing from `~/.code-pet/pets/` on startup (e.g. the user wiped the dir), the recovery loop in `main.js` redownloads it from the marketplace using the persisted license.
+- **Shipped** (bird, cat, dog): `assets/pets/{id}/` inside the plugin dir. Replaced by `claude plugin upgrade`.
+- **Downloaded** (anything from the marketplace): `~/.code-pet/pets/{id}/` under the user data dir. Survives plugin
+  upgrade/reinstall.
+
+`PetCatalog.scan()` is called once per root at startup. Later-root entries overlay earlier on id collision. The renderer
+reads each manifest's pre-built `_dirUrl` (computed in main via `pathToFileURL` so Windows paths round-trip correctly)
+and appends the sprite/sound/icon filename — shipped vs downloaded is invisible to the renderer. If an owned pet is
+missing from `~/.code-pet/pets/` on startup (e.g. the user wiped the dir), the recovery loop in `main.js` redownloads it
+from the marketplace using the persisted license.

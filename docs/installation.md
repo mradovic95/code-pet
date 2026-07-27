@@ -122,7 +122,7 @@ provided `npm install` has finished by then.
 
 ### Step 2.6 — Launch Electron (subsequent SessionStart)
 
-Once `bootstrap()` returns `{ ready: true }`, the hook lazy-requires `src/app/process-manager.js` and calls
+Once `bootstrap()` returns `{ ready: true }`, the hook lazy-requires `src/app/core/process-manager.js` and calls
 `pm.isRunning()` (`process-manager.js:84-94`):
 
 1. HTTP `GET http://127.0.0.1:31425/health` with 1s timeout. If 200 → already running.
@@ -149,7 +149,7 @@ If not running, `pm.launchApp(PLUGIN_ROOT)` (`process-manager.js:106-141`):
 
 ### Step 2.8 — HTTP event server
 
-`src/app/event-server.js` listens on `127.0.0.1:31425` (override with `CODE_PET_PORT`). Routes:
+`src/app/server/event-server.js` listens on `127.0.0.1:31425` (override with `CODE_PET_PORT`). Routes:
 
 | Method | Path          | Purpose                                                                                                               |
 |--------|---------------|-----------------------------------------------------------------------------------------------------------------------|
@@ -192,7 +192,7 @@ For the full event matrix and per-state behavior, see [`hook-table.md`](./hook-t
 | `app.log`          | `process-manager.js:117-119`             | Electron stdout/stderr (append, no rotation)                   |
 | `install.log`      | `bootstrap.js:54-55`                     | npm install output                                             |
 | `installing`       | `bootstrap.js:48`                        | Bootstrap lock (stale at 10 min)                               |
-| `code-pet.log`     | `src/app/logger.js`                      | Structured app log (1 MB ring)                                 |
+| `code-pet.log`     | `src/app/core/logger.js`                      | Structured app log (1 MB ring)                                 |
 | `hooks-debug.log`  | `send-event.js` debug path               | Per-hook event log; only written if `~/.code-pet/debug` exists |
 | `marketplace.json` | User-provided                            | API URL, key, marketplace ID for premium pets                  |
 | `product-map.json` | `marketplace-api.js`                     | Cached productId ↔ petId map                                   |
@@ -280,7 +280,7 @@ The simplest case. Nothing about Electron changes.
 2. The user keeps working in their open Claude Code session.
 3. Claude Code fires `Stop` → spawns `node hooks/scripts/on-stop.js` → **this is the new script**, runs immediately.
 4. The new script HTTP-POSTs `work_finished` to the old Electron on `127.0.0.1:31425`.
-5. Old Electron handles the event with old `src/app/event-server.js` code. That's fine because the wire protocol (event
+5. Old Electron handles the event with old `src/app/server/event-server.js` code. That's fine because the wire protocol (event
    names, JSON shape) didn't change.
 6. **Result:** new hooks active, old Electron still running. No restart needed.
 
@@ -288,7 +288,7 @@ The simplest case. Nothing about Electron changes.
 
 This is the case where you need to know what's happening.
 
-1. **Update lands.** `/plugin update code-pet` swaps files. `src/app/event-server.js` is now v2 on disk. The running
+1. **Update lands.** `/plugin update code-pet` swaps files. `src/app/server/event-server.js` is now v2 on disk. The running
    Electron still has v1 loaded in memory.
 2. **User starts a new Claude Code session** in the same project (or any project).
 3. Claude Code fires `SessionStart` → runs the **new** `hooks/scripts/on-session-start.js`.

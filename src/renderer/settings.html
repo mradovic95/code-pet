@@ -15,11 +15,13 @@
     <button class="tab active" data-tab="general">General</button>
     <button class="tab" data-tab="store" id="tab-btn-store" style="display:none;">Store</button>
     <button class="tab" data-tab="usage" id="tab-btn-usage" style="display:none;">Usage</button>
+    <button class="tab" data-tab="files" id="tab-btn-files" style="display:none;">Files</button>
   </div>
   <div class="content">
     <div id="tab-general" class="tab-content"></div>
     <div id="tab-store" class="tab-content" style="display:none;"></div>
     <div id="tab-usage" class="tab-content" style="display:none;"></div>
+    <div id="tab-files" class="tab-content" style="display:none;"></div>
   </div>
   <div class="settings-footer">
     <span id="version-text"></span>
@@ -27,6 +29,7 @@
     <a id="github-link" class="footer-link">GitHub</a>
   </div>
   <script src="../tracking/usage-analytics.js"></script>
+  <script src="../tracking/file-activity.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

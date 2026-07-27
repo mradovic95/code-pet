@@ -55,6 +55,18 @@ describe('UsageEvent', () => {
     assert.equal(json.agentId, 'agent-1');
   });
 
+  it('stores agentType when provided via extra', () => {
+    // GIVEN
+    const extra = { agentId: 'agent-1', agentType: 'Explore' };
+
+    // WHEN
+    const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p', extra);
+
+    // THEN
+    assert.equal(sut.agentType, 'Explore');
+    assert.equal(sut.toJSON().agentType, 'Explore');
+  });
+
   it('omits extra fields from toJSON when not provided', () => {
     // GIVEN / WHEN
     const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p');
@@ -63,11 +75,12 @@ describe('UsageEvent', () => {
     const json = sut.toJSON();
     assert.ok(!('durationMs' in json));
     assert.ok(!('agentId' in json));
+    assert.ok(!('agentType' in json));
   });
 
-  it('ignores non-finite durationMs and empty agentId', () => {
+  it('ignores non-finite durationMs, empty agentId, and non-string agentType', () => {
     // GIVEN
-    const extra = { durationMs: NaN, agentId: '' };
+    const extra = { durationMs: NaN, agentId: '', agentType: 42 };
 
     // WHEN
     const sut = new UsageEvent('skill', 'commit', 'sess-1', '/p', extra);
@@ -75,6 +88,7 @@ describe('UsageEvent', () => {
     // THEN
     assert.equal(sut.durationMs, undefined);
     assert.equal(sut.agentId, undefined);
+    assert.equal(sut.agentType, undefined);
   });
 
   it('is frozen with extra fields present', () => {

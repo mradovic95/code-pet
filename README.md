@@ -41,8 +41,8 @@ _See [CHANGELOG.md](CHANGELOG.md) for recent changes._
 - **Zero friction.** Fully transparent, click-through, always-on-top. It
   never steals focus and never interrupts your flow.
 - **[See what you actually use.](#see-what-you-actually-use)** A private,
-  local log of every skill and MCP tool you call — find which ones you
-  actually depend on and which you forgot you installed.
+  local log of every skill, MCP tool, and subagent you call — find which
+  ones you actually depend on and which you forgot you installed.
 
 ## Install
 
@@ -117,11 +117,14 @@ truly idle.
 
 > 🔒 **Privacy:** All usage data lives only at `~/.code-pet/usage.log`. Code Pet has no telemetry and makes no network calls.
 
-Code Pet keeps a private, local log of every skill and MCP tool you call,
-visible in **Settings → Usage** (double-click the pet). Find out:
+Code Pet keeps a private, local log of every skill, MCP tool, and subagent
+spawn, visible in **Settings → Usage** (double-click the pet). Find
+out:
 
 - which skills you reach for most often
 - which MCP servers you actually depend on (and which you forgot you installed)
+- which subagents do your heavy lifting, how long they run, and which
+  skills and tools ran inside them
 - a chronological log of every tool call this session
 
 <div align="center">
@@ -129,9 +132,9 @@ visible in **Settings → Usage** (double-click the pet). Find out:
 </div>
 
 Click **View Report** for the full picture: activity by day, week, or month,
-top skills and MCP tools, dormant candidates, tools that are often used
-together, and duration stats switchable between average, median, max, and
-min. Save it as a self-contained HTML page — charts and toggles keep working
+top skills, MCP tools, and agents, dormant candidates, tools that are often
+used together, and duration stats switchable between average, median, max,
+and min. Save it as a self-contained HTML page — charts and toggles keep working
 offline — or as markdown.
 
 <div align="center">

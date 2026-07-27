@@ -1,12 +1,13 @@
 'use strict';
 
-const { setupMocks } = require('../../helpers/mock-modules');
+const { setupMocks, mockSettingsStore } = require('../../helpers/mock-modules');
 setupMocks();
+mockSettingsStore();
 
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-const PetContext = require('../../../src/app/state-machine/pet-context');
+const PetContext = require('../../../src/app/pet/state-machine/pet-context');
 
 describe('PetContext', () => {
   let sut;
@@ -131,6 +132,87 @@ describe('PetContext', () => {
     // THEN
     const snap = sut.getUsageSnapshot();
     assert.equal(snap.skills['commit'], 1);
+  });
+
+  it('records subagent usage with the agent type as name for the Task tool', () => {
+    // GIVEN
+    const seen = [];
+    const ctx = new PetContext('proj', 'dog', { store: { append: (e) => seen.push(e) } });
+
+    // WHEN
+    ctx.recordToolUsage('Task', { subagent_type: 'code-reviewer', prompt: 'review this' });
+
+    // THEN
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].type, 'subagent');
+    assert.equal(seen[0].name, 'code-reviewer');
+  });
+
+  it('records subagent usage for the Agent tool name too', () => {
+    // GIVEN
+    const seen = [];
+    const ctx = new PetContext('proj', 'dog', { store: { append: (e) => seen.push(e) } });
+
+    // WHEN
+    ctx.recordToolUsage('Agent', { subagent_type: 'Explore' });
+
+    // THEN
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].type, 'subagent');
+    assert.equal(seen[0].name, 'Explore');
+  });
+
+  it('falls back to unknown when a subagent spawn carries no subagent_type', () => {
+    // GIVEN
+    const seen = [];
+    const ctx = new PetContext('proj', 'dog', { store: { append: (e) => seen.push(e) } });
+
+    // WHEN
+    ctx.recordToolUsage('Task', { prompt: 'do something' });
+
+    // THEN
+    assert.equal(seen[0].type, 'subagent');
+    assert.equal(seen[0].name, 'unknown');
+  });
+
+  it('forwards durationMs and agentId on subagent events', () => {
+    // GIVEN
+    const seen = [];
+    const ctx = new PetContext('proj', 'dog', { store: { append: (e) => seen.push(e) } });
+
+    // WHEN
+    ctx.recordToolUsage('Task', { subagent_type: 'Plan' }, { durationMs: 1200, agentId: 'agent-9' });
+
+    // THEN
+    assert.equal(seen[0].durationMs, 1200);
+    assert.equal(seen[0].agentId, 'agent-9');
+  });
+
+  it('forwards agentType on events recorded inside a subagent', () => {
+    // GIVEN
+    const seen = [];
+    const ctx = new PetContext('proj', 'dog', { store: { append: (e) => seen.push(e) } });
+
+    // WHEN
+    ctx.recordToolUsage('Skill', { skill: 'commit' }, { agentId: 'agent-9', agentType: 'Explore' });
+
+    // THEN
+    assert.equal(seen[0].agentId, 'agent-9');
+    assert.equal(seen[0].agentType, 'Explore');
+  });
+
+  it('never records built-in tools (Read, Bash, Edit, …)', () => {
+    // GIVEN
+    const seen = [];
+    const ctx = new PetContext('proj', 'dog', { store: { append: (e) => seen.push(e) } });
+
+    // WHEN
+    ctx.recordToolUsage('Read', { file_path: '/tmp/a' });
+    ctx.recordToolUsage('Bash', { command: 'ls' });
+    ctx.recordToolUsage('Edit', { file_path: '/tmp/a' });
+
+    // THEN
+    assert.equal(seen.length, 0);
   });
 
   it('forwards tool usage to the injected store', () => {
@@ -275,9 +357,9 @@ describe('PetContext', () => {
   });
 
   function requireFreshPetContext() {
-    const resolved = require.resolve('../../../src/app/state-machine/pet-context');
+    const resolved = require.resolve('../../../src/app/pet/state-machine/pet-context');
     delete require.cache[resolved];
-    const FreshPetContext = require('../../../src/app/state-machine/pet-context');
+    const FreshPetContext = require('../../../src/app/pet/state-machine/pet-context');
     delete require.cache[resolved]; // keep the shared cached copy for other tests
     return FreshPetContext;
   }
