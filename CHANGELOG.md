@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-27
+
 ### Added
 - **Files** tab in Settings: an on-demand view of which files and directories
   a project's Claude Code sessions read and edited most. Sourced by parsing the
